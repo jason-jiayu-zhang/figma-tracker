@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Figma Tracker — Activity Dashboard</title>
+  <meta name="description" content="GitHub-style Figma usage tracker with version history, timestamps, and daily edit counts." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-brand">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="7" height="7" rx="1.5" fill="#A259FF"/>
+          <rect x="13" y="4" width="7" height="7" rx="3.5" fill="#F24E1E"/>
+          <rect x="4" y="13" width="7" height="7" rx="3.5" fill="#0ACF83"/>
+          <circle cx="16.5" cy="16.5" r="3.5" fill="#1ABCFE"/>
+          <rect x="4" y="13" width="7" height="7" rx="1.5" fill="#FF7262"/>
+        </svg>
+        <span class="brand-name">figma<span class="brand-accent">tracker</span></span>
+      </div>
+      <div class="topbar-user" id="user-info">
+        <span class="user-handle" id="user-handle">—</span>
+        <img class="user-avatar" id="user-avatar" src="" alt="avatar" />
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- STATS BAR -->
+    <section class="stats-bar" id="stats-bar">
+      <div class="stat-card">
+        <span class="stat-value" id="stat-files">—</span>
+        <span class="stat-label">Files tracked</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-versions">—</span>
+        <span class="stat-label">Total versions</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-today">—</span>
+        <span class="stat-label">Edits today</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value" id="stat-last-sync">—</span>
+        <span class="stat-label">Last sync</span>
+      </div>
+      <div class="stat-actions">
+        <button class="btn-sync" id="btn-sync" onclick="triggerSync()">
+          <span class="sync-icon">↻</span> Sync Now
+        </button>
+      </div>
+    </section>
+
+    <!-- ACTIVITY HEATMAP -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Activity</h2>
+        <div style="display:flex;align-items:center;gap:16px;">
+          <span class="panel-subtitle" id="heatmap-subtitle"></span>
+          <div class="toggle-group" id="activity-toggle">
+            <button class="toggle-btn active" id="btn-mine" onclick="setFilter(true)">My Edits</button>
+            <button class="toggle-btn" id="btn-all" onclick="setFilter(false)">All Edits</button>
+          </div>
+        </div>
+      </div>
+      <div class="heatmap-wrap">
+        <div class="heatmap-months" id="heatmap-months"></div>
+        <div class="heatmap-grid-wrap">
+          <div class="heatmap-days">
+            <span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span>
+          </div>
+          <div class="heatmap-grid" id="heatmap-grid"></div>
+        </div>
+      </div>
+      <div class="heatmap-legend">
+        <span>Less</span>
+        <div class="legend-box" data-level="0"></div>
+        <div class="legend-box" data-level="1"></div>
+        <div class="legend-box" data-level="2"></div>
+        <div class="legend-box" data-level="3"></div>
+        <div class="legend-box" data-level="4"></div>
+        <span>More</span>
+      </div>
+    </section>
+
+    <!-- FILES TABLE -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Tracked Files</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="files-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Team / Project</th>
+              <th>Versions</th>
+              <th>Last Modified</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="files-tbody">
+            <tr><td colspan="5" class="empty-row">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VERSION TIMELINE (shown when a file is clicked) -->
+    <section class="panel" id="timeline-panel" style="display:none;">
+      <div class="panel-header">
+        <h2 class="panel-title">Version History — <span id="timeline-file-name"></span></h2>
+        <button class="btn-close" onclick="closeTimeline()">✕ Close</button>
+      </div>
+      <div class="timeline" id="timeline-list"></div>
+    </section>
+
+    <!-- SYNC HISTORY -->
+    <section class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Sync History</h2>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" id="sync-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Files Synced</th>
+              <th>New Versions</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="sync-tbody">
+            <tr><td colspan="4" class="empty-row">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
