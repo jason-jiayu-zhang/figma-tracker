@@ -5,11 +5,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 :root {
-  --bg: #0a0a0a;
-  --card: rgba(22, 27, 34, 0.6);
-  --border: rgba(255, 255, 255, 0.08);
-  --text: #f0f6fc;
-  --text-muted: #8b949e;
+  --bg: #a8a8a8;
+  --card: #F5F5F5;
+  --text: #181818;
+  --text-muted: #a8a8a8;
   --font: 'Inter', system-ui, -apple-system, sans-serif;
 
   /* Figma brand colors */
@@ -19,7 +18,11 @@
   --figma-red: #F24E1E;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 body {
   background: transparent;
@@ -34,10 +37,7 @@ body {
 .embed-container {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  overflow: hidden;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  overflow: visible;
 }
 
 /* ── Header ────────────────────────────────────────── */
@@ -65,7 +65,7 @@ body {
 
 /* ── Heatmap ───────────────────────────────────────── */
 .heatmap-wrap {
-  padding: 20px;
+  padding: 0px 20px 20px;
   overflow-x: auto;
 }
 
@@ -113,7 +113,7 @@ body {
   width: 11px;
   height: 11px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #e4e4e4;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   position: relative;
 }
@@ -123,15 +123,37 @@ body {
   z-index: 10;
 }
 
-.hm-cell[data-level="1"] { background: var(--figma-green); }
-.hm-cell[data-level="2"] { background: var(--figma-blue); }
-.hm-cell[data-level="3"] { background: var(--figma-purple); }
-.hm-cell[data-level="4"] { background: var(--figma-red); }
+.hm-cell[data-level="1"] {
+  background: var(--figma-green);
+}
 
-.hm-cell[data-level="1"]:hover { box-shadow: 0 0 8px var(--figma-green); }
-.hm-cell[data-level="2"]:hover { box-shadow: 0 0 8px var(--figma-blue); }
-.hm-cell[data-level="3"]:hover { box-shadow: 0 0 8px var(--figma-purple); }
-.hm-cell[data-level="4"]:hover { box-shadow: 0 0 8px var(--figma-red); }
+.hm-cell[data-level="2"] {
+  background: var(--figma-blue);
+}
+
+.hm-cell[data-level="3"] {
+  background: var(--figma-purple);
+}
+
+.hm-cell[data-level="4"] {
+  background: var(--figma-red);
+}
+
+.hm-cell[data-level="1"]:hover {
+  box-shadow: 0 0 8px var(--figma-green);
+}
+
+.hm-cell[data-level="2"]:hover {
+  box-shadow: 0 0 8px var(--figma-blue);
+}
+
+.hm-cell[data-level="3"]:hover {
+  box-shadow: 0 0 8px var(--figma-purple);
+}
+
+.hm-cell[data-level="4"]:hover {
+  box-shadow: 0 0 8px var(--figma-red);
+}
 
 /* ── Tooltip ───────────────────────────────────────── */
 .hm-cell::after {
@@ -140,7 +162,7 @@ body {
   bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
-  background: #1a1a2e;
+  background: #EBEBEB;
   color: var(--text);
   padding: 4px 8px;
   border-radius: 6px;
@@ -161,7 +183,7 @@ body {
 .heatmap-footer {
   padding: 10px 20px 16px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .heatmap-legend {
@@ -180,17 +202,39 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.04);
+  background: #e4e4e4;
 }
-.legend-box[data-level="1"] { background: var(--figma-green); }
-.legend-box[data-level="2"] { background: var(--figma-blue); }
-.legend-box[data-level="3"] { background: var(--figma-purple); }
-.legend-box[data-level="4"] { background: var(--figma-red); }
+
+.legend-box[data-level="1"] {
+  background: var(--figma-green);
+}
+
+.legend-box[data-level="2"] {
+  background: var(--figma-blue);
+}
+
+.legend-box[data-level="3"] {
+  background: var(--figma-purple);
+}
+
+.legend-box[data-level="4"] {
+  background: var(--figma-red);
+}
 
 /* ── Scrollbar ─────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
 
 /* ── Loading state ─────────────────────────────────── */
 .loading-state {
@@ -213,5 +257,7 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
