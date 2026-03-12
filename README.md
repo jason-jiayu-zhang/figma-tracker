@@ -4,6 +4,7 @@ A sleek, GitHub-style activity tracker for Figma files. This application monitor
 
 ## To-do
 
+- Polish UI
 - Convert frontend to React TSX
 - Add onboarding and login
 - Limit-test API call rate
@@ -14,7 +15,6 @@ A sleek, GitHub-style activity tracker for Figma files. This application monitor
 - **Automated Syncing**: Background services fetch new versions every minute (paginated) and perform a full sweep daily.
 - **Multi-File Tracking**: Monitor multiple Figma files simultaneously.
 - **Detailed History**: Tracks version labels, descriptions, and the designers who made the changes.
-- **Lightweight Frontend**: Clean, responsive UI built with Vanilla JS and CSS.
 - **Embeddable**: Includes an embeddable script to show your activity on other sites.
 
 ## Tech Stack
