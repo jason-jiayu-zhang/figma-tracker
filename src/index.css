@@ -2,7 +2,7 @@
    Figma Tracker — Premium Linear Dark Theme
    ====================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
   --bg: #030407;
@@ -15,10 +15,14 @@
   --accent: #6366f1;
   --accent-glow: rgba(99, 102, 241, 0.3);
   --accent-hover: #818cf8;
-  --green: #22c55e;
+  --green: #0acf83;
+  --blue: #1abcfe;
+  --purple: #a259ff;
+  --orange: #f24e1e;
   --red: #ef4444;
   --radius: 12px;
-  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Inter', system-ui, sans-serif;
   --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
@@ -28,16 +32,20 @@ body {
   background: var(--bg);
   background-image: radial-gradient(circle at 50% -20%, #1e1b4b 0%, transparent 50%);
   color: var(--text);
-  font-family: var(--font);
+  font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
 }
 
+h1, h2, h3, .brand-name {
+  font-family: var(--font-display);
+}
+
 /* ── Topbar ─────────────────────────────────────────── */
 .topbar {
-  background: rgba(3, 4, 7, 0.7);
+  background: rgba(3, 4, 7, 0.6);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
@@ -60,9 +68,9 @@ body {
   gap: 12px;
 }
 .brand-name {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
 }
 .brand-accent { color: var(--accent); }
 
@@ -77,11 +85,12 @@ body {
   color: var(--text-muted);
 }
 .user-avatar {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--bg-subtle);
+  object-fit: cover;
 }
 
 /* ── Main layout ────────────────────────────────────── */
@@ -97,7 +106,7 @@ body {
 /* ── Stats ─────────────────────────────────────────── */
 .stats-bar {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 16px;
 }
 .stat-card {
@@ -106,16 +115,18 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 24px;
-  transition: border-color 0.2s, transform 0.2s;
+  transition: border-color 0.2s, transform 0.2s, background-color 0.2s;
 }
 .stat-card:hover { 
   border-color: var(--border-hover);
+  background-color: rgba(255, 255, 255, 0.05);
   transform: translateY(-2px);
 }
 .stat-value {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 32px;
+  font-weight: 700;
   display: block;
+  font-family: var(--font-display);
 }
 .stat-label {
   font-size: 11px;
@@ -123,6 +134,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-top: 4px;
+  font-weight: 600;
 }
 
 .stat-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
@@ -134,11 +146,25 @@ body {
   padding: 10px 24px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
 }
 .btn-sync:hover {
   background: var(--accent-hover);
   box-shadow: 0 0 20px var(--accent-glow);
+}
+.btn-sync:active {
+  transform: scale(0.98);
+}
+.btn-sync.spinning svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ── Panels ─────────────────────────────────────────── */
@@ -147,6 +173,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 .panel-header {
   padding: 20px 24px;
@@ -155,7 +182,7 @@ body {
   justify-content: space-between;
   align-items: center;
 }
-.panel-title { font-size: 15px; font-weight: 600; }
+.panel-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
 
 /* ── Heatmap ─────────────────────────────────────────── */
 .heatmap-wrap {
@@ -186,11 +213,16 @@ body {
   height: 12px;
   border-radius: 2px;
   background: #161b22;
+  transition: transform 0.1s;
 }
-.hm-cell[data-level="1"] { background: #0ACF83; }
-.hm-cell[data-level="2"] { background: #1ABCFE; }
-.hm-cell[data-level="3"] { background: #A259FF; }
-.hm-cell[data-level="4"] { background: #F24E1E; }
+.hm-cell:hover {
+  transform: scale(1.2);
+  z-index: 10;
+}
+.hm-cell[data-level="1"] { background: var(--green); }
+.hm-cell[data-level="2"] { background: var(--blue); }
+.hm-cell[data-level="3"] { background: var(--purple); }
+.hm-cell[data-level="4"] { background: var(--orange); }
 
 .heatmap-legend {
   padding: 12px 24px 24px;
@@ -202,12 +234,13 @@ body {
   align-items: center;
 }
 .legend-box { width: 10px; height: 10px; border-radius: 2px; background: #161b22; }
-.legend-box[data-level="1"] { background: #0ACF83; }
-.legend-box[data-level="2"] { background: #1ABCFE; }
-.legend-box[data-level="3"] { background: #A259FF; }
-.legend-box[data-level="4"] { background: #F24E1E; }
+.legend-box[data-level="1"] { background: var(--green); }
+.legend-box[data-level="2"] { background: var(--blue); }
+.legend-box[data-level="3"] { background: var(--purple); }
+.legend-box[data-level="4"] { background: var(--orange); }
 
 /* ── Tables ──────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; }
 .data-table th {
   padding: 16px 24px;
@@ -216,17 +249,22 @@ body {
   color: var(--text-muted);
   text-transform: uppercase;
   border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  letter-spacing: 0.05em;
 }
 .data-table td { padding: 16px 24px; border-bottom: 1px solid var(--border); }
+.data-table tr:last-child td { border-bottom: none; }
 .data-table tr:hover td { background: rgba(255,255,255,0.02); }
 
-.file-name { color: var(--accent); font-weight: 500; cursor: pointer; }
+.file-name { color: var(--accent); font-weight: 500; cursor: pointer; transition: color 0.2s; }
+.file-name:hover { color: var(--accent-hover); text-decoration: underline; }
 .badge {
   background: rgba(255,255,255,0.05);
   padding: 4px 10px;
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 /* ── Timeline ─────────────────────────────────────────── */
@@ -254,10 +292,12 @@ body {
   margin-top: 4px;
   position: relative;
   flex-shrink: 0;
+  box-shadow: 0 0 8px var(--accent-glow);
 }
-.timeline-label { font-weight: 600; margin-bottom: 4px; }
-.timeline-desc { color: var(--text-muted); font-size: 13px; }
-.timeline-meta { margin-top: 8px; color: var(--text-muted); font-size: 11px; display: flex; gap: 16px; }
+.timeline-content { flex: 1; }
+.timeline-label { font-weight: 600; margin-bottom: 4px; font-size: 15px; }
+.timeline-desc { color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.timeline-meta { margin-top: 8px; color: var(--text-muted); font-size: 11px; display: flex; gap: 16px; font-weight: 500; }
 
 /* ── Toggles ─────────────────────────────────────────── */
 .toggle-group {
@@ -266,24 +306,50 @@ body {
   border-radius: 8px;
   display: flex;
   gap: 2px;
+  border: 1px solid var(--border);
 }
 .toggle-btn {
   background: transparent;
   color: var(--text-muted);
   border: none;
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-size: 12px;
   border-radius: 6px;
   cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
 }
-.toggle-btn.active { background: var(--card); color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+.toggle-btn:hover:not(.active) {
+  color: var(--text);
+}
+.toggle-btn.active { 
+  background: var(--card); 
+  color: white; 
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2); 
+  border: 1px solid var(--border);
+}
 
-/* ── UI ─────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+/* ── UI Components ───────────────────────────────────── */
+.btn-close {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.btn-close:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
 
+.empty-row { text-align: center; color: var(--text-muted); padding: 48px !important; font-style: italic; }
+
+/* ── Toast ──────────────────────────────────────────── */
 .toast {
   position: fixed;
   bottom: 40px;
@@ -293,7 +359,48 @@ body {
   padding: 16px 24px;
   border-radius: 12px;
   box-shadow: 0 12px 48px rgba(0,0,0,0.5);
-  transform: translateY(100px);
+  transform: translateY(120px);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
 }
+.toast-icon { color: var(--accent); }
 .toast.show { transform: translateY(0); }
+
+/* ── Scrollbar ──────────────────────────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
+
+/* ── Embed Styles ────────────────────────────────────── */
+.embed-container {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.embed-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.embed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.embed-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
