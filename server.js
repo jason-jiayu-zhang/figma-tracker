@@ -3,8 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const cron = require('node-cron');
 const path = require('path');
-const apiRouter = require('./src/routes/api');
-const { runSync, runPageSync } = require('./src/syncService');
+const apiRouter = require('./backend/routes/api');
+const { runSync, runPageSync } = require('./backend/syncService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -12,15 +12,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Serve static frontend
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static frontend from Vite build directory
+app.use(express.static(path.join(__dirname, 'dist')));
 
 // API routes
 app.use('/api', apiRouter);
 
-// Fallback to index.html for any non-API route
+// Fallback to index.html for any non-API route (Client-side routing support)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 // Every 10 seconds: fetch the next page of 30 older versions
