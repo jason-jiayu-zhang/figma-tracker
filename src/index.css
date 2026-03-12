@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ======================================================
    Figma Tracker — Premium Linear Dark Theme
    ====================================================== */
