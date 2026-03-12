@@ -2,7 +2,7 @@
    Figma Tracker — Frontend App Logic
    ============================================================ */
 
-const API = 'http://localhost:3001/api';
+const API = '/api';
 let filterMine = true; // default: show only the authenticated user's edits
 
 // ── Init ──────────────────────────────────────────────────────
