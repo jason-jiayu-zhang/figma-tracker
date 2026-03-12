@@ -2,6 +2,12 @@
 
 A sleek, GitHub-style activity tracker for Figma files. This application monitors your Figma version history, syncs edits to a Supabase database, and provides a visual dashboard of your design activity.
 
+## To-do
+
+- Convert frontend to React TSX
+- Add onboarding and login
+- Limit-test API call rate
+
 ## Features
 
 - **GitHub-Style Contributions**: Visualize your Figma edits over time with an activity heatmap.
