@@ -58,7 +58,7 @@ npm run dev
 ```
 The server will start at `http://localhost:3001`.
 
-## 📂 Project Structure
+## Project Structure
 
 - `server.js`: Main entry point, sets up Express and cron jobs.
 - `src/syncService.js`: Core logic for fetching Figma versions and upserting to Supabase.
@@ -67,7 +67,7 @@ The server will start at `http://localhost:3001`.
 - `public/`: Frontend dashboard and assets.
 - `schema.sql`: Database schema definition.
 
-## 🔄 Sync Logic
+## Sync Logic
 
 - **Page Sync (Every 10s)**: Fetches the next page of 30 older versions for each file until history is complete. Persistent state is tracked in `pagination_state.json`.
 - **Full Sync (Daily at Midnight)**: Performs a full check for any missing version data.
