@@ -1,6 +1,7 @@
 # Figma Activity Tracker
 
-A sleek, GitHub-style activity tracker for Figma files. This application monitors your Figma version history, syncs edits to a Supabase database, and provides a visual dashboard of your design activity.
+GitHub-style activity tracker for Figma files. This application monitors your Figma version history, syncs edits to a Supabase database, and provides a visual dashboard of your design activity.
+https://figma-tracker-production.up.railway.app/
 
 ## To-do
 
