@@ -228,7 +228,7 @@ export default function Embed() {
 
   return (
     <div
-      className="bg-[#f5f5f5] text-[#181818] font-sans p-8 rounded-none border border-[#e0e0e0] flex flex-col gap-4 box-border min-h-screen"
+      className="bg-[#f5f5f5] text-[#181818] font-sans p-8 rounded-none flex flex-col gap-4 box-border min-h-screen"
       style={{ padding: 16 }}
     >
       <EmbedHeader totalEdits={totalEdits} />
