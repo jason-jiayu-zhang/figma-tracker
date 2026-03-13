@@ -6,7 +6,6 @@ https://figma-tracker-production.up.railway.app/
 ## To-do
 
 - Polish UI
-- Convert frontend to React TSX
 - Add onboarding and login
 - Limit-test API call rate
 
