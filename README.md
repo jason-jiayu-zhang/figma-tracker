@@ -27,16 +27,20 @@ https://figma-tracker-production.up.railway.app/
 ## Setup
 
 ### 1. Prerequisites
+
 - A [Supabase](https://supabase.com/) project.
 - A [Figma Personal Access Token](https://www.figma.com/developers/api#access-tokens).
 - Node.js installed locally.
 
 ### 2. Database Initialization
+
 Run the contents of `schema.sql` in your Supabase SQL Editor to create the necessary tables and indexes:
+
 - `users`, `teams`, `figma_files`
 - `file_versions`, `sync_sessions`, `daily_activity`
 
 ### 3. Environment Variables
+
 Create a `.env` file in the root directory:
 
 ```env
@@ -48,14 +52,17 @@ FIGMA_FILE_KEYS=file_key_1,file_key_2
 ```
 
 ### 4. Installation
+
 ```bash
 npm install
 ```
 
 ### 5. Running the App
+
 ```bash
 npm run dev
 ```
+
 The server will start at `http://localhost:3001`.
 
 ## Project Structure

@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { Stats, ActivityData, FigmaFile, FigmaVersion, SyncSession } from './types';
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import {
+  Stats,
+  ActivityData,
+  FigmaFile,
+  FigmaVersion,
+  SyncSession,
+} from "./types";
 
 export function useFigmaData() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -17,7 +23,7 @@ export function useFigmaData() {
         axios.get(`/api/stats?mine=${filterMine}`),
         axios.get(`/api/activity?mine=${filterMine}`),
         axios.get(`/api/files?mine=${filterMine}`),
-        axios.get('/api/sync-history')
+        axios.get("/api/sync-history"),
       ]);
 
       setStats(statsRes.data);
@@ -25,7 +31,7 @@ export function useFigmaData() {
       setFiles(filesRes.data);
       setSyncHistory(historyRes.data);
     } catch (err) {
-      console.error('Failed to fetch Figma data:', err);
+      console.error("Failed to fetch Figma data:", err);
     } finally {
       setLoading(false);
     }
@@ -38,10 +44,10 @@ export function useFigmaData() {
   const triggerSync = async () => {
     setSyncing(true);
     try {
-      await axios.post('/api/sync');
+      await axios.post("/api/sync");
       await fetchData();
     } catch (err) {
-      console.error('Sync failed:', err);
+      console.error("Sync failed:", err);
     } finally {
       setSyncing(false);
     }
@@ -49,10 +55,12 @@ export function useFigmaData() {
 
   const fetchVersions = async (fileKey: string) => {
     try {
-      const res = await axios.get(`/api/versions/${fileKey}?mine=${filterMine}`);
+      const res = await axios.get(
+        `/api/versions/${fileKey}?mine=${filterMine}`,
+      );
       return res.data;
     } catch (err) {
-      console.error('Failed to fetch versions:', err);
+      console.error("Failed to fetch versions:", err);
       return null;
     }
   };
@@ -68,6 +76,6 @@ export function useFigmaData() {
     setFilterMine,
     triggerSync,
     fetchVersions,
-    refresh: fetchData
+    refresh: fetchData,
   };
 }

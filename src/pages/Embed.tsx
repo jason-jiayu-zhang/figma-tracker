@@ -1,7 +1,7 @@
-import React, { useMemo } from 'react';
-import { useFigmaData } from '../useFigmaData';
-import { format } from 'date-fns';
-import Heatmap from '../components/Heatmap';
+import React, { useMemo } from "react";
+import { useFigmaData } from "../useFigmaData";
+import { format } from "date-fns";
+import Heatmap from "../components/Heatmap";
 
 /* ── Types ─────────────────────────────────────────────────── */
 interface TooltipState {
@@ -47,15 +47,15 @@ export default function Embed() {
   const { activity, loading } = useFigmaData();
 
   const totalEdits = useMemo(() => {
-    return activity ? Object.values(activity.dailyTotals).reduce((a, b) => a + b, 0) : 0;
+    return activity
+      ? Object.values(activity.dailyTotals).reduce((a, b) => a + b, 0)
+      : 0;
   }, [activity]);
 
   if (loading && !activity) return null;
 
   return (
-    <div
-      className="bg-[#f5f5f5] text-[#181818] font-sans p-4 rounded-none flex flex-col gap-4 box-border min-h-screen"
-    >
+    <div className="bg-[#f5f5f5] text-[#181818] font-sans p-4 rounded-none flex flex-col gap-4 box-border min-h-screen">
       <EmbedHeader totalEdits={totalEdits} />
       <EmbedContent data={activity?.dailyTotals ?? {}} />
     </div>
