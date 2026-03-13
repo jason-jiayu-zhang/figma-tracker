@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { RefreshCw, X, Clock, FileText, Activity } from 'lucide-react';
+import { RefreshCw, X, Clock, FileText, Activity, Layers, GitCommit, Zap, RotateCcw } from 'lucide-react';
 import { useFigmaData } from '../useFigmaData';
-import { format, subDays, startOfToday, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, subDays, startOfToday, eachDayOfInterval } from 'date-fns';
 import { FigmaFile, FigmaVersion } from '../types';
 
 export default function Dashboard() {
@@ -28,8 +28,6 @@ export default function Dashboard() {
     const data = await fetchVersions(file.file_key);
     if (data) setVersions(data.versions);
     setLoadingVersions(false);
-    
-    // Smooth scroll to timeline
     setTimeout(() => {
       document.getElementById('timeline-panel')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
@@ -42,78 +40,93 @@ export default function Dashboard() {
 
   if (loading && !stats) {
     return (
-      <div className="main" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '50vh' }}>
-        <div className="stat-label">Loading Dashboard...</div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+          <span className="text-[12px] text-[var(--text-muted)] uppercase tracking-[0.12em] font-semibold">Loading Dashboard</span>
+        </div>
       </div>
     );
   }
 
+  const totalEdits = activity ? Object.values(activity.dailyTotals).reduce((a, b) => a + b, 0) : 0;
+
   return (
-    <main className="main">
+    <main className="max-w-[1100px] mx-auto px-6 py-8 flex flex-col gap-6">
+
       {/* STATS BAR */}
-      <section className="stats-bar">
-        <div className="stat-card">
-          <span className="stat-value">{stats?.filesTracked ?? '—'}</span>
-          <span className="stat-label">Files tracked</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{stats?.totalVersions ?? '—'}</span>
-          <span className="stat-label">Total versions</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value">{stats?.editsToday ?? '—'}</span>
-          <span className="stat-label">Edits today</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-value" style={{ fontSize: '14px', marginTop: '12px' }}>
-            {stats?.lastSync ? format(new Date(stats.lastSync), 'MMM d, h:mm a') : '—'}
-          </span>
-          <span className="stat-label">Last sync</span>
-        </div>
-        <div className="stat-actions">
-          <button 
-            className={`btn-sync ${syncing ? 'spinning' : ''}`} 
-            onClick={triggerSync}
-            disabled={syncing}
-          >
-            <RefreshCw size={16} /> {syncing ? 'Syncing...' : 'Sync Now'}
-          </button>
-        </div>
+      <section className="grid grid-cols-4 gap-4">
+        <StatCard
+          value={stats?.filesTracked ?? '—'}
+          label="Files Tracked"
+          icon={<Layers size={16} />}
+          color="var(--accent)"
+        />
+        <StatCard
+          value={stats?.totalVersions ?? '—'}
+          label="Total Versions"
+          icon={<GitCommit size={16} />}
+          color="var(--purple)"
+        />
+        <StatCard
+          value={stats?.editsToday ?? '—'}
+          label="Edits Today"
+          icon={<Zap size={16} />}
+          color="var(--green)"
+        />
+        <StatCard
+          value={stats?.lastSync ? format(new Date(stats.lastSync), 'MMM d, h:mm a') : '—'}
+          label="Last Sync"
+          icon={<RotateCcw size={16} />}
+          color="var(--blue)"
+          small
+        />
       </section>
 
       {/* ACTIVITY HEATMAP */}
-      <section className="panel">
-        <div className="panel-header">
-          <h2 className="panel-title">Activity</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <span className="panel-subtitle">
-              {activity ? `${Object.values(activity.dailyTotals).reduce((a, b) => a + b, 0)} edits in the last year` : ''}
-            </span>
-            <div className="toggle-group">
-              <button 
-                className={`toggle-btn ${filterMine ? 'active' : ''}`} 
-                onClick={() => setFilterMine(true)}
-              >
-                My Edits
-              </button>
-              <button 
-                className={`toggle-btn ${!filterMine ? 'active' : ''}`} 
-                onClick={() => setFilterMine(false)}
-              >
-                All Edits
-              </button>
+      <section className="card overflow-hidden">
+        <div className="section-header">
+          <div className="flex items-center gap-2.5">
+            <div className="section-icon" style={{ background: 'rgba(99,102,241,0.15)', color: 'var(--accent)' }}>
+              <Activity size={14} />
             </div>
+            <h2 className="section-title">Activity</h2>
+            <span className="badge">{totalEdits} edits · last year</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <ToggleGroup
+              value={filterMine}
+              onChange={setFilterMine}
+              options={[
+                { label: 'My Edits', value: true },
+                { label: 'All Edits', value: false },
+              ]}
+            />
+            <button
+              className={`btn-primary ${syncing ? 'spinning' : ''}`}
+              onClick={triggerSync}
+              disabled={syncing}
+            >
+              <RefreshCw size={14} />
+              {syncing ? 'Syncing…' : 'Sync Now'}
+            </button>
           </div>
         </div>
         <Heatmap data={activity?.dailyTotals ?? {}} />
       </section>
 
       {/* FILES TABLE */}
-      <section className="panel">
-        <div className="panel-header">
-          <h2 className="panel-title">Tracked Files</h2>
+      <section className="card overflow-hidden">
+        <div className="section-header">
+          <div className="flex items-center gap-2.5">
+            <div className="section-icon" style={{ background: 'rgba(162,89,255,0.15)', color: 'var(--purple)' }}>
+              <FileText size={14} />
+            </div>
+            <h2 className="section-title">Tracked Files</h2>
+            {files.length > 0 && <span className="badge">{files.length} file{files.length !== 1 ? 's' : ''}</span>}
+          </div>
         </div>
-        <div className="table-wrap">
+        <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
@@ -124,20 +137,24 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {files.map(file => (
-                <tr key={file.id}>
+              {files.map((file, i) => (
+                <tr key={file.id} className={i % 2 === 0 ? 'row-even' : ''}>
                   <td>
-                    <span className="file-name" onClick={() => handleFileClick(file)}>{file.name}</span>
+                    <button className="file-link" onClick={() => handleFileClick(file)}>
+                      {file.name}
+                    </button>
                   </td>
                   <td>
-                    <span className="badge">{file.teamName ?? 'No Team'}</span>
+                    <span className="chip">{file.teamName ?? 'No Team'}</span>
                   </td>
-                  <td>{file.versionCount}</td>
-                  <td>{format(new Date(file.last_modified), 'MMM d, yyyy')}</td>
+                  <td className="tabular-nums">{file.versionCount}</td>
+                  <td className="text-[var(--text-muted)]">{format(new Date(file.last_modified), 'MMM d, yyyy')}</td>
                 </tr>
               ))}
               {files.length === 0 && (
-                <tr><td colSpan={4} className="empty-row">No files tracked yet.</td></tr>
+                <tr>
+                  <td colSpan={4} className="empty-state">No files tracked yet.</td>
+                </tr>
               )}
             </tbody>
           </table>
@@ -146,47 +163,61 @@ export default function Dashboard() {
 
       {/* TIMELINE */}
       {selectedFile && (
-        <section className="panel" id="timeline-panel">
-          <div className="panel-header">
-            <h2 className="panel-title">Version History — {selectedFile.name}</h2>
-            <button className="btn-close" onClick={closeTimeline}>
-              <X size={14} style={{ marginRight: '4px' }} /> Close
+        <section className="card overflow-hidden" id="timeline-panel">
+          <div className="section-header">
+            <div className="flex items-center gap-2.5">
+              <div className="section-icon" style={{ background: 'rgba(26,188,254,0.15)', color: 'var(--blue)' }}>
+                <Clock size={14} />
+              </div>
+              <h2 className="section-title">Version History</h2>
+              <span className="badge">{selectedFile.name}</span>
+            </div>
+            <button className="btn-ghost" onClick={closeTimeline}>
+              <X size={14} /> Close
             </button>
           </div>
-          <div className="timeline">
+          <div className="p-6">
             {loadingVersions ? (
-              <div className="empty-row">Loading versions...</div>
+              <div className="empty-state">Loading versions…</div>
             ) : versions.length > 0 ? (
-              versions.map((v, i) => (
-                <div className="timeline-item" key={v.version_id}>
-                  <div className="timeline-dot" />
-                  <div className="timeline-content">
-                    <div className="timeline-label">{v.label || 'Untitled Version'}</div>
-                    {v.description && <div className="timeline-desc">{v.description}</div>}
-                    <div className="timeline-meta">
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={12} /> {format(new Date(v.created_at), 'MMM d, h:mm a')}
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <FileText size={12} /> by {v.created_by_handle}
-                      </span>
+              <div className="flex flex-col">
+                {versions.map((v, i) => (
+                  <div className="timeline-entry" key={v.version_id}>
+                    <div className="timeline-line" style={{ opacity: i < versions.length - 1 ? 1 : 0 }} />
+                    <div className="timeline-dot" />
+                    <div className="flex-1 pb-6">
+                      <div className="font-semibold text-[15px] mb-1">{v.label || 'Untitled Version'}</div>
+                      {v.description && <div className="text-[var(--text-muted)] text-sm leading-relaxed mb-2">{v.description}</div>}
+                      <div className="flex gap-4 text-[11px] text-[var(--text-muted)] font-medium">
+                        <span className="flex items-center gap-1.5">
+                          <Clock size={11} /> {format(new Date(v.created_at), 'MMM d, h:mm a')}
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <FileText size={11} /> {v.created_by_handle}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
-              <div className="empty-row">No versions found for this filter.</div>
+              <div className="empty-state">No versions found for this filter.</div>
             )}
           </div>
         </section>
       )}
 
       {/* SYNC HISTORY */}
-      <section className="panel">
-        <div className="panel-header">
-          <h2 className="panel-title">Sync History</h2>
+      <section className="card overflow-hidden">
+        <div className="section-header">
+          <div className="flex items-center gap-2.5">
+            <div className="section-icon" style={{ background: 'rgba(10,207,131,0.15)', color: 'var(--green)' }}>
+              <Activity size={14} />
+            </div>
+            <h2 className="section-title">Sync History</h2>
+          </div>
         </div>
-        <div className="table-wrap">
+        <div className="overflow-x-auto">
           <table className="data-table">
             <thead>
               <tr>
@@ -197,45 +228,83 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {syncHistory.map(sync => (
-                <tr key={sync.id}>
+              {syncHistory.map((sync, i) => (
+                <tr key={sync.id} className={i % 2 === 0 ? 'row-even' : ''}>
                   <td>{format(new Date(sync.synced_at), 'MMM d, h:mm a')}</td>
-                  <td>{sync.files_synced}</td>
-                  <td>{sync.new_versions_found}</td>
+                  <td className="tabular-nums">{sync.files_synced}</td>
+                  <td className="tabular-nums">{sync.new_versions_found}</td>
                   <td>
-                    <span className={`badge`} style={{ color: sync.status === 'success' ? 'var(--green)' : 'var(--red)' }}>
-                      {sync.status.toUpperCase()}
+                    <span
+                      className="status-chip"
+                      style={{ color: sync.status === 'success' ? 'var(--green)' : 'var(--red)', background: sync.status === 'success' ? 'rgba(10,207,131,0.1)' : 'rgba(239,68,68,0.1)' }}
+                    >
+                      {sync.status === 'success' ? '✓' : '✗'} {sync.status.toUpperCase()}
                     </span>
                   </td>
                 </tr>
               ))}
               {syncHistory.length === 0 && (
-                <tr><td colSpan={4} className="empty-row">No sync history yet.</td></tr>
+                <tr>
+                  <td colSpan={4} className="empty-state">No sync history yet.</td>
+                </tr>
               )}
             </tbody>
           </table>
         </div>
       </section>
+
     </main>
   );
 }
 
+/* ── Stat Card ─────────────────────────────────────────── */
+function StatCard({ value, label, icon, color, small }: {
+  value: string | number;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  small?: boolean;
+}) {
+  return (
+    <div className="stat-card" style={{ '--card-accent': color } as React.CSSProperties}>
+      <div className="stat-card-icon" style={{ background: `color-mix(in srgb, ${color} 15%, transparent)`, color }}>
+        {icon}
+      </div>
+      <div className={`stat-value ${small ? 'text-xl' : 'text-[36px]'}`}>{value}</div>
+      <div className="stat-label">{label}</div>
+    </div>
+  );
+}
+
+/* ── Toggle Group ──────────────────────────────────────── */
+function ToggleGroup<T>({ value, onChange, options }: {
+  value: T;
+  onChange: (v: T) => void;
+  options: { label: string; value: T }[];
+}) {
+  return (
+    <div className="toggle-group">
+      {options.map(opt => (
+        <button
+          key={String(opt.value)}
+          className={`toggle-btn ${value === opt.value ? 'active' : ''}`}
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ── Heatmap ───────────────────────────────────────────── */
 function Heatmap({ data }: { data: Record<string, number> }) {
-  // Generate 52 weeks of dates
   const today = startOfToday();
   const startDate = subDays(today, 364);
   const days = eachDayOfInterval({ start: startDate, end: today });
 
-  // Group days into weeks
   const weeks: Date[][] = [];
   let currentWeek: Date[] = [];
-  
-  // Pivot to start on Sunday for GitHub style
-  const startOffset = startDate.getDay();
-  for (let i = 0; i < startOffset; i++) {
-    // currentWeek.push(null); // Not needed for simple grid
-  }
-
   days.forEach((day) => {
     if (day.getDay() === 0 && currentWeek.length > 0) {
       weeks.push(currentWeek);
@@ -247,29 +316,51 @@ function Heatmap({ data }: { data: Record<string, number> }) {
 
   const getLevel = (count: number) => {
     if (!count) return 0;
-    if (count < 5) return 1;
-    if (count < 10) return 2;
-    if (count < 20) return 3;
+    if (count < 3) return 1;
+    if (count < 6) return 2;
+    if (count < 10) return 3;
     return 4;
   };
 
+  const monthLabels: { label: string; index: number }[] = [];
+  weeks.forEach((week, i) => {
+    const firstDay = week[0];
+    if (firstDay && firstDay.getDate() <= 7) {
+      const label = format(firstDay, 'MMM');
+      if (!monthLabels.find(m => m.label === label)) {
+        monthLabels.push({ label, index: i });
+      }
+    }
+  });
+
+  const cellColors = ['rgba(255,255,255,0.07)', 'var(--green)', 'var(--blue)', 'var(--purple)', 'var(--red)'];
+
   return (
-    <div className="heatmap-wrap">
-      <div className="heatmap-grid-wrap">
-        <div className="heatmap-days">
+    <div className="px-6 pb-6 pt-2 overflow-x-auto">
+      {/* Month labels */}
+      <div className="relative mb-1.5 ml-7 h-4 text-[10px] text-[var(--text-muted)]">
+        {monthLabels.map((m, i) => (
+          <span key={i} className="absolute" style={{ left: `${m.index * 13}px` }}>{m.label}</span>
+        ))}
+      </div>
+      <div className="flex gap-1">
+        {/* Day labels */}
+        <div className="flex flex-col gap-1 text-[10px] text-[var(--text-muted)] w-7 pt-0.5 leading-[12px]">
           <span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span>
         </div>
-        <div className="heatmap-grid">
+        {/* Grid */}
+        <div className="flex gap-1">
           {weeks.map((week, wi) => (
-            <div className="heatmap-col" key={wi}>
+            <div className="flex flex-col gap-1" key={wi}>
               {week.map((day, di) => {
                 const dateKey = format(day, 'yyyy-MM-dd');
                 const count = data[dateKey] || 0;
+                const level = getLevel(count);
                 return (
-                  <div 
-                    key={di} 
-                    className="hm-cell" 
-                    data-level={getLevel(count)}
+                  <div
+                    key={di}
+                    className="w-3 h-3 rounded-[2px] transition-all duration-150 hover:scale-125 hover:z-10 cursor-default"
+                    style={{ backgroundColor: cellColors[level] }}
                     title={`${count} edits on ${format(day, 'MMM d, yyyy')}`}
                   />
                 );
@@ -278,13 +369,12 @@ function Heatmap({ data }: { data: Record<string, number> }) {
           ))}
         </div>
       </div>
-      <div className="heatmap-legend">
+      {/* Legend */}
+      <div className="mt-3 flex justify-end gap-1.5 items-center text-[11px] text-[var(--text-muted)]">
         <span>Less</span>
-        <div className="legend-box" data-level="0" />
-        <div className="legend-box" data-level="1" />
-        <div className="legend-box" data-level="2" />
-        <div className="legend-box" data-level="3" />
-        <div className="legend-box" data-level="4" />
+        {cellColors.map((c, i) => (
+          <div key={i} className="w-3 h-3 rounded-[2px]" style={{ backgroundColor: c }} />
+        ))}
         <span>More</span>
       </div>
     </div>
