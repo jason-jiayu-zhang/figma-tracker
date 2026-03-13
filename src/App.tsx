@@ -16,8 +16,10 @@ function Header() {
       background: 'rgba(3,4,7,0.75)',
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)',
+      display: 'flex',
+      justifyContent: 'center',
     }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 24px', height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="w-full max-w-[1100px] px-6 py-0 h-[60px] flex items-center justify-between">
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <rect x="4" y="4" width="7" height="7" rx="1.5" fill="#A259FF"/>
