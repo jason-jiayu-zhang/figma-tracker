@@ -40,11 +40,91 @@ async function runSync() {
       );
     }
 
+    // ── 1b. Discover teams, projects and files for the authenticated user ──
+    // If present, automatically expand tracked files to everything in their teams/projects
+    const discoveredFileKeys = new Set();
+    if (me) {
+      try {
+        const teams = await figma.getMyTeams();
+        console.log(`[sync] Discovered ${teams.length} team(s)`);
+        for (const t of teams) {
+          // Upsert team into DB
+          const { data: teamRow } = await supabase
+            .from("teams")
+            .upsert(
+              { figma_team_id: t.id, name: t.name },
+              { onConflict: "figma_team_id" },
+            )
+            .select("id, figma_team_id")
+            .maybeSingle();
+
+          const teamDbId = teamRow ? teamRow.id : null;
+
+          // Get projects for team
+          const projects = await figma.getTeamProjects(t.id);
+          console.log(`[sync] Team ${t.name} — ${projects.length} project(s)`);
+          for (const p of projects) {
+            // Get files for project
+            const files = await figma.getProjectFiles(p.id);
+            console.log(`[sync] Project ${p.name} — ${files.length} file(s)`);
+            for (const f of files) {
+              // file key may be in `key` or `id` depending on response
+              const fileKey = f.key || f.id || f.file_key;
+              if (!fileKey) continue;
+              discoveredFileKeys.add(fileKey);
+
+              // Upsert minimal file record to link to team/project (metadata will be filled later)
+              await supabase.from("figma_files").upsert(
+                {
+                  file_key: fileKey,
+                  name: f.name || null,
+                  team_id: teamDbId,
+                  project_id: p.id,
+                  project_name: p.name || null,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: "file_key" },
+              );
+            }
+            await sleep(300);
+          }
+        }
+      } catch (err) {
+        console.warn(`[sync] Team/project discovery failed: ${err.message}`);
+      }
+    }
+
+    // ── 1c. Discover files directly owned by the user (best-effort) ──────────
+    if (me) {
+      try {
+        const userFiles = await figma.getUserFiles(me.id);
+        console.log(`[sync] Discovered ${userFiles.length} user-owned file(s)`);
+        for (const f of userFiles) {
+          const fileKey = f.key || f.id || f.file_key;
+          if (!fileKey) continue;
+          discoveredFileKeys.add(fileKey);
+
+          // Upsert minimal file record
+          await supabase.from("figma_files").upsert(
+            {
+              file_key: fileKey,
+              name: f.name || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "file_key" },
+          );
+        }
+      } catch (err) {
+        console.warn(`[sync] User-owned file discovery failed: ${err.message}`);
+      }
+    }
+
     // ── 2. Process each file ────────────────────────────────────────────────
-    const fileKeys = (process.env.FIGMA_FILE_KEYS || "")
+    const envKeys = (process.env.FIGMA_FILE_KEYS || "")
       .split(",")
       .map((k) => k.trim())
       .filter(Boolean);
+    const fileKeys = Array.from(new Set([...(envKeys || []), ...(Array.from(discoveredFileKeys) || [])]));
     console.log(
       `[sync] Tracking ${fileKeys.length} file(s): ${fileKeys.join(", ")}`,
     );

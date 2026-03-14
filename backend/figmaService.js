@@ -129,6 +129,59 @@ async function getProjectFiles(projectId) {
   return res.data.files || [];
 }
 
+/**
+ * Get teams the authenticated user is a member of.
+ * Note: Figma's API surface can vary; this tries the common /teams endpoint
+ * and falls back gracefully if unavailable.
+ */
+async function getMyTeams() {
+  await sleep(200);
+  try {
+    const res = await figmaApi.get(`/teams`);
+    return res.data.teams || [];
+  } catch (err) {
+    // Some tokens/orgs may not have this endpoint available; return empty list
+    console.warn("[figma] getMyTeams failed:", err.message);
+    return [];
+  }
+}
+
+/**
+ * Best-effort: get files owned by a user.
+ * Tries a few different Figma API endpoints / patterns and falls back gracefully.
+ */
+async function getUserFiles(userId) {
+  await sleep(200);
+  // Try direct user files endpoint
+  try {
+    const res = await figmaApi.get(`/users/${userId}/files`);
+    if (res.data && res.data.files) return res.data.files;
+  } catch (err) {
+    // ignore and try other methods
+  }
+
+  // Try files query by owner
+  try {
+    const res = await figmaApi.get(`/files`, { params: { owner: userId } });
+    if (res.data && res.data.files) return res.data.files;
+  } catch (err) {
+    // ignore
+  }
+
+  // Try search endpoint (best-effort): attempt queries that some tokens support
+  try {
+    const res = await figmaApi.get(`/search`, {
+      params: { query: `owner:${userId}`, types: "files" },
+    });
+    if (res.data && res.data.files) return res.data.files;
+  } catch (err) {
+    // ignore
+  }
+
+  console.warn(`[figma] getUserFiles: no files discovered for user ${userId}`);
+  return [];
+}
+
 module.exports = {
   getMe,
   getFileVersions,
@@ -136,4 +189,6 @@ module.exports = {
   getFileMeta,
   getTeamProjects,
   getProjectFiles,
+  getMyTeams,
 };
+

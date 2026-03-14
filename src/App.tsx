@@ -2,6 +2,14 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Embed from "./pages/Embed";
+import Files from "./pages/Files";
+import ActivityPage from "./pages/Activity";
+import Insights from "./pages/Insights";
+import Teams from "./pages/Teams";
+import Integrations from "./pages/Integrations";
+import Settings from "./pages/Settings";
+import Sidebar from "./components/Sidebar";
+import ActivityBar from "./components/ActivityBar";
 import { useFigmaData } from "./useFigmaData";
 
 function Header() {
@@ -89,18 +97,27 @@ function Header() {
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Header />
-              <Dashboard />
-            </>
-          }
-        />
-        <Route path="/embed" element={<Embed />} />
-      </Routes>
+      <div className="flex min-h-screen bg-[#f5f5f5]">
+        <Sidebar />
+        <div className="flex-1 flex justify-center pl-[112px]">
+          <div className="w-full max-w-[1100px] p-[28px]">
+            <Header />
+            <main>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/files" element={<Files />} />
+                <Route path="/activity" element={<ActivityPage />} />
+                <Route path="/insights" element={<Insights />} />
+                <Route path="/teams" element={<Teams />} />
+                <Route path="/integrations" element={<Integrations />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/embed" element={<Embed />} />
+              </Routes>
+            </main>
+          </div>
+        </div>
+        <ActivityBar />
+      </div>
     </Router>
   );
 }

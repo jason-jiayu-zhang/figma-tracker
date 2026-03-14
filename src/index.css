@@ -65,63 +65,8 @@ h3 {
     transition: border-color 0.2s;
   }
 
-  /* ── Section Header ──────────────────────────────────── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--spacing-4.5) var(--spacing-6);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    font-family: var(--font-display);
-  }
-
-  .section-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    flex-shrink: 0;
-  }
-
-  /* ── Badge / Chip ────────────────────────────────────── */
-  .badge {
-    font-size: 11px;
-    color: var(--text-muted);
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    padding: var(--spacing-0.5) var(--spacing-2);
-    border-radius: 20px;
-    font-weight: 500;
-  }
-
-  .chip {
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    padding: var(--spacing-0.5) var(--spacing-2.5);
-    border-radius: 6px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-
-  .status-chip {
-    display: inline-flex;
-    align-items: center;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: var(--spacing-0.75) var(--spacing-2.5);
-    border-radius: 20px;
-    gap: var(--spacing-1);
-  }
+  /* Section headers, badges and chips were migrated to inline Tailwind
+     utility classes inside the React components. */
 
   /* ── Buttons ─────────────────────────────────────────── */
   .btn-primary {
@@ -405,6 +350,9 @@ h3 {
   ::-webkit-scrollbar-thumb:hover {
     background: var(--border-hover);
   }
+
+  /* Sidebar, activity bar, page layout and recent list styles have been migrated
+     to inline Tailwind utility classes in the components. */
 
   /* ── Toast ───────────────────────────────────────────── */
   .toast {

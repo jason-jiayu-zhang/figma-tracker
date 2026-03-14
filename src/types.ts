@@ -32,6 +32,7 @@ export interface ActivityRow {
 export interface ActivityData {
   rows: ActivityRow[];
   dailyTotals: Record<string, number>;
+  recent?: Record<string, number>;
   days: number;
   filterMine: boolean;
   myFigmaUserId: string | null;
