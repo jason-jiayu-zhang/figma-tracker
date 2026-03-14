@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import {
   RefreshCw,
   X,
+  Plus,
   Clock,
   FileText,
   Activity,
@@ -27,11 +28,28 @@ export default function Dashboard() {
     setFilterMine,
     triggerSync,
     fetchVersions,
+    addFile,
   } = useFigmaData();
 
   const [selectedFile, setSelectedFile] = useState<FigmaFile | null>(null);
   const [versions, setVersions] = useState<FigmaVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [newFileKey, setNewFileKey] = useState("");
+  const [showAddInput, setShowAddInput] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+
+  const handleAddFile = async () => {
+    if (!newFileKey.trim()) return;
+    setIsAdding(true);
+    const res = await addFile(newFileKey.trim());
+    setIsAdding(false);
+    if (res.success) {
+      setNewFileKey("");
+      setShowAddInput(false);
+    } else {
+      alert("Failed to track file. Check the key.");
+    }
+  };
 
   const handleFileClick = async (file: FigmaFile) => {
     setSelectedFile(file);
@@ -144,18 +162,56 @@ export default function Dashboard() {
 
         {/* FILES TABLE */}
         <section className="bg-white border border-[#EBEBEB] rounded-xl overflow-hidden shadow-sm">
-          <div className="flex items-center gap-2.5 px-6 py-4 border-b border-[#EBEBEB]">
-            <div className="w-7 h-7 flex items-center justify-center bg-[#A259FF]/10 text-[#A259FF] rounded-lg">
-              <FileText size={14} />
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#EBEBEB]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 flex items-center justify-center bg-[#A259FF]/10 text-[#A259FF] rounded-lg">
+                <FileText size={14} />
+              </div>
+              <h2 className="text-[14px] font-bold text-[#181818]">
+                Tracked Files
+              </h2>
+              {files.length > 0 && (
+                <span className="text-[11px] font-medium text-[#A6A6A6] bg-[#F5F5F5] border border-[#EBEBEB] px-2 py-0.5 rounded-full">
+                  {files.length}
+                </span>
+              )}
             </div>
-            <h2 className="text-[14px] font-bold text-[#181818]">
-              Tracked Files
-            </h2>
-            {files.length > 0 && (
-              <span className="text-[11px] font-medium text-[#A6A6A6] bg-[#F5F5F5] border border-[#EBEBEB] px-2 py-0.5 rounded-full">
-                {files.length} file{files.length !== 1 ? "s" : ""}
-              </span>
-            )}
+            
+            <div className="flex items-center gap-2">
+              {showAddInput ? (
+                <div className="flex items-center gap-2 animate-in slide-in-from-right-2 duration-300">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={newFileKey}
+                    onChange={(e) => setNewFileKey(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAddFile()}
+                    placeholder="Enter file key..."
+                    className="px-3 py-1.5 bg-[#f5f5f5] border border-[#EBEBEB] rounded-lg text-xs outline-none focus:border-[#1ABCFE] transition-all w-48 font-mono"
+                  />
+                  <button 
+                    onClick={handleAddFile}
+                    disabled={isAdding || !newFileKey.trim()}
+                    className="bg-[#1ABCFE] text-white p-1.5 rounded-lg hover:bg-[#16a6e0] transition-all disabled:opacity-50"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <button 
+                    onClick={() => setShowAddInput(false)}
+                    className="p-1.5 text-[#A6A6A6] hover:text-[#181818] transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddInput(true)}
+                  className="flex items-center gap-2 text-[#1ABCFE] hover:bg-[#1ABCFE]/5 px-3 py-1.5 rounded-lg text-[13px] font-bold transition-all"
+                >
+                  <Plus size={14} /> Add File
+                </button>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">

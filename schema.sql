@@ -7,9 +7,24 @@
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   figma_user_id TEXT UNIQUE NOT NULL,
+  display_name TEXT,
   handle TEXT,
   email TEXT,
   img_url TEXT,
+  access_token TEXT,
+  refresh_token TEXT,
+  scopes TEXT,
+  token_expires_at TIMESTAMPTZ,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Store OAuth states for CSRF protection and session data
+CREATE TABLE IF NOT EXISTS oauth_states (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  state TEXT UNIQUE NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

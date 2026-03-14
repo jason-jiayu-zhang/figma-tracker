@@ -5,9 +5,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Main sync function — pulls Figma data and upserts into Supabase
+ * Processes files for each user using their individual OAuth tokens.
  */
 async function runSync() {
-  console.log(`[sync] Starting sync at ${new Date().toISOString()}`);
+  console.log(`[sync-v3] Starting full sync at ${new Date().toISOString()}`);
+  
   const sessionData = {
     files_synced: 0,
     new_versions_found: 0,
@@ -16,178 +18,136 @@ async function runSync() {
   };
 
   try {
-    // ── 1. Fetch user profile ───────────────────────────────────────────────
-    let me;
-    try {
-      me = await figma.getMe();
-      console.log(`[sync] Authenticated as: ${me.handle} (${me.email})`);
-    } catch (err) {
-      console.warn(
-        `[sync] Could not fetch /me — continuing without user upsert: ${err.message}`,
-      );
-      me = null;
-    }
+    // 1. Get all users with file keys
+    const { data: users, error: userErr } = await supabase
+      .from("users")
+      .select("figma_user_id, access_token, settings_data");
+    
+    if (userErr) throw userErr;
 
-    if (me) {
-      await supabase.from("users").upsert(
-        {
-          figma_user_id: me.id,
-          handle: me.handle,
-          email: me.email,
-          img_url: me.img_url,
-        },
-        { onConflict: "figma_user_id" },
-      );
-    }
+    for (const user of users || []) {
+      const token = user.access_token;
+      const fileKeys = (user.settings_data?.fileKeys || "")
+        .split(",")
+        .map(k => k.trim())
+        .filter(Boolean);
 
-    // ── 2. Process each file ────────────────────────────────────────────────
-    const fileKeys = (process.env.FIGMA_FILE_KEYS || "")
-      .split(",")
-      .map((k) => k.trim())
-      .filter(Boolean);
-    console.log(
-      `[sync] Tracking ${fileKeys.length} file(s): ${fileKeys.join(", ")}`,
-    );
+      if (fileKeys.length === 0) continue;
 
-    for (const fileKey of fileKeys) {
-      try {
-        console.log(`[sync] Processing file: ${fileKey}`);
+      console.log(`[sync] User ${user.figma_user_id}: Processing ${fileKeys.length} files`);
 
-        // -- File metadata
-        const meta = await figma.getFileMeta(fileKey);
-        await sleep(300);
+      for (const fileKey of fileKeys) {
+        try {
+          // -- File metadata
+          const meta = await figma.getFileMeta(fileKey, token);
+          await sleep(300);
 
-        const { data: fileRow, error: fileErr } = await supabase
-          .from("figma_files")
-          .upsert(
-            {
-              file_key: fileKey,
-              name: meta.name,
-              thumbnail_url: meta.thumbnailUrl,
-              last_modified: meta.lastModified,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: "file_key" },
-          )
-          .select("id")
-          .single();
+          const { data: fileRow, error: fileErr } = await supabase
+            .from("figma_files")
+            .upsert(
+              {
+                file_key: fileKey,
+                name: meta.name,
+                thumbnail_url: meta.thumbnailUrl,
+                last_modified: meta.lastModified,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "file_key" },
+            )
+            .select("id")
+            .single();
 
-        if (fileErr) {
-          console.error(
-            `[sync] Failed to upsert file ${fileKey}:`,
-            fileErr.message,
-          );
-          continue;
-        }
+          if (fileErr) {
+            console.error(`[sync] Failed to upsert file record for ${fileKey}:`, fileErr.message);
+            continue;
+          }
 
-        const fileId = fileRow.id;
+          const fileId = fileRow.id;
 
-        // -- Fetch all versions
-        const versions = await figma.getFileVersions(fileKey);
-        console.log(
-          `[sync] Found ${versions.length} total versions for ${fileKey}`,
-        );
+          // -- Fetch all versions
+          const versions = await figma.getFileVersions(fileKey, token);
+          console.log(`[sync] ${fileKey}: Found ${versions.length} total versions`);
 
-        // -- Get existing version IDs to detect new ones
-        const { data: existingRows } = await supabase
-          .from("file_versions")
-          .select("version_id")
-          .eq("file_id", fileId);
-
-        const existingIds = new Set(
-          (existingRows || []).map((r) => r.version_id),
-        );
-
-        const newVersions = versions.filter((v) => !existingIds.has(v.id));
-        console.log(
-          `[sync] ${newVersions.length} new version(s) to insert for ${fileKey}`,
-        );
-
-        if (newVersions.length > 0) {
-          const rows = newVersions.map((v) => ({
-            file_id: fileId,
-            version_id: v.id,
-            label: v.label || null,
-            description: v.description || null,
-            created_at: v.created_at,
-            created_by_figma_user_id: v.user ? v.user.id : null,
-            created_by_handle: v.user ? v.user.handle : null,
-          }));
-
-          const { error: vErr } = await supabase
+          // detect new ones
+          const { data: existingRows } = await supabase
             .from("file_versions")
-            .upsert(rows, { onConflict: "file_id,version_id" });
+            .select("version_id")
+            .eq("file_id", fileId);
 
-          if (vErr) {
-            console.error(`[sync] Error inserting versions:`, vErr.message);
-          } else {
-            sessionData.new_versions_found += newVersions.length;
-          }
+          const existingIds = new Set((existingRows || []).map((r) => r.version_id));
+          const newVersions = versions.filter((v) => !existingIds.has(v.id));
 
-          // -- Update daily_activity aggregates
-          const byDate = {};
-          for (const v of newVersions) {
-            const date = v.created_at.slice(0, 10); // YYYY-MM-DD
-            byDate[date] = (byDate[date] || 0) + 1;
-          }
+          if (newVersions.length > 0) {
+            const rows = newVersions.map((v) => ({
+              file_id: fileId,
+              version_id: v.id,
+              label: v.label || null,
+              description: v.description || null,
+              created_at: v.created_at,
+              created_by_figma_user_id: v.user ? v.user.id : null,
+              created_by_handle: v.user ? v.user.handle : null,
+            }));
 
-          for (const [date, count] of Object.entries(byDate)) {
-            // Upsert with increment
-            const { data: existing } = await supabase
-              .from("daily_activity")
-              .select("id, version_count")
-              .eq("file_id", fileId)
-              .eq("activity_date", date)
-              .maybeSingle();
+            const { error: vErr } = await supabase
+              .from("file_versions")
+              .upsert(rows, { onConflict: "file_id,version_id" });
 
-            if (existing) {
-              await supabase
-                .from("daily_activity")
-                .update({ version_count: existing.version_count + count })
-                .eq("id", existing.id);
+            if (vErr) {
+              console.error(`[sync] ${fileKey}: Error inserting versions:`, vErr.message);
             } else {
-              await supabase.from("daily_activity").insert({
-                file_id: fileId,
-                activity_date: date,
-                version_count: count,
-              });
+              sessionData.new_versions_found += newVersions.length;
+              
+              const byDate = {};
+              for (const v of newVersions) {
+                const date = v.created_at.slice(0, 10);
+                byDate[date] = (byDate[date] || 0) + 1;
+              }
+
+              for (const [date, count] of Object.entries(byDate)) {
+                const { data: existing } = await supabase
+                  .from("daily_activity")
+                  .select("id, version_count")
+                  .eq("file_id", fileId)
+                  .eq("activity_date", date)
+                  .maybeSingle();
+
+                if (existing) {
+                  await supabase
+                    .from("daily_activity")
+                    .update({ version_count: existing.version_count + count })
+                    .eq("id", existing.id);
+                } else {
+                  await supabase.from("daily_activity").insert({
+                    file_id: fileId,
+                    activity_date: date,
+                    version_count: count,
+                  });
+                }
+              }
             }
           }
+          sessionData.files_synced++;
+        } catch (fileErr) {
+          console.error(`[sync] ${fileKey}: Failed:`, fileErr.message);
         }
-
-        sessionData.files_synced++;
-      } catch (fileErr) {
-        console.error(
-          `[sync] Error processing file ${fileKey}:`,
-          fileErr.message,
-        );
       }
     }
   } catch (err) {
-    console.error(`[sync] Fatal sync error:`, err.message);
+    console.error(`[sync] Fatal:`, err.message);
     sessionData.status = "error";
     sessionData.error_message = err.message;
   }
 
-  // ── 3. Log sync session ──────────────────────────────────────────────────
-  const { error: sessionErr } = await supabase
-    .from("sync_sessions")
-    .insert(sessionData);
-  if (sessionErr) {
-    console.error(`[sync] Failed to log sync session:`, sessionErr.message);
-  }
-
-  console.log(
-    `[sync] Done. Files: ${sessionData.files_synced}, New versions: ${sessionData.new_versions_found}`,
-  );
+  await supabase.from("sync_sessions").insert(sessionData);
+  console.log(`[sync] Done. Files: ${sessionData.files_synced}, New versions: ${sessionData.new_versions_found}`);
   return sessionData;
 }
 
+let nextFileIndex = 0;
+
 /**
- * Page sync — called every minute.
- * For each tracked file, finds the oldest version already stored and asks Figma
- * for the 30 versions that came before it (backward pagination).
- * Persistent state is kept in pagination_state.json to ensure we don't stall.
+ * Page sync — called every few seconds.
+ * Processes ONE file-user task per call (round-robin).
  */
 async function runPageSync() {
   const fs = require("fs");
@@ -203,150 +163,201 @@ async function runPageSync() {
     }
   }
 
-  const fileKeys = (process.env.FIGMA_FILE_KEYS || "")
+  // 1. Collect all "tasks" (user + fileKey)
+  const { data: users } = await supabase
+    .from("users")
+    .select("figma_user_id, access_token, settings_data");
+  
+  const tasks = [];
+  for (const user of users || []) {
+    const keys = (user.settings_data?.fileKeys || "")
+      .split(",")
+      .map(k => k.trim())
+      .filter(Boolean);
+    for (const k of keys) {
+      tasks.push({ fileKey: k, token: user.access_token });
+    }
+  }
+
+  // Fallback to .env keys
+  const envKeys = (process.env.FIGMA_FILE_KEYS || "")
     .split(",")
-    .map((k) => k.trim())
+    .map(k => k.trim())
     .filter(Boolean);
+  for (const k of envKeys) {
+    if (!tasks.find(t => t.fileKey === k)) {
+      tasks.push({ fileKey: k, token: null });
+    }
+  }
 
-  for (const fileKey of fileKeys) {
-    try {
-      const fileState = state[fileKey] || {};
-      if (fileState.completed) {
-        console.log(`[page-sync] ${fileKey} — history fully synced (idle)`);
-        continue;
+  if (tasks.length === 0) return;
+
+  const task = tasks[nextFileIndex % tasks.length];
+  const { fileKey, token } = task;
+  nextFileIndex++;
+
+  console.log(`[page-sync-v3] Processing ${fileKey} (using ${token ? "OAuth token" : "PAT/No token"})`);
+
+  try {
+    const fileState = state[fileKey] || {};
+    
+    // --- FORWARD SYNC (Fetch newest versions) ---
+    // Check for new versions every 5 minutes
+    const now = Date.now();
+    const fiveMins = 5 * 60 * 1000;
+    if (!fileState.lastNewCheck || (now - fileState.lastNewCheck) > fiveMins) {
+      console.log(`[page-sync-v3] ${fileKey}: Checking for NEW versions...`);
+      const { versions } = await figma.getFileVersionsPage(fileKey, null, token); // null = newest page
+      
+      const { data: fileRow } = await supabase.from("figma_files").select("id").eq("file_key", fileKey).maybeSingle();
+      if (fileRow) {
+        await processNewVersions(fileRow.id, fileKey, versions);
       }
+      
+      state[fileKey] = { ...fileState, lastNewCheck: now, idle_logged: false };
+      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+      // Don't return, we can still do a backfill step in the same task
+    }
 
-      // Look up our internal file ID
-      const { data: fileRow } = await supabase
-        .from("figma_files")
-        .select("id")
-        .eq("file_key", fileKey)
-        .maybeSingle();
-      if (!fileRow) {
-        console.log(`[page-sync] File ${fileKey} not yet in DB — skipping`);
-        continue;
-      }
-      const fileId = fileRow.id;
-
-      // Determine cursor:
-      // 1. Manually stored cursor from last run
-      // 2. Oldest version in DB (fallback for first run)
-      let currentCursor = fileState.lastCursor;
-
-      if (!currentCursor) {
-        const { data: oldest } = await supabase
-          .from("file_versions")
-          .select("version_id")
-          .eq("file_id", fileId)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        currentCursor = oldest ? oldest.version_id : null;
-      }
-
-      console.log(
-        `[page-sync] ${fileKey} — fetching 30 versions before: ${typeof currentCursor === "string" ? currentCursor : JSON.stringify(currentCursor) || "(start)"}`,
-      );
-
-      const { versions, nextCursor } = await figma.getFileVersionsPage(
-        fileKey,
-        currentCursor,
-      );
-
-      if (versions.length === 0) {
-        console.log(`[page-sync] ${fileKey} — REACHED BEGINNING OF HISTORY`);
-        state[fileKey] = { ...fileState, completed: true, lastCursor: null };
+    // --- BACKWARD SYNC (Backfill history) ---
+    if (fileState.completed || fileState.unsupported) {
+      if (!fileState.idle_logged) {
+        console.log(`[page-sync-v3] ${fileKey} — ${fileState.unsupported ? "unsupported file type" : "fully synced"} (idle)`);
+        state[fileKey] = { ...state[fileKey], idle_logged: true };
         fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-        continue;
       }
+      return;
+    }
 
-      // Only insert versions we don't already have
-      const { data: existingRows } = await supabase
+    let { data: fileRow } = await supabase
+      .from("figma_files")
+      .select("id")
+      .eq("file_key", fileKey)
+      .maybeSingle();
+
+    if (!fileRow) {
+      console.log(`[page-sync-v3] ${fileKey}: Initializing...`);
+      try {
+        const meta = await figma.getFileMeta(fileKey, token);
+        const { data: newFile, error: initErr } = await supabase
+          .from("figma_files")
+          .upsert(
+            {
+              file_key: fileKey,
+              name: meta.name,
+              thumbnail_url: meta.thumbnailUrl,
+              last_modified: meta.lastModified,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "file_key" }
+          )
+          .select("id")
+          .single();
+
+        if (initErr) throw initErr;
+        fileRow = newFile;
+      } catch (err) {
+        if (err.response?.status === 429) {
+          console.warn(`[page-sync-v3] ${fileKey}: Rate limited (429)`);
+        } else if (err.response?.status === 400 && err.response?.data?.err?.includes("File type not supported")) {
+          console.error(`[page-sync-v3] ${fileKey}: Unsupported file type (Figma Make). Skipping.`);
+          state[fileKey] = { ...state[fileKey], unsupported: true, completed: true };
+          fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+        } else {
+          console.error(`[page-sync-v3] ${fileKey}: Init failed:`, err.response?.data || err.message);
+        }
+        return;
+      }
+    }
+    
+    const fileId = fileRow.id;
+    let currentCursor = fileState.lastCursor;
+    if (!currentCursor) {
+      const { data: oldest } = await supabase
         .from("file_versions")
         .select("version_id")
-        .eq("file_id", fileId);
-      const existingIds = new Set(
-        (existingRows || []).map((r) => r.version_id),
-      );
-      const newVersions = versions.filter((v) => !existingIds.has(v.id));
+        .eq("file_id", fileId)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      currentCursor = oldest ? oldest.version_id : null;
+    }
 
-      console.log(
-        `[page-sync] ${fileKey} — ${newVersions.length} new of ${versions.length} fetched`,
-      );
+    console.log(`[page-sync-v3] ${fileKey}: Backfilling versions before ${typeof currentCursor === "string" ? currentCursor : "(start)"}`);
 
-      if (newVersions.length > 0) {
-        const rows = newVersions.map((v) => ({
-          file_id: fileId,
-          version_id: v.id,
-          label: v.label || null,
-          description: v.description || null,
-          created_at: v.created_at,
-          created_by_figma_user_id: v.user ? v.user.id : null,
-          created_by_handle: v.user ? v.user.handle : null,
-        }));
+    const { versions, nextCursor } = await figma.getFileVersionsPage(fileKey, currentCursor, token);
 
-        const { error: vErr } = await supabase
-          .from("file_versions")
-          .upsert(rows, { onConflict: "file_id,version_id" });
-        if (vErr) {
-          console.error(`[page-sync] ${fileKey} — insert error:`, vErr.message);
-        } else {
-          // Update daily_activity
-          const byDate = {};
-          for (const v of newVersions)
-            byDate[v.created_at.slice(0, 10)] =
-              (byDate[v.created_at.slice(0, 10)] || 0) + 1;
-          for (const [date, count] of Object.entries(byDate)) {
-            const { data: existing } = await supabase
-              .from("daily_activity")
-              .select("id, version_count")
-              .eq("file_id", fileId)
-              .eq("activity_date", date)
-              .maybeSingle();
-            if (existing) {
-              await supabase
-                .from("daily_activity")
-                .update({ version_count: existing.version_count + count })
-                .eq("id", existing.id);
-            } else {
-              await supabase.from("daily_activity").insert({
-                file_id: fileId,
-                activity_date: date,
-                version_count: count,
-              });
-            }
-          }
-          console.log(
-            `[page-sync] ${fileKey} — inserted ${newVersions.length} versions`,
-          );
-        }
-      }
-
-      // Store the next cursor even if 0 new versions found, to move forward
-      state[fileKey] = {
-        ...fileState,
-        lastCursor: nextCursor,
-        completed: !nextCursor,
-      };
+    if (versions.length === 0) {
+      console.log(`[page-sync-v3] ${fileKey}: Reached end of history`);
+      state[fileKey] = { ...state[fileKey], completed: true, lastCursor: null };
       fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-    } catch (err) {
-      console.error(`[page-sync] Error processing ${fileKey}:`, err.message);
+      return;
+    }
+
+    await processNewVersions(fileId, fileKey, versions);
+
+    state[fileKey] = { ...state[fileKey], lastCursor: nextCursor, completed: !nextCursor };
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+
+  } catch (err) {
+    if (err.response?.status === 429) {
+      console.warn(`[page-sync-v3] ${fileKey}: Rate limited (429)`);
+    } else {
+      console.error(`[page-sync-v3] ${fileKey}: Error:`, err.message);
     }
   }
 }
 
 /**
- * Triggered sync with a delay (e.g. for webhooks)
+ * Shared logic to process and aggregate versions
  */
-async function runSyncAfterDelay(ms = 30000) {
-  console.log(`[sync] Scheduled sync in ${ms / 1000}s...`);
-  setTimeout(async () => {
-    try {
-      await runSync();
-    } catch (err) {
-      console.error(`[sync] Delayed sync failed:`, err.message);
+async function processNewVersions(fileId, fileKey, versions) {
+  if (versions.length === 0) return;
+
+  const { data: existingRows } = await supabase
+    .from("file_versions")
+    .select("version_id")
+    .eq("file_id", fileId);
+  const existingIds = new Set((existingRows || []).map((r) => r.version_id));
+  const newVersions = versions.filter((v) => !existingIds.has(v.id));
+
+  if (newVersions.length > 0) {
+    const rows = newVersions.map((v) => ({
+      file_id: fileId,
+      version_id: v.id,
+      label: v.label || null,
+      description: v.description || null,
+      created_at: v.created_at,
+      created_by_figma_user_id: v.user ? v.user.id : null,
+      created_by_handle: v.user ? v.user.handle : null,
+    }));
+
+    await supabase.from("file_versions").upsert(rows, { onConflict: "file_id,version_id" });
+    
+    const byDate = {};
+    for (const v of newVersions) {
+      const date = v.created_at.slice(0, 10);
+      byDate[date] = (byDate[date] || 0) + 1;
     }
-  }, ms);
+    for (const [date, count] of Object.entries(byDate)) {
+      const { data: existing } = await supabase
+        .from("daily_activity")
+        .select("id, version_count")
+        .eq("file_id", fileId)
+        .eq("activity_date", date)
+        .maybeSingle();
+      if (existing) {
+        await supabase.from("daily_activity").update({ version_count: existing.version_count + count }).eq("id", existing.id);
+      } else {
+        await supabase.from("daily_activity").insert({ file_id: fileId, activity_date: date, version_count: count });
+      }
+    }
+    console.log(`[page-sync-v3] ${fileKey}: Inserted ${newVersions.length} versions`);
+  }
+}
+
+async function runSyncAfterDelay(ms = 30000) {
+  setTimeout(() => runSync().catch(e => console.error(e)), ms);
 }
 
 module.exports = { runSync, runPageSync, runSyncAfterDelay };

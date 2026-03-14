@@ -1,11 +1,12 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Embed from "./pages/Embed";
 import { useFigmaData } from "./useFigmaData";
+import Onboard from "./pages/Onboard";
+import { useSearchParams } from "react-router-dom";
 
-function Header() {
-  const { stats } = useFigmaData();
+function Header({ stats }: { stats: any }) {
 
   return (
     <header
@@ -58,16 +59,16 @@ function Header() {
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: stats?.myFigmaUserId ? "#0acf83" : "var(--text-muted)",
-            }}
-          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                color: stats?.myFigmaUserId ? "#0acf83" : "var(--text-muted)",
+              }}
+            >
             <span
               style={{
                 width: 7,
@@ -87,21 +88,33 @@ function Header() {
 }
 
 function App() {
+  const { stats, loading } = useFigmaData();
+  const [searchParams] = useSearchParams();
+  const forceOnboard = searchParams.get("onboard") === "1";
+  const justConnected = searchParams.get("connected") === "1";
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]"></div>
+      </div>
+    );
+  }
+
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <>
-              <Header />
-              <Dashboard />
-            </>
-          }
-        />
-        <Route path="/embed" element={<Embed />} />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <>
+            <Header stats={stats} />
+            {/* Show onboarding when not connected, when forced, or when just returned from OAuth */}
+            {(forceOnboard || justConnected || !stats?.myFigmaUserId) ? <Onboard /> : <Dashboard />}
+          </>
+        }
+      />
+      <Route path="/embed" element={<Embed />} />
+    </Routes>
   );
 }
 

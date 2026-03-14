@@ -5,10 +5,17 @@ const BASE_URL = "https://api.figma.com/v1";
 
 const figmaApi = axios.create({
   baseURL: BASE_URL,
-  headers: {
-    "X-Figma-Token": process.env.FIGMA_TOKEN,
-  },
 });
+
+/**
+ * Creates request config with either OAuth or Personal Access Token
+ */
+function getHeaders(token = null) {
+  const pat = process.env.FIGMA_TOKEN;
+  if (token) return { Authorization: `Bearer ${token}` };
+  if (pat) return { "X-Figma-Token": pat };
+  return {};
+}
 
 // Add a small delay between requests to stay within 30 req/min Figma rate limit
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -16,24 +23,22 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Get the authenticated user's profile and team info
  */
-async function getMe() {
-  const res = await figmaApi.get("/me");
+async function getMe(token = null) {
+  const res = await figmaApi.get("/me", { headers: getHeaders(token) });
   return res.data;
 }
 
 /**
  * Get all versions for a file key — handles Figma's 2024 cursor pagination.
  */
-async function getFileVersions(fileKey) {
+async function getFileVersions(fileKey, token = null) {
   const versions = [];
-  let beforeCursor = null; // Can be a string or an object { before, secondary_before, etc }
+  let beforeCursor = null; 
   let page = 1;
 
   while (true) {
-    const { versions: batch, nextCursor } = await getFileVersionsPage(
-      fileKey,
-      beforeCursor,
-    );
+    const batchData = await getFileVersionsPage(fileKey, beforeCursor, token);
+    const { versions: batch, nextCursor } = batchData;
     versions.push(...batch);
 
     console.log(
@@ -43,7 +48,7 @@ async function getFileVersions(fileKey) {
     if (!nextCursor) break;
     beforeCursor = nextCursor;
     page++;
-    await sleep(300); // stay under Figma's 30 req/min rate limit
+    await sleep(300);
   }
 
   return versions;
@@ -53,9 +58,7 @@ async function getFileVersions(fileKey) {
  * Fetch a single page of up to 30 versions for a file.
  * Pass `beforeCursor` (string ID OR pagination object) to get versions older than that point.
  */
-async function getFileVersionsPage(fileKey, beforeCursor = null) {
-  // beforeCursor can be a simple string (the legacy version ID)
-  // or an object { before, secondary_before, etc }
+async function getFileVersionsPage(fileKey, beforeCursor = null, token = null) {
   let params = {};
   if (typeof beforeCursor === "string") {
     params.before = beforeCursor;
@@ -63,7 +66,10 @@ async function getFileVersionsPage(fileKey, beforeCursor = null) {
     params = { ...beforeCursor };
   }
 
-  const res = await figmaApi.get(`/files/${fileKey}/versions`, { params });
+  const res = await figmaApi.get(`/files/${fileKey}/versions`, { 
+    params,
+    headers: getHeaders(token)
+  });
   const data = res.data;
   const versions = data.versions || [];
 
@@ -99,16 +105,22 @@ async function getFileVersionsPage(fileKey, beforeCursor = null) {
 /**
  * Get file metadata (name, lastModified, thumbnailUrl)
  */
-async function getFileMeta(fileKey) {
-  const res = await figmaApi.get(`/files/${fileKey}`, {
-    params: { depth: 1 },
-  });
-  return {
-    name: res.data.name,
-    lastModified: res.data.lastModified,
-    thumbnailUrl: res.data.thumbnailUrl,
-    version: res.data.version,
-  };
+async function getFileMeta(fileKey, token = null) {
+  try {
+    const res = await figmaApi.get(`/files/${fileKey}`, {
+      params: { depth: 1 },
+      headers: getHeaders(token)
+    });
+    return {
+      name: res.data.name,
+      lastModified: res.data.lastModified,
+      thumbnailUrl: res.data.thumbnailUrl,
+      version: res.data.version,
+    };
+  } catch (err) {
+    console.error(`[figma] getFileMeta failed for ${fileKey}:`, err.response?.data || err.message);
+    throw err;
+  }
 }
 
 /**
