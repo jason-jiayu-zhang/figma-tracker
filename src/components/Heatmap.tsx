@@ -152,7 +152,7 @@ export default function Heatmap({ data, theme = "light" }: HeatmapProps) {
               <span
                 key={i}
                 className={`absolute text-[10px] leading-none whitespace-nowrap ${isLight ? "text-[#A6A6A6]" : "text-[var(--text-muted)]"}`}
-                style={{ left: m.x }}
+                style={{ left: m.x + 32 }}
               >
                 {m.label}
               </span>
@@ -161,11 +161,11 @@ export default function Heatmap({ data, theme = "light" }: HeatmapProps) {
 
           <div className="flex gap-0">
             {/* Day labels */}
-            <div className="w-8 flex-shrink-0 flex flex-col pt-[1px]">
+            <div className="w-8 flex-shrink-0 flex flex-col">
               {[null, "Mon", null, "Wed", null, "Fri", null].map((label, i) => (
                 <div
                   key={i}
-                  className={`h-3 text-[9px] flex items-center leading-none ${i < 6 ? "mb-1" : ""} ${isLight ? "text-[#A6A6A6]" : "text-[var(--text-muted)]"}`}
+                  className={`h-4 text-[9px] flex items-center leading-none ${i < 6 ? "mb-1" : ""} ${isLight ? "text-[#A6A6A6]" : "text-[var(--text-muted)]"}`}
                 >
                   {label}
                 </div>

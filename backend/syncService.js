@@ -146,13 +146,11 @@ async function runSync() {
                 .update({ version_count: existing.version_count + count })
                 .eq("id", existing.id);
             } else {
-              await supabase
-                .from("daily_activity")
-                .insert({
-                  file_id: fileId,
-                  activity_date: date,
-                  version_count: count,
-                });
+              await supabase.from("daily_activity").insert({
+                file_id: fileId,
+                activity_date: date,
+                version_count: count,
+              });
             }
           }
         }
@@ -311,13 +309,11 @@ async function runPageSync() {
                 .update({ version_count: existing.version_count + count })
                 .eq("id", existing.id);
             } else {
-              await supabase
-                .from("daily_activity")
-                .insert({
-                  file_id: fileId,
-                  activity_date: date,
-                  version_count: count,
-                });
+              await supabase.from("daily_activity").insert({
+                file_id: fileId,
+                activity_date: date,
+                version_count: count,
+              });
             }
           }
           console.log(
