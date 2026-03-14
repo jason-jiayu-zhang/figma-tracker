@@ -65,6 +65,17 @@ export function useFigmaData() {
     }
   };
 
+  const addFile = async (fileKey: string) => {
+    try {
+      await axios.post("/api/user/files", { fileKey });
+      await fetchData();
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to add file:", err);
+      return { success: false, error: err };
+    }
+  };
+
   return {
     stats,
     activity,
@@ -76,6 +87,7 @@ export function useFigmaData() {
     setFilterMine,
     triggerSync,
     fetchVersions,
+    addFile,
     refresh: fetchData,
   };
 }
