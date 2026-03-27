@@ -27,27 +27,46 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-// Every second: fetch the next 3 pages of versions (30 each)
-// Processes files ONE BY ONE (round-robin) to stay safe within Figma's limits.
-setInterval(() => {
-  console.log("[service-v3-1s-3x] Running 1s page sync (3x)...");
-  const run = () => runPageSync().catch((err) =>
-    console.error("[service-v3-1s-3x] Page sync failed:", err.message),
-  );
-  run();
-  run();
-  run();
-}, 1000);
+// Export the app for Vercel serverless functions
+module.exports = app;
 
-// Daily sync at midnight (full sweep)
-cron.schedule("0 0 * * *", () => {
-  console.log("[cron] Running scheduled daily sync...");
-  runSync().catch((err) => console.error("[cron] Sync failed:", err.message));
-});
+/**
+ * Local development only: Start the server if running directly with 'node server.js'
+ * Vercel will import 'app' and handle its own execution.
+ */
+if (require.main === module) {
+  // Adaptive sync loop (local dev only)
+  let currentInterval = 2000;
+  const syncLoop = () => {
+    setTimeout(async () => {
+      try {
+        const updateFound = await runPageSync();
+        const newInterval = updateFound ? 2000 : 10000;
+        if (currentInterval !== newInterval) {
+          console.log(`[service-v3] Sync interval changed to ${newInterval / 1000}s`);
+          currentInterval = newInterval;
+        }
+      } catch (err) {
+        console.error("[service-v3] Page sync failed:", err.message);
+        currentInterval = 10000;
+      }
+      syncLoop();
+    }, currentInterval);
+  };
 
-app.listen(PORT, () => {
-  console.log(`\n🚀 FIGMA TRACKER V3 (1S-3X SYNC) STARTED`);
-  console.log(`   Running at http://localhost:${PORT}`);
-  console.log(`   Page sync: 3 pages per second`);
-  console.log(`   Full sync: daily at midnight\n`);
-});
+  console.log("[service-v3] Starting adaptive page sync (1x)...");
+  syncLoop();
+
+  // Daily sync at midnight (local dev only)
+  cron.schedule("0 0 * * *", () => {
+    console.log("[cron] Running scheduled daily sync...");
+    runSync().catch((err) => console.error("[cron] Sync failed:", err.message));
+  });
+
+  app.listen(PORT, () => {
+    console.log(`\n🚀 FIGMA TRACKER V3 STARTED`);
+    console.log(`   Running at http://localhost:${PORT}`);
+    console.log(`   Page sync: 3 pages adaptive (1s/5s)`);
+    console.log(`   Full sync: daily at midnight\n`);
+  });
+}

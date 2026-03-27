@@ -69,6 +69,12 @@ async function getFileVersionsPage(fileKey, beforeCursor = null, token = null) {
   const res = await figmaApi.get(`/files/${fileKey}/versions`, { 
     params,
     headers: getHeaders(token)
+  }).catch((err) => {
+    console.error(`[figma] getFileVersionsPage failed for ${fileKey}:`, {
+      status: err.response?.status,
+      data: err.response?.data,
+    });
+    throw err;
   });
   const data = res.data;
   const versions = data.versions || [];

@@ -7,7 +7,6 @@ https://figma-tracker-production.up.railway.app/
 
 - Polish UI
 - Add onboarding and login
-- Limit-test API call rate
 
 ## Features
 

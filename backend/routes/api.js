@@ -22,11 +22,21 @@ async function getMyUserId() {
   return data ? data.figma_user_id : null;
 }
 
-// POST /api/sync — trigger a manual sync
-router.post("/sync", async (req, res) => {
+// POST or GET /api/sync — trigger a manual full sync
+router.all("/sync", async (req, res) => {
   try {
     const result = await runSync();
     res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /api/sync/incremental — trigger a page sync (for Vercel Cron)
+router.get("/sync/incremental", async (req, res) => {
+  try {
+    const updateFound = await runPageSync();
+    res.json({ ok: true, updateFound });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -180,20 +190,48 @@ router.get("/activity", async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 365;
     const mine = req.query.mine === "true";
-    const myId = mine ? await getMyUserId() : null;
+    let myId = mine ? await getMyUserId() : null;
+    if (!myId && req.query.userId) {
+      myId = req.query.userId;
+    }
+    let fileKeys = req.query.fileKeys || req.query.fileKey;
+    if (fileKeys && !Array.isArray(fileKeys)) {
+      fileKeys = fileKeys.split(",");
+    }
+
+    // If fileKeys were provided, resolve them to file ids first
+    let filterFileIds = [];
+    if (fileKeys && fileKeys.length > 0) {
+      const { data: fileRows, error: fErr } = await supabase
+        .from("figma_files")
+        .select("id, name")
+        .in("file_key", fileKeys);
+      if (fErr) return res.status(500).json({ error: fErr.message });
+      if (fileRows && fileRows.length > 0) {
+        filterFileIds = fileRows.map(r => r.id);
+      } else {
+        console.log(`[api/activity] No files found for keys: ${fileKeys}`);
+        return res.json({ dailyTotals: {}, totalEdits: 0 });
+      }
+    }
 
     const since = new Date();
     since.setDate(since.getDate() - days);
     const sinceStr = since.toISOString().slice(0, 10);
 
+    console.log(`[api/activity] params: days=${days} mine=${mine} userId=${myId} fileKeys=${fileKeys} ids=${filterFileIds}`);
+
     let rows = [];
-    if (mine && myId) {
-      // Query raw file_versions so we can filter by author
-      const { data: vRows, error: vErr } = await supabase
+    if (myId) {
+      // Query raw file_versions so we can filter by author (and optionally by file)
+      let vQuery = supabase
         .from("file_versions")
         .select("created_at, file_id, figma_files!inner( file_key, name )")
         .eq("created_by_figma_user_id", myId)
         .gte("created_at", sinceStr + "T00:00:00.000Z");
+      if (filterFileIds.length > 0) vQuery = vQuery.in("file_id", filterFileIds);
+
+      const { data: vRows, error: vErr } = await vQuery;
 
       if (vErr) return res.status(500).json({ error: vErr.message });
 
@@ -215,16 +253,21 @@ router.get("/activity", async (req, res) => {
       );
     } else {
       // Use pre-aggregated table for all-user view
-      const { data, error } = await supabase
+      let q = supabase
         .from("daily_activity")
         .select(
           "activity_date, version_count, figma_files ( id, file_key, name )",
         )
         .gte("activity_date", sinceStr)
         .order("activity_date", { ascending: false });
+      if (filterFileIds.length > 0) q = q.in("file_id", filterFileIds);
+
+      const { data, error } = await q;
       if (error) return res.status(500).json({ error: error.message });
       rows = data || [];
     }
+
+    console.log(`[api/activity] returning ${rows.length} rows`);
 
     const dailyTotals = {};
     for (const r of rows) {

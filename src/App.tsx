@@ -1,10 +1,13 @@
 import React from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, useLocation, useSearchParams } from "react-router-dom";
+import axios from "axios";
 import Dashboard from "./pages/Dashboard";
 import Embed from "./pages/Embed";
+import EmbedWidget from "./pages/EmbedWidget";
 import { useFigmaData } from "./useFigmaData";
 import Onboard from "./pages/Onboard";
-import { useSearchParams } from "react-router-dom";
+import Footer from "./components/Footer";
+import Sidebar from "./components/Sidebar";
 
 function Header({ stats }: { stats: any }) {
 
@@ -13,50 +16,16 @@ function Header({ stats }: { stats: any }) {
       style={{
         position: "sticky",
         top: 0,
-        zIndex: 1000,
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
-        background: "rgba(3,4,7,0.75)",
+        zIndex: 10,
+        borderBottom: "1px solid rgba(0,0,0,0.07)",
+        background: "rgba(255,255,255,0.75)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         display: "flex",
-        justifyContent: "center",
+        justifyContent: "flex-end",
       }}
     >
-      <div className="w-full max-w-[1100px] px-6 py-0 h-[60px] flex items-center justify-between">
-        <Link
-          to="/"
-          style={{
-            textDecoration: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="4" y="4" width="7" height="7" rx="1.5" fill="#A259FF" />
-            <rect x="13" y="4" width="7" height="7" rx="3.5" fill="#F24E1E" />
-            <rect x="4" y="13" width="7" height="7" rx="3.5" fill="#0ACF83" />
-            <circle cx="16.5" cy="16.5" r="3.5" fill="#1ABCFE" />
-            <rect x="4" y="13" width="7" height="7" rx="1.5" fill="#FF7262" />
-          </svg>
-          <span
-            style={{
-              fontFamily: "Outfit, Inter, system-ui, sans-serif",
-              fontSize: 17,
-              fontWeight: 700,
-              letterSpacing: "-0.03em",
-              color: "#f0f0f0",
-            }}
-          >
-            figma<span style={{ color: "#818cf8" }}>tracker</span>
-          </span>
-        </Link>
+      <div className="w-full px-6 py-0 h-[60px] flex items-center justify-end">
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div
@@ -81,6 +50,30 @@ function Header({ stats }: { stats: any }) {
             />
             {stats?.myFigmaUserId ? "Connected" : "Not connected"}
           </div>
+          <button
+            onClick={async () => {
+              try {
+                const res = await axios.post("/api/oauth/start");
+                if (res.data?.url) window.location.href = res.data.url;
+                else alert("Failed to start OAuth");
+              } catch (err) {
+                console.error("start oauth failed", err);
+                alert("Failed to start OAuth");
+              }
+            }}
+            className="ml-4 px-3 py-1.5 rounded-lg font-bold"
+            style={{
+              background: "#1ABCFE",
+              color: "white",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Connect
+          </button>
         </div>
       </div>
     </header>
@@ -101,19 +94,46 @@ function App() {
     );
   }
 
+  const location = useLocation();
+  const isWidget = location.pathname === "/embed-widget";
+  const isOnboarding = !isWidget && (forceOnboard || justConnected || !stats?.myFigmaUserId);
+
+  if (isOnboarding) {
+    return (
+      <Routes>
+        <Route path="*" element={<Onboard />} />
+      </Routes>
+    );
+  }
+
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <>
-            <Header stats={stats} />
-            {/* Show onboarding when not connected, when forced, or when just returned from OAuth */}
-            {(forceOnboard || justConnected || !stats?.myFigmaUserId) ? <Onboard /> : <Dashboard />}
-          </>
-        }
-      />
-      <Route path="/embed" element={<Embed />} />
+      <Route path="/embed-widget" element={<EmbedWidget />} />
+      <Route path="*" element={
+        <div className="bg-[#fffaf4] overflow-x-hidden">
+          {/* Viewport block for Nav Bar and Main Content */}
+          <div className="w-full min-h-screen flex items-center justify-center py-[16px]">
+            <div className="flex flex-row gap-[32px] w-[1020px] max-w-full relative">
+              <Sidebar className="bg-white flex flex-col gap-[48px] h-[768px] items-start justify-center px-[12px] py-[8px] relative rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[88px]" />
+              
+              <div className="flex flex-col w-[900px] max-w-full shrink-0">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/embed" element={<Embed />} />
+                </Routes>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer naturally flows below the fold */}
+          <div className="w-full flex justify-center pb-[32px]">
+            <Routes>
+              <Route path="/" element={<Footer />} />
+              <Route path="/embed" element={<Footer />} />
+            </Routes>
+          </div>
+        </div>
+      } />
     </Routes>
   );
 }
