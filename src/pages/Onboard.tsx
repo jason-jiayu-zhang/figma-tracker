@@ -67,6 +67,20 @@ export default function Onboard() {
 
     setIsSubmitting(true);
     try {
+      // Ensure user is connected via OAuth before adding files
+      const meRes = await axios.get("/api/user/me");
+      if (!meRes.data?.connected) {
+        // Start OAuth and include requested file keys so they're saved on callback
+        const startRes = await axios.post("/api/oauth/start", { fileKeys: validFiles.join(",") });
+        if (startRes.data?.url) {
+          window.location.href = startRes.data.url;
+          return;
+        } else {
+          alert("Failed to start OAuth");
+          return;
+        }
+      }
+
       for (const fileKey of validFiles) {
         await axios.post("/api/user/files", { fileKey });
       }

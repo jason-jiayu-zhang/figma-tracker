@@ -46,6 +46,9 @@ CREATE TABLE IF NOT EXISTS figma_files (
   project_name TEXT,
   thumbnail_url TEXT,
   last_modified TIMESTAMPTZ,
+  sync_cursor TEXT,
+  sync_completed BOOLEAN DEFAULT FALSE,
+  last_sync_check TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

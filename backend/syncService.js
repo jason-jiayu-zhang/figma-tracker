@@ -21,13 +21,13 @@ async function runSync() {
     // 1. Get all users with file keys
     const { data: users, error: userErr } = await supabase
       .from("users")
-      .select("figma_user_id, access_token, settings_data");
+      .select("figma_user_id, access_token, metadata");
     
     if (userErr) throw userErr;
 
     for (const user of users || []) {
       const token = user.access_token;
-      const fileKeys = (user.settings_data?.fileKeys || "")
+      const fileKeys = (user.metadata?.fileKeys || "")
         .split(",")
         .map(k => k.trim())
         .filter(Boolean);
@@ -143,34 +143,19 @@ async function runSync() {
   return sessionData;
 }
 
-let nextFileIndex = 0;
-
-/**
- * Page sync — called every few seconds.
+let nextFileIndex = 0;/**
+ * Page sync — called every few seconds (or via cron).
  * Processes ONE file-user task per call (round-robin).
  */
 async function runPageSync() {
-  const fs = require("fs");
-  const path = require("path");
-  const statePath = path.join(__dirname, "..", "pagination_state.json");
-
-  let state = {};
-  if (fs.existsSync(statePath)) {
-    try {
-      state = JSON.parse(fs.readFileSync(statePath, "utf8"));
-    } catch (_) {
-      state = {};
-    }
-  }
-
   // 1. Collect all "tasks" (user + fileKey)
   const { data: users } = await supabase
     .from("users")
-    .select("figma_user_id, access_token, settings_data");
+    .select("figma_user_id, access_token, metadata");
   
   const tasks = [];
   for (const user of users || []) {
-    const keys = (user.settings_data?.fileKeys || "")
+    const keys = (user.metadata?.fileKeys || "")
       .split(",")
       .map(k => k.trim())
       .filter(Boolean);
@@ -190,7 +175,7 @@ async function runPageSync() {
     }
   }
 
-  if (tasks.length === 0) return;
+  if (tasks.length === 0) return false;
 
   const task = tasks[nextFileIndex % tasks.length];
   const { fileKey, token } = task;
@@ -199,42 +184,36 @@ async function runPageSync() {
   console.log(`[page-sync-v3] Processing ${fileKey} (using ${token ? "OAuth token" : "PAT/No token"})`);
 
   try {
-    const fileState = state[fileKey] || {};
-    
-    // --- FORWARD SYNC (Fetch newest versions) ---
-    // Check for new versions every 5 minutes
-    const now = Date.now();
-    const fiveMins = 5 * 60 * 1000;
-    if (!fileState.lastNewCheck || (now - fileState.lastNewCheck) > fiveMins) {
-      console.log(`[page-sync-v3] ${fileKey}: Checking for NEW versions...`);
-      const { versions } = await figma.getFileVersionsPage(fileKey, null, token); // null = newest page
-      
-      const { data: fileRow } = await supabase.from("figma_files").select("id").eq("file_key", fileKey).maybeSingle();
-      if (fileRow) {
-        await processNewVersions(fileRow.id, fileKey, versions);
-      }
-      
-      state[fileKey] = { ...fileState, lastNewCheck: now, idle_logged: false };
-      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-      // Don't return, we can still do a backfill step in the same task
-    }
-
-    // --- BACKWARD SYNC (Backfill history) ---
-    if (fileState.completed || fileState.unsupported) {
-      if (!fileState.idle_logged) {
-        console.log(`[page-sync-v3] ${fileKey} — ${fileState.unsupported ? "unsupported file type" : "fully synced"} (idle)`);
-        state[fileKey] = { ...state[fileKey], idle_logged: true };
-        fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-      }
-      return;
-    }
-
-    let { data: fileRow } = await supabase
+    // Fetch current state from DB
+    let { data: fileRow, error: fetchErr } = await supabase
       .from("figma_files")
-      .select("id")
+      .select("id, sync_cursor, sync_completed, last_sync_check")
       .eq("file_key", fileKey)
       .maybeSingle();
 
+    if (fetchErr) throw fetchErr;
+
+    let updateFound = false;
+    
+    // --- FORWARD SYNC (Fetch newest versions) ---
+    // Check for new versions every 5 minutes
+    const now = new Date();
+    const fiveMins = 5 * 60 * 1000;
+    const lastCheck = fileRow?.last_sync_check ? new Date(fileRow.last_sync_check) : new Date(0);
+
+    if ((now - lastCheck) > fiveMins) {
+      console.log(`[page-sync-v3] ${fileKey}: Checking for NEW versions...`);
+      const { versions } = await figma.getFileVersionsPage(fileKey, null, token); // null = newest page
+      
+      if (fileRow) {
+        const inserted = await processNewVersions(fileRow.id, fileKey, versions);
+        if (inserted > 0) updateFound = true;
+        
+        await supabase.from("figma_files").update({ last_sync_check: now.toISOString() }).eq("id", fileRow.id);
+      }
+    }
+
+    // --- BACKWARD SYNC (Backfill history) ---
     if (!fileRow) {
       console.log(`[page-sync-v3] ${fileKey}: Initializing...`);
       try {
@@ -248,6 +227,7 @@ async function runPageSync() {
               thumbnail_url: meta.thumbnailUrl,
               last_modified: meta.lastModified,
               updated_at: new Date().toISOString(),
+              last_sync_check: now.toISOString()
             },
             { onConflict: "file_key" }
           )
@@ -260,18 +240,22 @@ async function runPageSync() {
         if (err.response?.status === 429) {
           console.warn(`[page-sync-v3] ${fileKey}: Rate limited (429)`);
         } else if (err.response?.status === 400 && err.response?.data?.err?.includes("File type not supported")) {
-          console.error(`[page-sync-v3] ${fileKey}: Unsupported file type (Figma Make). Skipping.`);
-          state[fileKey] = { ...state[fileKey], unsupported: true, completed: true };
-          fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+          console.error(`[page-sync-v3] ${fileKey}: Unsupported file type. Skipping.`);
+          await supabase.from("figma_files").update({ sync_completed: true }).eq("file_key", fileKey);
         } else {
           console.error(`[page-sync-v3] ${fileKey}: Init failed:`, err.response?.data || err.message);
         }
-        return;
+        return updateFound;
       }
+    }
+
+    if (fileRow.sync_completed) {
+      return updateFound;
     }
     
     const fileId = fileRow.id;
-    let currentCursor = fileState.lastCursor;
+    let currentCursor = fileRow.sync_cursor;
+    
     if (!currentCursor) {
       const { data: oldest } = await supabase
         .from("file_versions")
@@ -289,15 +273,19 @@ async function runPageSync() {
 
     if (versions.length === 0) {
       console.log(`[page-sync-v3] ${fileKey}: Reached end of history`);
-      state[fileKey] = { ...state[fileKey], completed: true, lastCursor: null };
-      fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
-      return;
+      await supabase.from("figma_files").update({ sync_completed: true, sync_cursor: null }).eq("id", fileId);
+      return updateFound;
     }
 
-    await processNewVersions(fileId, fileKey, versions);
+    const inserted = await processNewVersions(fileId, fileKey, versions);
+    if (inserted > 0 || versions.length > 0) updateFound = true;
 
-    state[fileKey] = { ...state[fileKey], lastCursor: nextCursor, completed: !nextCursor };
-    fs.writeFileSync(statePath, JSON.stringify(state, null, 2));
+    await supabase.from("figma_files").update({ 
+      sync_cursor: nextCursor, 
+      sync_completed: !nextCursor 
+    }).eq("id", fileId);
+    
+    return updateFound;
 
   } catch (err) {
     if (err.response?.status === 429) {
@@ -305,6 +293,7 @@ async function runPageSync() {
     } else {
       console.error(`[page-sync-v3] ${fileKey}: Error:`, err.message);
     }
+    return false;
   }
 }
 
@@ -312,7 +301,7 @@ async function runPageSync() {
  * Shared logic to process and aggregate versions
  */
 async function processNewVersions(fileId, fileKey, versions) {
-  if (versions.length === 0) return;
+  if (versions.length === 0) return 0;
 
   const { data: existingRows } = await supabase
     .from("file_versions")
@@ -353,7 +342,9 @@ async function processNewVersions(fileId, fileKey, versions) {
       }
     }
     console.log(`[page-sync-v3] ${fileKey}: Inserted ${newVersions.length} versions`);
+    return newVersions.length;
   }
+  return 0;
 }
 
 async function runSyncAfterDelay(ms = 30000) {

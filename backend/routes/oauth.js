@@ -5,34 +5,33 @@ const supabase = require("../supabaseClient");
 require("dotenv").config();
 
 const router = express.Router();
+// In-memory fallback store for oauth states when DB is unavailable
+const oauthStateCache = new Map();
 
 // POST /api/oauth/start -> returns an authorization URL to redirect the user to
 router.post("/start", async (req, res) => {
   try {
     const { fileKeys } = req.body || {};
     console.log("[/api/oauth/start] Starting OAuth (fileKeys provided:", !!fileKeys, ")");
-    const missing = [];
-    if (!process.env.FIGMA_CLIENT_ID) missing.push("FIGMA_CLIENT_ID");
-    if (!process.env.FIGMA_OAUTH_REDIRECT_URI) missing.push("FIGMA_OAUTH_REDIRECT_URI");
-    if (!process.env.APP_URL) missing.push("APP_URL (optional but recommended)");
-    if (missing.length > 0) {
-      const msg = `Missing env variables: ${missing.join(", ")}`;
-      console.error(`[/api/oauth/start] ERROR: ${msg}`);
-      return res.status(500).json({ error: msg });
+    // NOTE: In dev we don't block on missing env vars or DB availability.
+    if (!process.env.FIGMA_CLIENT_ID || !process.env.FIGMA_OAUTH_REDIRECT_URI) {
+      console.warn("[/api/oauth/start] Warning: FIGMA_CLIENT_ID or FIGMA_OAUTH_REDIRECT_URI missing — continuing in dev fallback mode");
     }
 
     const state = crypto.randomBytes(16).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 minutes
 
     console.log(`[/api/oauth/start] Creating state: ${state}`);
-    const { error: stateError } = await supabase.from("oauth_states").insert({ 
-      state, 
-      expires_at: expiresAt,
-      settings_data: { fileKeys: fileKeys || "" } 
-    });
-    if (stateError) {
-      console.error("[/api/oauth/start] Supabase state error:", stateError.message);
-      return res.status(500).json({ error: "Failed to store OAuth state in database" });
+    try {
+      const { error: stateError } = await supabase.from("oauth_states").insert({ 
+        state, 
+        expires_at: expiresAt,
+        metadata: { fileKeys: fileKeys || "" } 
+      });
+      if (stateError) throw stateError;
+    } catch (err) {
+      console.warn("[/api/oauth/start] Supabase insert failed — using in-memory cache for state (dev fallback)", err?.message || err);
+      oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
     }
 
     const clientId = process.env.FIGMA_CLIENT_ID;
@@ -64,16 +63,32 @@ router.get("/callback", async (req, res) => {
 
     // Validate state
     console.log("[/api/oauth/callback] Validating state:", state);
-    const { data: states, error: stateError } = await supabase
-      .from("oauth_states")
-      .select("state, expires_at, settings_data")
-      .eq("state", state)
-      .limit(1)
-      .maybeSingle();
+    let states = null;
+    try {
+      const { data, error: stateError } = await supabase
+        .from("oauth_states")
+        .select("state, expires_at, metadata")
+        .eq("state", state)
+        .limit(1)
+        .maybeSingle();
+      if (stateError) throw stateError;
+      states = data;
+    } catch (dbErr) {
+      console.error("[/api/oauth/callback] Supabase error fetching state:", dbErr.message || dbErr);
+      // try in-memory cache fallback
+      if (oauthStateCache.has(state)) {
+        console.warn("[/api/oauth/callback] Using in-memory oauth state cache");
+        states = oauthStateCache.get(state);
+      } else {
+        return res.status(500).send("Database error validating state");
+      }
+    }
 
-    if (stateError) {
-      console.error("[/api/oauth/callback] Supabase error fetching state:", stateError.message);
-      return res.status(500).send("Database error validating state");
+    if (!states) {
+      // final check: maybe in-memory cache
+      if (oauthStateCache.has(state)) {
+        states = oauthStateCache.get(state);
+      }
     }
 
     if (!states) {
@@ -123,7 +138,7 @@ router.get("/callback", async (req, res) => {
 
       // Store or update user record in Supabase (server-side only)
       const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
-      console.log("[/api/oauth/callback] Upserting user record with fileKeys:", states.settings_data?.fileKeys);
+      console.log("[/api/oauth/callback] Upserting user record with fileKeys:", states.metadata?.fileKeys);
       const { error: upsertError } = await supabase
         .from("users")
         .upsert(
@@ -135,7 +150,7 @@ router.get("/callback", async (req, res) => {
             scopes: scope || null,
             token_expires_at: expiresAt,
             // Store file keys in settings_data column
-            settings_data: { fileKeys: states.settings_data?.fileKeys }
+            metadata: { fileKeys: states.metadata?.fileKeys }
           },
           { onConflict: "figma_user_id" },
         );
