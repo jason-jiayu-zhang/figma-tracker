@@ -8,7 +8,10 @@ const router = express.Router();
  * For now, we'll just pick the first user in the DB.
  */
 async function getActiveUser() {
-  const { data: users } = await supabase.from("users").select("*").limit(1);
+  const { data: users } = await supabase
+    .from("users")
+    .select("figma_user_id, access_token, display_name, email, img_url, created_at")
+    .limit(1);
   return users ? users[0] : null;
 }
 
@@ -23,6 +26,9 @@ router.get("/me", async (req, res) => {
   }
 });
 
+const figma = require("../figmaService");
+const { runSyncAfterDelay } = require("../syncService");
+
 // POST /api/user/files -> adds a new file key to the current user
 router.post("/files", async (req, res) => {
   try {
@@ -32,26 +38,58 @@ router.post("/files", async (req, res) => {
     const user = await getActiveUser();
     if (!user) return res.status(401).json({ error: "Not connected" });
 
-    const currentKeys = (user.settings_data?.fileKeys || "")
-      .split(",")
-      .map(k => k.trim())
-      .filter(Boolean);
-
-    if (currentKeys.includes(fileKey)) {
-      return res.json({ success: true, message: "Already tracking" });
+    // 1. Fetch metadata immediately from Figma
+    let meta;
+    try {
+      meta = await figma.getFileMeta(fileKey, user.access_token);
+    } catch (metaErr) {
+      console.error(`[/api/user/files] Could not fetch metadata for ${fileKey}:`, metaErr.message);
+      return res.status(400).json({ error: `Figma API error: ${metaErr.message}` });
     }
 
-    const newKeys = [...currentKeys, fileKey].join(",");
-    const { error: updateErr } = await supabase
-      .from("users")
-      .update({ settings_data: { ...user.settings_data, fileKeys: newKeys } })
-      .eq("figma_user_id", user.figma_user_id);
+    // 2. Upsert into figma_files (the new source of truth for tracking)
+    const { data: fileRow, error: upsertErr } = await supabase
+      .from("figma_files")
+      .upsert({
+        file_key: fileKey,
+        name: meta.name,
+        thumbnail_url: meta.thumbnailUrl,
+        last_modified: meta.lastModified,
+        updated_at: new Date().toISOString(),
+        sync_completed: false // Ensure it's marked for sync
+      }, { onConflict: "file_key" })
+      .select("id, file_key")
+      .single();
 
-    if (updateErr) throw updateErr;
+    if (upsertErr) throw upsertErr;
 
-    res.json({ success: true, keys: newKeys });
+    // 3. Trigger a background sync to backfill version history
+    runSyncAfterDelay(100);
+
+    res.json({ success: true, file: fileRow });
   } catch (err) {
     console.error("[/api/user/files] Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/user/files/:fileKey -> removes a file key from the current user
+router.delete("/files/:fileKey", async (req, res) => {
+  try {
+    const { fileKey } = req.params;
+    if (!fileKey) return res.status(400).json({ error: "Missing fileKey" });
+
+    // Deleting from figma_files removes it from the global "tracked" list
+    const { error: deleteErr } = await supabase
+      .from("figma_files")
+      .delete()
+      .eq("file_key", fileKey);
+
+    if (deleteErr) throw deleteErr;
+
+    res.json({ success: true, message: "File untracked successfully" });
+  } catch (err) {
+    console.error("[/api/user/files/:fileKey] Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

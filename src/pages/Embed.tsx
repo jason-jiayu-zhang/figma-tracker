@@ -30,21 +30,21 @@ function getPreviewColor(theme: string, level: number) {
 
 const StyleOption = ({ active, label, previewTheme, onClick }: any) => {
   return (
-    <div onClick={onClick} className="flex flex-col gap-[8px] items-start justify-center cursor-pointer transition-all hover:-translate-y-0.5" style={{ width: '140px' }}>
-      <div className="flex gap-[8px] items-center shrink-0">
-        <div className={`h-[16px] w-[16px] rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? 'bg-[#1A1A1A]' : 'bg-[#fffaf4] border border-[#EBEBEB]'}`}>
+    <div onClick={onClick} className="flex flex-col gap-2 items-start justify-center cursor-pointer transition-all hover:-translate-y-0.5" style={{ width: '140px' }}>
+      <div className="flex gap-2 items-center shrink-0">
+        <div className={`h-4 w-4 rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? 'bg-[#1A1A1A]' : 'bg-[#fffaf4] border border-[#EBEBEB]'}`}>
           {active && <Check size={10} color="white" strokeWidth={3} />}
         </div>
         <p className={`font-sans text-[12px] tracking-[-0.12px] whitespace-nowrap transition-colors ${active ? 'font-bold text-[#1A1A1A]' : 'font-normal text-[#737373]'}`}>
           {label}
         </p>
       </div>
-      <div className={`${previewTheme === 'github' ? 'bg-[#0d1116]' : 'bg-white border border-[#EBEBEB]'} flex items-center justify-center px-[8px] py-[6px] rounded-[8px] shadow-sm w-full`}>
-        <div className="flex gap-[6px] items-center">
+      <div className={`${previewTheme === 'github' ? 'bg-[#0d1116]' : 'bg-white border border-[#EBEBEB]'} flex items-center justify-center px-2 py-1.5 rounded-lg shadow-sm w-full`}>
+        <div className="flex gap-1.5 items-center">
           <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-[#1A1A1A]'}`}>Less</p>
-          <div className="flex gap-[2px]">
+          <div className="flex gap-0.5">
             {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className={`rounded-[3px] size-[12px] ${getPreviewColor(previewTheme, i)}`} />
+              <div key={i} className={`rounded-[3px] size-3 ${getPreviewColor(previewTheme, i)}`} />
             ))}
           </div>
           <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-[#1A1A1A]'}`}>More</p>
@@ -75,14 +75,14 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
     <div className="relative">
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="size-[28px] rounded-[6px] shadow-sm cursor-pointer border border-black/10 transition-all hover:scale-110 active:scale-95"
+        className="size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-all hover:scale-110 active:scale-95"
         style={{ backgroundColor: color }}
         title={title}
       />
       {isOpen && (
         <div 
           ref={popover}
-          className="absolute bottom-[calc(100%+8px)] left-0 z-50 p-2 bg-white rounded-[12px] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#ECECEC] animate-in fade-in zoom-in duration-200"
+          className="absolute bottom-[calc(100%+8px)] left-0 z-50 p-2 bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#ECECEC] animate-in fade-in zoom-in duration-200"
         >
           <div className="custom-picker">
             <HexColorPicker color={color} onChange={onChange} />
@@ -100,7 +100,12 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
 };
 
 export default function EmbedEditor() {
-  const { stats, activity, loading, files, selectedFileKeys, setSelectedFileKeys } = useFigmaData();
+  const { stats, activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
+
+  // Embed shows all edits (not just mine) so file selection works for any file
+  useEffect(() => {
+    setFilterMine(false);
+  }, [setFilterMine]);
   const [searchParams, setSearchParams] = useSearchParams();
   const [embedStyle, setEmbedStyle] = useState("Fimanu Style");
   const [copied, setCopied] = useState(false);
@@ -198,23 +203,23 @@ export default function EmbedEditor() {
   if (loading && !activity) return null;
 
   return (
-    <div className="flex gap-[32px] items-stretch shrink-0 w-full h-[768px]">
+    <div className="flex gap-8 items-stretch shrink-0 w-full h-fit">
       {/* Settings Box */}
-      <div className="bg-white flex flex-col gap-[24px] items-center justify-start p-[24px] rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[360px] overflow-y-auto custom-scrollbar">
-        <div className="flex gap-[12px] items-center w-full">
-          <div className="size-[40px] flex items-center justify-center bg-[#F5F5F5] rounded-[10px] text-[#1A1A1A]">
+      <div className="bg-white flex flex-col gap-6 items-center justify-start p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[360px] overflow-y-auto custom-scrollbar">
+        <div className="flex gap-3 items-center w-full">
+          <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
             <SettingsIcon />
           </div>
-          <div className="flex flex-col gap-[2px]">
+          <div className="flex flex-col gap-0.5">
             <h1 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Embed Settings</h1>
             <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Change information and design of your embed.</p>
           </div>
         </div>
 
-        <div className="flex flex-col gap-[24px] w-full px-[4px]">
-          <div className="flex flex-col gap-[12px]">
+        <div className="flex flex-col gap-6 w-full px-1">
+          <div className="flex flex-col gap-3">
             <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Embed Styles</p>
-            <div className="flex flex-wrap gap-[12px] w-full">
+            <div className="flex flex-wrap gap-3 w-full">
               <StyleOption active={embedStyle === "Fimanu Style"} label="Fimanu Style" previewTheme="fimanu" onClick={() => setEmbedStyle("Fimanu Style")} />
               <StyleOption active={embedStyle === "GitHub Style"} label="GitHub Style" previewTheme="github" onClick={() => setEmbedStyle("GitHub Style")} />
               <StyleOption active={embedStyle === "Figma Style"} label="Figma Style" previewTheme="figma" onClick={() => setEmbedStyle("Figma Style")} />
@@ -222,9 +227,9 @@ export default function EmbedEditor() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[12px]">
+          <div className="flex flex-col gap-3">
             <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Heatmap Colors</p>
-            <div className="flex gap-[8px] items-center">
+            <div className="flex gap-2 items-center">
               {[3, 2, 1, 0].map(i => (
                 <ColorPicker 
                   key={i}
@@ -249,8 +254,8 @@ export default function EmbedEditor() {
             </div>
           </div>
 
-          <div className="flex gap-[16px] w-full">
-            <div className="flex flex-col gap-[8px] flex-1">
+          <div className="flex gap-4 w-full">
+            <div className="flex flex-col gap-2 flex-1">
               <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Background</p>
               <div className="w-full">
                 <ColorPicker 
@@ -262,7 +267,7 @@ export default function EmbedEditor() {
                 />
               </div>
             </div>
-            <div className="flex flex-col gap-[8px] flex-1">
+            <div className="flex flex-col gap-2 flex-1">
               <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Text</p>
               <div className="w-full">
                 <ColorPicker 
@@ -276,9 +281,9 @@ export default function EmbedEditor() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[8px]">
+          <div className="flex flex-col gap-2">
             <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider whitespace-nowrap">Border Radius: {rectRadius.toFixed(1)}px</p>
-            <div className="flex flex-col gap-[6px] w-full mt-1">
+            <div className="flex flex-col gap-1.5 w-full mt-1">
               <input type="range" className="w-[calc(100%-8px)] mx-auto accent-[#f23b27] h-1 bg-[#EBEBEB] rounded-lg appearance-none cursor-pointer border-none shadow-none focus:outline-none" min="0" max={rectSize / 2} step="0.5" value={rectRadius} onChange={e => { setRectRadius(parseFloat(e.target.value)); setEmbedStyle("Custom Style"); }} />
               <div className="flex justify-between text-[10px] text-[#A6A6A6] font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Sharp</span>
@@ -288,9 +293,9 @@ export default function EmbedEditor() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-[8px]">
+          <div className="flex flex-col gap-2">
             <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider whitespace-nowrap">Embed Size: {rectSize}px</p>
-            <div className="flex flex-col gap-[6px] w-full mt-1">
+            <div className="flex flex-col gap-1.5 w-full mt-1">
               <input type="range" className="w-[calc(100%-8px)] mx-auto accent-[#f23b27] h-1 bg-[#EBEBEB] rounded-lg appearance-none cursor-pointer border-none shadow-none focus:outline-none" min="6" max="24" step="1" value={rectSize} onChange={e => { setRectSize(parseInt(e.target.value)); setEmbedStyle("Custom Style"); }} />
               <div className="flex justify-between text-[10px] text-[#A6A6A6] font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Small</span>
@@ -301,8 +306,8 @@ export default function EmbedEditor() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-[12px] w-[calc(100%-8px)] mt-auto pt-4 pb-2">
-          <button onClick={handleCopy} className="bg-[#f23b27] hover:bg-[#d83523] active:bg-[#bd2f1f] transition-colors text-white font-bold h-[40px] rounded-[8px] flex gap-[8px] items-center justify-center shadow-sm w-full">
+        <div className="flex flex-col gap-3 w-[calc(100%-8px)] mt-auto pt-4 pb-2">
+          <button onClick={handleCopy} className="bg-[#f23b27] hover:bg-[#d83523] active:bg-[#bd2f1f] transition-colors text-white font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full">
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
             {copied ? "Copied!" : "Copy Embed Link"}
           </button>
@@ -322,20 +327,20 @@ export default function EmbedEditor() {
               }
               window.open(`${window.location.origin}/embed-widget?${params.toString()}`, "_blank");
             }}
-            className="bg-white border border-[#f23b27] text-[#f23b27] hover:bg-[#fffaf4] transition-colors font-bold h-[40px] rounded-[8px] flex gap-[8px] items-center justify-center shadow-sm w-full"
+            className="bg-white border border-[#f23b27] text-[#f23b27] hover:bg-[#fffaf4] transition-colors font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full"
           >
             <Telescope size={16} strokeWidth={2.5} /> Preview in Browser
           </button>
         </div>
       </div>
 
-      <div className="flex flex-col gap-[24px] flex-1 min-w-0">
-        <div className="bg-white flex flex-col items-start overflow-clip p-[24px] rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full text-[#1A1A1A]">
-          <div className="flex gap-[12px] items-center mb-[24px]">
-            <div className="size-[40px] flex items-center justify-center bg-[#F5F5F5] rounded-[10px] text-[#1A1A1A]">
+      <div className="flex flex-col gap-6 flex-1 min-w-0">
+        <div className="bg-white flex flex-col items-start overflow-clip p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full text-[#1A1A1A]">
+          <div className="flex gap-3 items-center mb-6">
+            <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
               <MonitorIcon />
             </div>
-            <div className="flex flex-col gap-[2px]">
+            <div className="flex flex-col gap-0.5">
               <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none">Embed Preview</h2>
               <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">View what your embed will appear as.</p>
             </div>
@@ -343,7 +348,7 @@ export default function EmbedEditor() {
 
           {/* Fake Widget Container */}
           <div
-            className={`w-full rounded-[16px] border border-transparent shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] p-[16px] flex flex-col gap-4 relative transition-colors`}
+            className={`w-full rounded-2xl border border-transparent shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] p-4 flex flex-col gap-4 relative transition-colors`}
             style={{ backgroundColor: activeBg }}
           >
             <div className="overflow-x-auto pb-2 custom-scrollbar">
@@ -356,21 +361,21 @@ export default function EmbedEditor() {
           </div>
         </div>
 
-        <div className="bg-white flex gap-[16px] items-start p-[24px] rounded-[24px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full border-l-[4px] border-l-[#1ABCFE]">
+        <div className="bg-white flex gap-4 items-start p-6 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full border-l-[4px] border-l-[#1ABCFE]">
           <Info size={22} className="text-[#1ABCFE] shrink-0" strokeWidth={2.5} />
-          <div className="flex flex-col gap-[6px]">
-            <p className="text-[14px] font-bold text-[#A6A6A6] uppercase tracking-wider leading-none mt-[2px]">Pro Tip</p>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[14px] font-bold text-[#A6A6A6] uppercase tracking-wider leading-none mt-0.5">Pro Tip</p>
             <p className="text-[13px] text-[#1A1A1A] font-medium leading-snug">Changes are saved automatically and reflected across all your active embeds!</p>
           </div>
         </div>
 
         {/* File Selection Box */}
-        <div className="bg-white flex flex-col gap-[24px] items-start overflow-clip p-[24px] rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full text-[#1A1A1A]">
-          <div className="flex gap-[12px] items-center">
-            <div className="size-[40px] flex items-center justify-center bg-[#F5F5F5] rounded-[10px] text-[#1A1A1A]">
+        <div className="bg-white flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full text-[#1A1A1A]">
+          <div className="flex gap-3 items-center">
+            <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
               <LayersIcon />
             </div>
-            <div className="flex flex-col gap-[2px]">
+            <div className="flex flex-col gap-0.5">
               <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none">Select Files</h2>
               <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Choose which files to display in your embed.</p>
             </div>

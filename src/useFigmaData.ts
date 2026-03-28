@@ -18,6 +18,7 @@ export function useFigmaData() {
   const [filterMine, setFilterMine] = useState(true);
   const [selectedFileKeys, setSelectedFileKeys] = useState<string[]>([]);
   const [userIdOverride, setUserIdOverride] = useState<string | null>(null);
+  const [days, setDays] = useState(365);
   const fetchIdRef = useRef(0);
 
   const fetchData = useCallback(async () => {
@@ -26,7 +27,7 @@ export function useFigmaData() {
       const statsUrl = `/api/stats?mine=${filterMine}`;
       const fileKeysParam = selectedFileKeys.length > 0 ? `&fileKeys=${selectedFileKeys.join(",")}` : "";
       const userParam = userIdOverride ? `&userId=${userIdOverride}` : "";
-      const activityUrl = `/api/activity?mine=${filterMine}${fileKeysParam}${userParam}`;
+      const activityUrl = `/api/activity?mine=${filterMine}&days=${days}${fileKeysParam}${userParam}`;
       const filesUrl = `/api/files?mine=${filterMine}`;
       const historyUrl = `/api/sync-history`;
 
@@ -56,7 +57,7 @@ export function useFigmaData() {
     } finally {
       setLoading(false);
     }
-  }, [filterMine, selectedFileKeys, userIdOverride]);
+  }, [filterMine, selectedFileKeys, userIdOverride, days]);
 
   useEffect(() => {
     fetchData();
@@ -109,6 +110,17 @@ export function useFigmaData() {
     }
   };
 
+  const removeFile = async (fileKey: string) => {
+    try {
+      await axios.delete(`/api/user/files/${fileKey}`);
+      await fetchData();
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to remove file:", err);
+      return { success: false, error: err };
+    }
+  };
+
   return {
     stats,
     activity,
@@ -121,7 +133,10 @@ export function useFigmaData() {
     triggerSync,
     fetchVersions,
     addFile,
+    removeFile,
     refresh: fetchData,
+    days,
+    setDays,
     selectedFileKeys,
     setSelectedFileKeys,
     userIdOverride,

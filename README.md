@@ -1,27 +1,24 @@
-# Figma Activity Tracker
+# Figma Activity Tracker V3
 
 GitHub-style activity tracker for Figma files. This application monitors your Figma version history, syncs edits to a Supabase database, and provides a visual dashboard of your design activity.
-https://figma-tracker-production.up.railway.app/
 
-## To-do
-
-- Polish UI
-- Add onboarding and login
+[Live Demo](https://figma-tracker-production.up.railway.app/)
 
 ## Features
 
-- **GitHub-Style Contributions**: Visualize your Figma edits over time with an activity heatmap.
-- **Automated Syncing**: Background services fetch new versions every minute (paginated) and perform a full sweep daily.
-- **Multi-File Tracking**: Monitor multiple Figma files simultaneously.
-- **Detailed History**: Tracks version labels, descriptions, and the designers who made the changes.
-- **Embeddable**: Includes an embeddable script to show your activity on other sites.
+- **GitHub-Style Contributions**: Visualize your Figma edits over time with a premium activity heatmap.
+- **Multi-File Tracking**: Monitor multiple Figma files simultaneously from a unified dashboard.
+- **Specialized Embeds**: Public-facing activity widgets with deep-linking and dynamic styling.
+- **Adaptive Syncing**: Intelligent background service that adjusts polling frequency based on activity.
+- **Detailed History**: Tracks version labels, descriptions, and designer attribution.
+- **Vercel Ready**: Architected for serverless deployment with stateless sync management.
 
 ## Tech Stack
 
-- **Backend**: Node.js, Express
-- **Database**: Supabase (PostgreSQL)
-- **API**: Figma API (Version History, Files, User)
-- **Scheduling**: `node-cron` & internal interval timers
+- **Frontend**: React 19, Vite 7, Tailwind CSS V4, Lucide React, `react-colorful`.
+- **Backend**: Node.js, Express, `node-cron`.
+- **Database**: Supabase (PostgreSQL).
+- **APIs**: Figma API (Version History, Files, User).
 
 ## Setup
 
@@ -31,14 +28,7 @@ https://figma-tracker-production.up.railway.app/
 - A [Figma Personal Access Token](https://www.figma.com/developers/api#access-tokens).
 - Node.js installed locally.
 
-### 2. Database Initialization
-
-Run the contents of `schema.sql` in your Supabase SQL Editor to create the necessary tables and indexes:
-
-- `users`, `teams`, `figma_files`
-- `file_versions`, `sync_sessions`, `daily_activity`
-
-### 3. Environment Variables
+### 2. Environment Variables
 
 Create a `.env` file in the root directory:
 
@@ -47,33 +37,34 @@ PORT=3001
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_anon_key
 FIGMA_TOKEN=your_figma_personal_access_token
-FIGMA_FILE_KEYS=file_key_1,file_key_2
 ```
 
-### 4. Installation
+### 3. Installation & Development
 
 ```bash
+# Install dependencies
 npm install
-```
 
-### 5. Running the App
-
-```bash
+# Start both frontend (Vite) and backend (Express) concurrently
 npm run dev
 ```
 
-The server will start at `http://localhost:3001`.
+The application will be available at `http://localhost:5173` (Vite dev server) with the backend running at `http://localhost:3001`.
 
 ## Project Structure
 
-- `server.js`: Main entry point, sets up Express and cron jobs.
-- `src/syncService.js`: Core logic for fetching Figma versions and upserting to Supabase.
-- `src/figmaService.js`: Wrapper for Figma API requests.
-- `src/supabaseClient.js`: Supabase initialization.
-- `public/`: Frontend dashboard and assets.
-- `schema.sql`: Database schema definition.
+- `backend/`: Core logic for API routes and the sync service.
+  - `syncService.js`: Intelligent version fetching and Supabase integration.
+  - `figmaService.js`: Figma API communication layer.
+  - `routes/`: Express API endpoints (sync, oauth, user).
+- `src/`: React frontend application.
+  - `pages/`: Dashboard, Embed, Files, and Profile views.
+  - `components/`: Sidebar, Footer, Heatmap, and UI primitives.
+  - `useFigmaData.ts`: Custom hook for data fetching and state management.
+- `server.js`: Entry point for local development and Vercel hosting.
 
 ## Sync Logic
 
-- **Page Sync (Every 10s)**: Fetches the next page of 30 older versions for each file until history is complete. Persistent state is tracked in `pagination_state.json`.
-- **Full Sync (Daily at Midnight)**: Performs a full check for any missing version data.
+- **Adaptive Page Sync**: Checks for new versions every 2s when active, slowing down to 10s when idle to optimize API usage.
+- **Full Sync**: Scheduled daily check to ensure data consistency.
+- **Stateless Operation**: Sync state is maintained in Supabase, allowing for reliable serverless execution.

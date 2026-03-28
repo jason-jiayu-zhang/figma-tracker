@@ -8,6 +8,8 @@ import { useFigmaData } from "./useFigmaData";
 import Onboard from "./pages/Onboard";
 import Footer from "./components/Footer";
 import Sidebar from "./components/Sidebar";
+import Files from "./pages/Files";
+import Profile from "./pages/Profile";
 
 function Header({ stats }: { stats: any }) {
 
@@ -25,19 +27,19 @@ function Header({ stats }: { stats: any }) {
         justifyContent: "flex-end",
       }}
     >
-      <div className="w-full px-6 py-0 h-[60px] flex items-center justify-end">
+      <div className="w-full px-6 py-0 h-15 flex items-center justify-end">
 
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 600,
-                color: stats?.myFigmaUserId ? "#0acf83" : "var(--text-muted)",
-              }}
-            >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              fontWeight: 600,
+              color: stats?.myFigmaUserId ? "#0acf83" : "var(--text-muted)",
+            }}
+          >
             <span
               style={{
                 width: 7,
@@ -112,24 +114,28 @@ function App() {
       <Route path="*" element={
         <div className="bg-[#fffaf4] overflow-x-hidden">
           {/* Viewport block for Nav Bar and Main Content */}
-          <div className="w-full min-h-screen flex items-center justify-center py-[16px]">
-            <div className="flex flex-row gap-[32px] w-[1020px] max-w-full relative">
-              <Sidebar className="bg-white flex flex-col gap-[48px] h-[768px] items-start justify-center px-[12px] py-[8px] relative rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[88px]" />
-              
-              <div className="flex flex-col w-[900px] max-w-full shrink-0">
+          <div className="w-full min-h-screen flex items-center justify-center py-2 px-6 lg:px-8">
+            <div className="flex flex-row gap-8 w-[1080px] max-w-full relative">
+              <Sidebar className="bg-white flex flex-col gap-12 h-[800px] items-start justify-center px-3 py-2 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22" />
+
+              <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 h-[800px]">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
+                  <Route path="/files" element={<Files />} />
                   <Route path="/embed" element={<Embed />} />
+                  <Route path="/profile" element={<Profile />} />
                 </Routes>
               </div>
             </div>
           </div>
 
           {/* Footer naturally flows below the fold */}
-          <div className="w-full flex justify-center pb-[32px]">
+          <div className="w-full flex justify-center pb-8">
             <Routes>
               <Route path="/" element={<Footer />} />
+              <Route path="/files" element={<Footer />} />
               <Route path="/embed" element={<Footer />} />
+              <Route path="/profile" element={<Footer />} />
             </Routes>
           </div>
         </div>

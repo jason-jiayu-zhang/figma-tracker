@@ -35,7 +35,7 @@
 <feGaussianBlur stdDeviation="6" result="effect1_foregroundBlur_57_1397"/>
 </filter>
 <clipPath id="clip0_57_1397">
-<rect width="1020" height="551" rx="32" fill="white"/>
+<rect width="1020" height="551" fill="white"/>
 </clipPath>
 </defs>
 </svg>

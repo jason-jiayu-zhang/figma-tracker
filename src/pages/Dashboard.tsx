@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   RefreshCw,
   X,
-  Plus,
   Clock,
   FileText,
   Activity,
@@ -41,10 +40,11 @@ export default function Dashboard() {
     setFilterMine,
     triggerSync,
     fetchVersions,
-    addFile,
     refresh,
     selectedFileKeys,
     setSelectedFileKeys,
+    days,
+    setDays,
   } = useFigmaData();
 
   const selectedFileKey = selectedFileKeys.length === 1 ? selectedFileKeys[0] : null;
@@ -56,22 +56,6 @@ export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<FigmaFile | null>(null);
   const [versions, setVersions] = useState<FigmaVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
-  const [newFileKey, setNewFileKey] = useState("");
-  const [showAddInput, setShowAddInput] = useState(false);
-  const [isAdding, setIsAdding] = useState(false);
-
-  const handleAddFile = async () => {
-    if (!newFileKey.trim()) return;
-    setIsAdding(true);
-    const res = await addFile(newFileKey.trim());
-    setIsAdding(false);
-    if (res.success) {
-      setNewFileKey("");
-      setShowAddInput(false);
-    } else {
-      alert("Failed to track file. Check the key.");
-    }
-  };
 
   const handleFileClick = async (file: FigmaFile) => {
     setSelectedFile(file);
@@ -124,18 +108,18 @@ export default function Dashboard() {
     : 0;
 
   return (
-    <div className="content-stretch flex flex-col gap-[24px] items-start relative shrink-0 w-[900px]">
+    <div className="content-stretch flex flex-col gap-6 items-start relative shrink-0 w-full">
 
       {/* ACTIVITY BREAKDOWN SECTION */}
-      <div className="bg-white content-stretch flex flex-col gap-[16px] items-center justify-center p-[24px] relative rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-[289px]">
+      <div className="bg-white content-stretch flex flex-col gap-4 items-center justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-fit">
         <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
-          <div className="content-stretch flex gap-[12px] items-center relative shrink-0">
-            <div className="relative shrink-0 size-[40px]">
+          <div className="content-stretch flex gap-3 items-center relative shrink-0">
+            <div className="relative shrink-0 size-10">
               <div className="w-10 h-10 bg-[#1abcfe]/10 flex items-center justify-center rounded-xl text-[#1abcfe]">
                 <Activity size={20} />
               </div>
             </div>
-            <div className="content-stretch flex flex-col gap-[4px] items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
+            <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
               <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
                 Activity Breakdown
               </p>
@@ -144,41 +128,41 @@ export default function Dashboard() {
               </p>
             </div>
           </div>
-          <div className="bg-[#fffaf4] content-stretch flex items-center p-[4px] relative rounded-[8px] shrink-0">
+          <div className="bg-[#fffaf4] content-stretch flex items-center p-1 relative rounded-lg shrink-0">
             <button
               onClick={() => setFilterMine(true)}
-              className={`content-stretch flex h-[36px] items-center justify-center px-[16px] py-[6px] relative rounded-[8px] shrink-0 transition-all ${filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
+              className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
             >
-              <p className="font-normal leading-[20px] relative shrink-0 text-[16px] tracking-[-0.16px] whitespace-nowrap">
+              <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
                 My Edits
               </p>
             </button>
             <button
               onClick={() => setFilterMine(false)}
-              className={`content-stretch flex h-[36px] items-center justify-center px-[16px] py-[6px] relative rounded-[8px] shrink-0 transition-all ${!filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
+              className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${!filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
             >
-              <p className="font-normal leading-[20px] relative shrink-0 text-[16px] tracking-[-0.16px] whitespace-nowrap">
+              <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
                 All Edits
               </p>
             </button>
           </div>
         </div>
 
-        <div className="bg-[#fffaf4] content-stretch flex flex-col gap-[12px] items-start justify-end p-[16px] relative rounded-[16px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-[852px]">
+        <div className="bg-[#fffaf4] content-stretch flex flex-col gap-3 items-start justify-end p-4 relative rounded-2xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-full">
           <Heatmap data={activity?.dailyTotals ?? {}} theme="light" customTheme={fimanuTheme} />
         </div>
       </div>
 
       {/* VOLUME BREAKDOWN SECTION */}
-      <div className="bg-white content-stretch flex flex-col gap-[16px] items-start justify-center p-[24px] relative rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-[455px]">
+      <div className="bg-white content-stretch flex flex-col gap-4 items-start justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-[455px]">
         <div className="content-stretch flex items-center justify-between relative shrink-0 w-full mb-2">
-          <div className="content-stretch flex gap-[12px] h-full items-center relative shrink-0">
-            <div className="relative shrink-0 size-[40px]">
+          <div className="content-stretch flex gap-3 h-full items-center relative shrink-0">
+            <div className="relative shrink-0 size-10">
               <div className="w-10 h-10 bg-[#a259ff]/10 flex items-center justify-center rounded-xl text-[#a259ff]">
                 <Layers size={20} />
               </div>
             </div>
-            <div className="content-stretch flex flex-col gap-[4px] items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
+            <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
               <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
                 Volume Breakdown
               </p>
@@ -188,43 +172,21 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <button
-            onClick={() => setShowAddInput(!showAddInput)}
-            className="bg-[#fffaf4] content-stretch flex gap-[8px] h-[36px] items-center justify-center pl-[14px] pr-[16px] py-[6px] relative rounded-[8px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-[160px] text-black hover:bg-[#f5ebd9] transition-colors"
-          >
-            <Plus size={16} />
-            <p className="font-normal leading-[20px] relative shrink-0 text-[16px] tracking-[-0.16px] whitespace-nowrap">
-              Add File
-            </p>
-          </button>
-        </div>
-
-        {showAddInput && (
-          <div className="flex items-center gap-2 animate-in slide-in-from-top-2 duration-300 w-full mb-4">
-            <input
-              autoFocus
-              type="text"
-              value={newFileKey}
-              onChange={(e) => setNewFileKey(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddFile()}
-              placeholder="Enter file key..."
-              className="px-4 py-2 bg-[#fffaf4] border border-[#EBEBEB] rounded-lg outline-none focus:border-[#1ABCFE] transition-all flex-1 font-mono"
-            />
-            <button
-              onClick={handleAddFile}
-              disabled={isAdding || !newFileKey.trim()}
-              className="bg-[#1ABCFE] text-white p-2 rounded-lg hover:bg-[#16a6e0] transition-all disabled:opacity-50"
-            >
-              <CheckCircle2 size={18} />
-            </button>
-            <button
-              onClick={() => setShowAddInput(false)}
-              className="p-2 text-[#A6A6A6] hover:text-[#181818] transition-colors"
-            >
-              <X size={18} />
-            </button>
+          <div className="bg-[#fffaf4] content-stretch flex items-center p-1 relative rounded-lg shrink-0">
+            {([{ label: '1W', value: 7 }, { label: '1M', value: 30 }, { label: '90D', value: 90 }, { label: '1Y', value: 365 }, { label: 'YTD', value: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) + 1 }, { label: 'All', value: 3650 }] as { label: string; value: number }[]).map((opt) => (
+              <button
+                key={opt.label}
+                onClick={() => setDays(opt.value)}
+                className={`content-stretch flex h-9 items-center justify-center px-[14px] py-1.5 relative rounded-lg shrink-0 transition-all text-[15px] font-normal tracking-[-0.15px] ${days === opt.value
+                    ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black"
+                    : "text-[#A6A6A6] hover:text-[#181818]"
+                  }`}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         <FileVolumeBreakdown
           activity={activity}
@@ -233,6 +195,7 @@ export default function Dashboard() {
           setSelectedFileKey={setSelectedFileKey}
         />
       </div>
+
     </div>
   );
 }
