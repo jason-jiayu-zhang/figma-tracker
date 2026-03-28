@@ -36,7 +36,7 @@ router.post("/start", async (req, res) => {
 
     const clientId = process.env.FIGMA_CLIENT_ID;
     const redirectUri = process.env.FIGMA_OAUTH_REDIRECT_URI;
-    const scope = "current_user:read file_metadata:read file_versions:read file_content:read"; // Added file_content:read for getFileMeta support
+    const scope = "current_user:read file_metadata:read file_versions:read"; // Request minimal scopes (no file_content:read)
 
     const url = `https://www.figma.com/oauth?client_id=${encodeURIComponent(
       clientId,
