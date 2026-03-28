@@ -305,8 +305,13 @@ async function runPageSync() {
     const inserted = await processNewVersions(fileId, fileKey, versions);
     if (inserted > 0 || versions.length > 0) updateFound = true;
 
+    const serializedNextCursor =
+      nextCursor && typeof nextCursor === "object"
+        ? JSON.stringify(nextCursor)
+        : nextCursor;
+
     await supabase.from("figma_files").update({ 
-      sync_cursor: nextCursor, 
+      sync_cursor: serializedNextCursor, 
       sync_completed: !nextCursor 
     }).eq("id", fileId);
     
