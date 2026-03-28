@@ -251,10 +251,11 @@ export default function Heatmap({ data, theme = "light", customTheme }: HeatmapP
           style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
         >
           <span className="leading-[normal]">Made by</span>
-          <span className="decoration-solid underline">Fimanu</span>
-          <div className="flex items-center justify-center text-[#9851f9]">
-            <Zap size={tFontSize} color="currentColor" />
-          </div>
+          <img 
+            src="/assets/Fimanu Logo.svg" 
+            alt="Fimanu" 
+            style={{ height: tFontSize * 1.6, width: "auto" }}
+          />
         </div>
       </div>
     </div>
