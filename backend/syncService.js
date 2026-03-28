@@ -12,7 +12,7 @@ async function runSync() {
   
   const sessionData = {
     files_synced: 0,
-    new_versions_found: 1, // Start with 1 to indicate it started
+    new_versions_found: 0,
     status: "success",
     error_message: null,
   };
