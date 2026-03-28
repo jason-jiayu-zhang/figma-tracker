@@ -2,7 +2,7 @@ const { createClient } = require("@supabase/supabase-js");
 require("dotenv").config();
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_KEY in .env");
+  console.warn("⚠️ SUPABASE_URL or SUPABASE_SERVICE_KEY missing. This may fail at runtime.");
 }
 
 const supabase = createClient(

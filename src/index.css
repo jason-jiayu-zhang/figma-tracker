@@ -28,7 +28,7 @@
   --orange: #f24e1e;
   --red: #ef4444;
   --radius: 14px;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: "Urbanist", system-ui, -apple-system, sans-serif;
   --font-display: "Outfit", "Inter", system-ui, sans-serif;
   --shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.5);
   --shadow-sm: 0 2px 8px 0 rgba(0, 0, 0, 0.3);
@@ -431,7 +431,24 @@ h3 {
   .toast-icon {
     color: var(--accent);
   }
-  .toast.show {
-    transform: translateY(0);
+  /* ── Color Picker (react-colorful) ────────────────────── */
+  .custom-picker .react-colorful {
+    width: 170px;
+    height: 160px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .custom-picker .react-colorful__saturation {
+    border-radius: 0;
+  }
+  .custom-picker .react-colorful__hue {
+    height: 12px;
+    border-radius: 0;
+  }
+  .custom-picker .react-colorful__pointer {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
   }
 }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Embed</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+    }
+    .container {
+      background: white;
+      padding: 32px;
+      border-radius: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 800px;
+    }
+    h1 { margin-top: 0; }
+    iframe {
+      border: none;
+      width: 100%;
+      height: 250px;
+      border-radius: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>My Personal Website</h1>
+    <p>Welcome to my portfolio! Check out my Figma activity below.</p>
+    
+    <!-- Test embedding with parameters -->
+    <iframe src="http://localhost:5173/embed-widget?style=fimanu" title="Figma Activity"></iframe>
+    
+    <p>And here is a custom styled one:</p>
+    <iframe src="http://localhost:5173/embed-widget?style=custom&bg=0d1116&text=ffffff&radius=6&size=16" title="Custom Figma Activity"></iframe>
+  </div>
+</body>
+</html>
