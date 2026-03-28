@@ -356,6 +356,7 @@ export default function EmbedEditor() {
                 data={activity?.dailyTotals ?? {}}
                 theme={embedStyle === 'GitHub Style' ? 'dark' : 'light'}
                 customTheme={activeTheme}
+                profileUrl="/profile"
               />
             </div>
           </div>

@@ -76,6 +76,9 @@ export default function EmbedWidget() {
 
   const bgColor = bg ? `#${bg}` : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
 
+  const userId = searchParams.get("userId");
+  const profileUrl = userId ? `${window.location.origin}/profile?userId=${userId}` : `${window.location.origin}/profile`;
+
   if (loading && !activity) return null;
 
   return (
@@ -92,6 +95,7 @@ export default function EmbedWidget() {
           data={activity?.dailyTotals ?? {}}
           theme={rawStyle === "github" ? "dark" : "light"}
           customTheme={activeTheme}
+          profileUrl={profileUrl}
         />
       </div>
     </div>
