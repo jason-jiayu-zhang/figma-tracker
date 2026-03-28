@@ -3,10 +3,10 @@ import { Link, useLocation } from "react-router-dom";
 import { useFigmaData } from "../useFigmaData";
 import { User as UserIcon } from "lucide-react";
 
-const imgFrame43 = "http://localhost:3845/assets/dc8ea431dcefd460d2f45a955c192e13a83a1829.svg";
-const imgFrame44 = "http://localhost:3845/assets/bdcf59e0bff15fdf3a487151cfffd8e82199b3cb.svg";
-const imgFrame46 = "http://localhost:3845/assets/ab590deb3d77bd9221c55e530395b63fdbdf1f05.svg";
-const imgFrame47 = "http://localhost:3845/assets/c16bdc689d8ee776175a884985bd7e04f8b53c99.svg";
+const imgFrame43 = "/assets/dc8ea431dcefd460d2f45a955c192e13a83a1829.svg";
+const imgFrame44 = "/assets/bdcf59e0bff15fdf3a487151cfffd8e82199b3cb.svg";
+const imgFrame46 = "/assets/ab590deb3d77bd9221c55e530395b63fdbdf1f05.svg";
+const imgFrame47 = "/assets/c16bdc689d8ee776175a884985bd7e04f8b53c99.svg";
 
 export default function Sidebar({ className }: { className?: string }) {
   const { stats } = useFigmaData();
