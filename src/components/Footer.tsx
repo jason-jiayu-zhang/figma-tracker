@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 const Footer: React.FC = () => {
   return (
     <div className="w-full flex justify-center pb-12 mt-12">
-      <footer className="bg-white flex h-[551px] items-start justify-between overflow-hidden px-[96px] py-[48px] relative rounded-[32px] shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] w-[1020px] max-w-[calc(100vw-32px)]">
+      <footer className="bg-white flex h-[551px] items-start justify-between overflow-hidden px-24 py-12 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] w-[1080px] max-w-[calc(100vw-32px)]">
         {/* Background Layer with the SVG Wave */}
         <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
           <img
@@ -16,7 +16,7 @@ const Footer: React.FC = () => {
 
         {/* Content Layer above the SVG */}
         <div className="relative z-10 w-full flex justify-between items-start gap-8 flex-wrap">
-          <div className="flex flex-col font-sans font-normal gap-[12px] items-start">
+          <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
               NAVIGATION
             </p>
@@ -33,7 +33,7 @@ const Footer: React.FC = () => {
               Embed
             </Link>
           </div>
-          <div className="flex flex-col font-sans font-normal gap-[12px] items-start">
+          <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
               RESOURCES
             </p>
@@ -47,7 +47,7 @@ const Footer: React.FC = () => {
               Report a Bug
             </Link>
           </div>
-          <div className="flex flex-col font-sans font-normal gap-[12px] items-start">
+          <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
               ABOUT
             </p>
@@ -58,7 +58,7 @@ const Footer: React.FC = () => {
               Documentation
             </Link>
           </div>
-          <div className="flex flex-col font-sans font-normal gap-[12px] items-start">
+          <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
               LEGAL
             </p>
@@ -72,7 +72,7 @@ const Footer: React.FC = () => {
         </div>
 
         {/* Logo at bottom right */}
-        <div className="absolute bottom-[30px] right-[29.71px] h-[48px] w-[205.287px]">
+        <div className="absolute bottom-[30px] right-[29.71px] h-12 w-[205.287px]">
           <img
             alt=""
             className="block max-w-none size-full transition-transform hover:scale-105 duration-300"

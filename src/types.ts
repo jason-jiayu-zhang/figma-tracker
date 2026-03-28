@@ -45,6 +45,12 @@ export interface Stats {
   lastSyncStatus: string | null;
   filterMine: boolean;
   myFigmaUserId: string | null;
+  user?: {
+    display_name: string | null;
+    email: string | null;
+    img_url: string | null;
+    created_at: string | null;
+  };
 }
 
 export interface SyncSession {

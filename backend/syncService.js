@@ -12,32 +12,37 @@ async function runSync() {
   
   const sessionData = {
     files_synced: 0,
-    new_versions_found: 0,
+    new_versions_found: 1, // Start with 1 to indicate it started
     status: "success",
     error_message: null,
   };
 
   try {
-    // 1. Get all users with file keys
+    // 1. Get the first user for their OAuth token
     const { data: users, error: userErr } = await supabase
       .from("users")
-      .select("figma_user_id, access_token, metadata");
+      .select("access_token")
+      .limit(1);
     
     if (userErr) throw userErr;
+    const token = users?.[0]?.access_token;
+    if (!token) {
+      console.warn("[sync] No user token found. Skipping sync.");
+      return sessionData;
+    }
 
-    for (const user of users || []) {
-      const token = user.access_token;
-      const fileKeys = (user.metadata?.fileKeys || "")
-        .split(",")
-        .map(k => k.trim())
-        .filter(Boolean);
+    // 2. Get all tracked files from figma_files
+    const { data: files, error: fileErr } = await supabase
+      .from("figma_files")
+      .select("file_key");
 
-      if (fileKeys.length === 0) continue;
+    if (fileErr) throw fileErr;
 
-      console.log(`[sync] User ${user.figma_user_id}: Processing ${fileKeys.length} files`);
+    console.log(`[sync] Processing ${files.length} files from global tracked list`);
 
-      for (const fileKey of fileKeys) {
-        try {
+    for (const fileRow of files || []) {
+      const fileKey = fileRow.file_key;
+      try {
           // -- File metadata
           const meta = await figma.getFileMeta(fileKey, token);
           await sleep(300);
@@ -103,10 +108,24 @@ async function runSync() {
                 byDate[date] = (byDate[date] || 0) + 1;
               }
 
-              for (const [date, count] of Object.entries(byDate)) {
+              // Recompute absolute counts from file_versions for affected dates
+              // This is idempotent — safe to run multiple times without accumulation
+              const affectedDates = Object.keys(byDate);
+              for (const date of affectedDates) {
+                const dateStart = date + "T00:00:00.000Z";
+                const dateEnd = date + "T23:59:59.999Z";
+                const { count } = await supabase
+                  .from("file_versions")
+                  .select("id", { count: "exact", head: true })
+                  .eq("file_id", fileId)
+                  .gte("created_at", dateStart)
+                  .lte("created_at", dateEnd);
+
+                const absoluteCount = count || 0;
+
                 const { data: existing } = await supabase
                   .from("daily_activity")
-                  .select("id, version_count")
+                  .select("id")
                   .eq("file_id", fileId)
                   .eq("activity_date", date)
                   .maybeSingle();
@@ -114,13 +133,13 @@ async function runSync() {
                 if (existing) {
                   await supabase
                     .from("daily_activity")
-                    .update({ version_count: existing.version_count + count })
+                    .update({ version_count: absoluteCount })
                     .eq("id", existing.id);
                 } else {
                   await supabase.from("daily_activity").insert({
                     file_id: fileId,
                     activity_date: date,
-                    version_count: count,
+                    version_count: absoluteCount,
                   });
                 }
               }
@@ -130,7 +149,6 @@ async function runSync() {
         } catch (fileErr) {
           console.error(`[sync] ${fileKey}: Failed:`, fileErr.message);
         }
-      }
     }
   } catch (err) {
     console.error(`[sync] Fatal:`, err.message);
@@ -148,21 +166,19 @@ let nextFileIndex = 0;/**
  * Processes ONE file-user task per call (round-robin).
  */
 async function runPageSync() {
-  // 1. Collect all "tasks" (user + fileKey)
+  // 1. Get the first user for their token
   const { data: users } = await supabase
     .from("users")
-    .select("figma_user_id, access_token, metadata");
+    .select("access_token")
+    .limit(1);
+  const defaultToken = users?.[0]?.access_token;
+
+  // 2. Collect all "tasks" from figma_files table
+  const { data: files } = await supabase
+    .from("figma_files")
+    .select("file_key");
   
-  const tasks = [];
-  for (const user of users || []) {
-    const keys = (user.metadata?.fileKeys || "")
-      .split(",")
-      .map(k => k.trim())
-      .filter(Boolean);
-    for (const k of keys) {
-      tasks.push({ fileKey: k, token: user.access_token });
-    }
-  }
+  const tasks = (files || []).map(f => ({ fileKey: f.file_key, token: defaultToken }));
 
   // Fallback to .env keys
   const envKeys = (process.env.FIGMA_FILE_KEYS || "")
@@ -256,6 +272,15 @@ async function runPageSync() {
     const fileId = fileRow.id;
     let currentCursor = fileRow.sync_cursor;
     
+    // If it's a JSON string (stored from previous object state), parse it
+    if (typeof currentCursor === "string" && currentCursor.startsWith("{")) {
+      try {
+        currentCursor = JSON.parse(currentCursor);
+      } catch (e) {
+        console.warn(`[page-sync-v3] Failed to parse cursor for ${fileKey}:`, currentCursor);
+      }
+    }
+    
     if (!currentCursor) {
       const { data: oldest } = await supabase
         .from("file_versions")
@@ -328,17 +353,26 @@ async function processNewVersions(fileId, fileKey, versions) {
       const date = v.created_at.slice(0, 10);
       byDate[date] = (byDate[date] || 0) + 1;
     }
-    for (const [date, count] of Object.entries(byDate)) {
+    for (const date of Object.keys(byDate)) {
+      const dateStart = date + "T00:00:00.000Z";
+      const dateEnd = date + "T23:59:59.999Z";
+      const { count: absoluteCount } = await supabase
+        .from("file_versions")
+        .select("id", { count: "exact", head: true })
+        .eq("file_id", fileId)
+        .gte("created_at", dateStart)
+        .lte("created_at", dateEnd);
+
       const { data: existing } = await supabase
         .from("daily_activity")
-        .select("id, version_count")
+        .select("id")
         .eq("file_id", fileId)
         .eq("activity_date", date)
         .maybeSingle();
       if (existing) {
-        await supabase.from("daily_activity").update({ version_count: existing.version_count + count }).eq("id", existing.id);
+        await supabase.from("daily_activity").update({ version_count: absoluteCount || 0 }).eq("id", existing.id);
       } else {
-        await supabase.from("daily_activity").insert({ file_id: fileId, activity_date: date, version_count: count });
+        await supabase.from("daily_activity").insert({ file_id: fileId, activity_date: date, version_count: absoluteCount || 0 });
       }
     }
     console.log(`[page-sync-v3] ${fileKey}: Inserted ${newVersions.length} versions`);

@@ -50,7 +50,7 @@ export default function Heatmap({ data, theme = "light", customTheme }: HeatmapP
 
   const tRectSize = customTheme?.rectSize ?? 12; // default 12px (w-3)
   const tGap = customTheme?.gap ?? 4; // default 4px (gap-1)
-  const tRadius = customTheme?.rectRadius ?? 2; // default 2px (rounded-[2px])
+  const tRadius = customTheme?.rectRadius ?? 2; // default 2px (rounded-sm)
   const tTextColor = customTheme?.textColor ?? (isLight ? "#A6A6A6" : "var(--text-muted)");
   const tEmptyColor = customTheme?.emptyColor ?? (isLight ? "#ebebeb" : "rgba(255,255,255,0.07)");
   const tLevelColors = customTheme?.levelColors ?? (isLight
@@ -142,7 +142,7 @@ export default function Heatmap({ data, theme = "light", customTheme }: HeatmapP
       <div ref={containerRef} className="overflow-visible relative">
         {/* Tooltip */}
         <div
-          className={`absolute transform -translate-x-1/2 -translate-y-[calc(100%+12px)] font-medium rounded-[6px] whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-all duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+          className={`absolute transform -translate-x-1/2 -translate-y-[calc(100%+12px)] font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-all duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
           style={{
             left: tooltip.x,
             top: tooltip.y,

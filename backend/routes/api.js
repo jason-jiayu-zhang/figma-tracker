@@ -82,6 +82,15 @@ router.get("/stats", async (req, res) => {
       todayQ,
     ]);
 
+    if (mine && myId) {
+      const { data } = await supabase
+        .from("users")
+        .select("display_name, email, img_url, created_at")
+        .eq("figma_user_id", myId)
+        .maybeSingle();
+      user = data;
+    }
+
     res.json({
       filesTracked: filesRes.count || 0,
       totalVersions: versionsRes.count || 0,
@@ -90,6 +99,7 @@ router.get("/stats", async (req, res) => {
       lastSyncStatus: sessionRes.data ? sessionRes.data.status : null,
       filterMine: mine,
       myFigmaUserId: myId,
+      user,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -223,21 +233,30 @@ router.get("/activity", async (req, res) => {
 
     let rows = [];
     if (myId) {
-      // Query raw file_versions so we can filter by author (and optionally by file)
-      let vQuery = supabase
-        .from("file_versions")
-        .select("created_at, file_id, figma_files!inner( file_key, name )")
-        .eq("created_by_figma_user_id", myId)
-        .gte("created_at", sinceStr + "T00:00:00.000Z");
-      if (filterFileIds.length > 0) vQuery = vQuery.in("file_id", filterFileIds);
+      // Paginate through all matching file_versions to avoid Supabase's 1000-row default limit
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let allVersionRows = [];
+      while (true) {
+        let vQuery = supabase
+          .from("file_versions")
+          .select("created_at, file_id, figma_files!inner( file_key, name )")
+          .eq("created_by_figma_user_id", myId)
+          .gte("created_at", sinceStr + "T00:00:00.000Z")
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+        if (filterFileIds.length > 0) vQuery = vQuery.in("file_id", filterFileIds);
 
-      const { data: vRows, error: vErr } = await vQuery;
+        const { data: vRows, error: vErr } = await vQuery;
+        if (vErr) return res.status(500).json({ error: vErr.message });
 
-      if (vErr) return res.status(500).json({ error: vErr.message });
+        allVersionRows = allVersionRows.concat(vRows || []);
+        if (!vRows || vRows.length < PAGE_SIZE) break; // no more pages
+        page++;
+      }
 
       // Group by date + file
       const grouped = {};
-      for (const v of vRows || []) {
+      for (const v of allVersionRows) {
         const date = v.created_at.slice(0, 10);
         const key = `${date}__${v.file_id}`;
         if (!grouped[key])

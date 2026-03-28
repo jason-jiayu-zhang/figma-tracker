@@ -145,12 +145,13 @@ router.get("/callback", async (req, res) => {
           {
             figma_user_id: user?.id,
             display_name: user?.handle || user?.name || null,
+            email: user?.email || null,
+            img_url: user?.img_url || null,
             access_token,
             refresh_token: refresh_token || null,
             scopes: scope || null,
             token_expires_at: expiresAt,
-            // Store file keys in settings_data column
-            metadata: { fileKeys: states.metadata?.fileKeys }
+            // Tracked files are now global in figma_files, no need to store in user profile
           },
           { onConflict: "figma_user_id" },
         );
