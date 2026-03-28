@@ -115,6 +115,7 @@ export default function Profile() {
             <Heatmap
               data={allActivity}
               theme="light"
+              profileUrl="/profile"
             />
           </div>
         </div>

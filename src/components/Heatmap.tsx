@@ -32,11 +32,12 @@ interface HeatmapProps {
   data: Record<string, number>;
   theme?: "light" | "dark";
   customTheme?: HeatmapTheme;
+  profileUrl?: string;
 }
 
 /* ── Component ─────────────────────────────────────── */
 
-export default function Heatmap({ data, theme = "light", customTheme }: HeatmapProps) {
+export default function Heatmap({ data, theme = "light", customTheme, profileUrl }: HeatmapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
@@ -246,17 +247,36 @@ export default function Heatmap({ data, theme = "light", customTheme }: HeatmapP
           </div>
           <span>More</span>
         </div>
-        <div 
-          className="content-stretch flex items-center tracking-[-0.1px] mr-1" 
-          style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
-        >
-          <span className="leading-[normal]">Made by</span>
-          <img 
-            src="/assets/Fimanu Logo.svg" 
-            alt="Fimanu" 
-            style={{ height: tFontSize * 1.6, width: "auto" }}
-          />
-        </div>
+        {profileUrl ? (
+          <a 
+            href={profileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="content-stretch flex items-center tracking-[-0.1px] mr-1 hover:opacity-70 transition-opacity cursor-pointer text-inherit no-underline" 
+            style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
+          >
+            <span className="leading-[normal]">Made by</span>
+            <span className="decoration-solid underline">Fimanu</span>
+            <img 
+              src="/assets/Fimanu Logo.svg" 
+              alt="Fimanu Logo" 
+              style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
+            />
+          </a>
+        ) : (
+          <div 
+            className="content-stretch flex items-center tracking-[-0.1px] mr-1" 
+            style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
+          >
+            <span className="leading-[normal]">Made by</span>
+            <span className="decoration-solid underline">Fimanu</span>
+            <img 
+              src="/assets/Fimanu Logo.svg" 
+              alt="Fimanu Logo" 
+              style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

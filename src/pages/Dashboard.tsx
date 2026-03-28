@@ -149,7 +149,7 @@ export default function Dashboard() {
         </div>
 
         <div className="bg-[#fffaf4] content-stretch flex flex-col gap-3 items-start justify-end p-4 relative rounded-2xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-full">
-          <Heatmap data={activity?.dailyTotals ?? {}} theme="light" customTheme={fimanuTheme} />
+          <Heatmap data={activity?.dailyTotals ?? {}} theme="light" customTheme={fimanuTheme} profileUrl="/profile" />
         </div>
       </div>
 
