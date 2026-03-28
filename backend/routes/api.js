@@ -1,7 +1,20 @@
 const express = require("express");
 const router = express.Router();
 const supabase = require("../supabaseClient");
-const { runSync, runSyncAfterDelay } = require("../syncService");
+const { runSync, runPageSync, runSyncAfterDelay } = require("../syncService");
+
+// Middleware to protect Vercel Cron endpoints
+function protectCron(req, res, next) {
+  // Only enforce in production (Vercel)
+  if (process.env.VERCEL) {
+    const cronHeader = req.headers["x-vercel-cron"];
+    if (!cronHeader) {
+      console.warn("[auth] Unauthorized cron attempt (missing header)");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+  }
+  next();
+}
 
 // POST /api/webhook — triggered by Figma
 router.post("/webhook", async (req, res) => {
@@ -23,7 +36,7 @@ async function getMyUserId() {
 }
 
 // POST or GET /api/sync — trigger a manual full sync
-router.all("/sync", async (req, res) => {
+router.all("/sync", protectCron, async (req, res) => {
   try {
     const result = await runSync();
     res.json({ ok: true, ...result });
@@ -33,7 +46,7 @@ router.all("/sync", async (req, res) => {
 });
 
 // GET /api/sync/incremental — trigger a page sync (for Vercel Cron)
-router.get("/sync/incremental", async (req, res) => {
+router.get("/sync/incremental", protectCron, async (req, res) => {
   try {
     const updateFound = await runPageSync();
     res.json({ ok: true, updateFound });
