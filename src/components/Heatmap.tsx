@@ -15,6 +15,7 @@ interface TooltipState {
   y: number;
   count: number;
   dateLabel: string;
+  flipped: boolean;
 }
 
 export interface HeatmapTheme {
@@ -45,6 +46,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
     y: 0,
     count: 0,
     dateLabel: "",
+    flipped: false,
   });
 
   const isLight = theme === "light";
@@ -120,18 +122,30 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
 
   const handleMouseEnter = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, day: Date, count: number) => {
-      const rect = containerRef.current?.getBoundingClientRect();
+      const container = containerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
       const cellRect = e.currentTarget.getBoundingClientRect();
-      if (!rect) return;
+      
+      const scrollLeft = container.scrollLeft;
+      const scrollTop = container.scrollTop;
+
+      const cellCenterX = (cellRect.left - rect.left) + scrollLeft + (cellRect.width / 2);
+      const cellTop = (cellRect.top - rect.top) + scrollTop;
+      const cellBottom = (cellRect.bottom - rect.top) + scrollTop;
+      
+      // Flip below if there's less than 60px of space above the container
+      const flipped = (cellRect.top - rect.top) < 60;
       setTooltip({
         visible: true,
-        x: cellRect.left - rect.left + (tRectSize / 2),
-        y: cellRect.top - rect.top + 4,
+        x: cellCenterX,
+        y: flipped ? cellBottom + 8 : cellTop - 8,
         count,
         dateLabel: format(day, "MMM d, yyyy"),
+        flipped,
       });
     },
-    [tRectSize]
+    []
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -139,14 +153,20 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   }, []);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div ref={containerRef} className="overflow-visible relative">
+    <div className="flex flex-col gap-4 w-full">
+      <div 
+        ref={containerRef} 
+        className="overflow-x-auto custom-scrollbar relative"
+      >
         {/* Tooltip */}
         <div
-          className={`absolute transform -translate-x-1/2 -translate-y-[calc(100%+12px)] font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-all duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+          className={`absolute font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-opacity duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100" : "opacity-0"}`}
           style={{
             left: tooltip.x,
             top: tooltip.y,
+            transform: tooltip.flipped
+              ? "translateX(-50%)"
+              : "translateX(-50%) translateY(-100%)",
             backgroundColor: tTooltipBg,
             color: tTooltipText,
             border: "1px solid rgba(255,255,255,0.1)",
@@ -158,14 +178,22 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
           <span className="opacity-70 text-[11px] leading-none">
             {tooltip.dateLabel}
           </span>
-          <div
-            className="absolute bottom-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px]"
-            style={{ borderTopColor: tTooltipBg }}
-          />
+          {/* Arrow */}
+          {tooltip.flipped ? (
+            <div
+              className="absolute top-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px]"
+              style={{ borderBottomColor: tTooltipBg }}
+            />
+          ) : (
+            <div
+              className="absolute bottom-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px]"
+              style={{ borderTopColor: tTooltipBg }}
+            />
+          )}
         </div>
 
         {/* Grid Container */}
-        <div className="pb-0.5" style={{ minWidth: weeks.length * (tRectSize + tGap) + 32 }}>
+        <div className="pb-0.5" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
           {/* Month labels */}
           <div className="relative mb-1 pointer-events-none" style={{ height: tGap * 4, marginLeft: (tRectSize * 2) + tGap }}>
             {monthLabels.map((m, i) => (

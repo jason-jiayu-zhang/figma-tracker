@@ -82,11 +82,11 @@ export default function EmbedWidget() {
   if (loading && !activity) return null;
 
   return (
-    <div style={{ 
-      display: "flex", 
-      alignItems: "center", 
-      justifyContent: "center", 
-      minHeight: "100vh", 
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      minHeight: "100vh",
       width: "100%",
       background: "transparent"
     }}>

@@ -73,14 +73,14 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
 
   return (
     <div className="relative">
-      <div 
+      <div
         onClick={() => setIsOpen(!isOpen)}
         className="size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-all hover:scale-110 active:scale-95"
         style={{ backgroundColor: color }}
         title={title}
       />
       {isOpen && (
-        <div 
+        <div
           ref={popover}
           className="absolute bottom-[calc(100%+8px)] left-0 z-50 p-2 bg-white rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#ECECEC] animate-in fade-in zoom-in duration-200"
         >
@@ -144,9 +144,9 @@ export default function EmbedEditor() {
     const newKeys = selectedFileKeys.includes(fileKey)
       ? selectedFileKeys.filter((k: string) => k !== fileKey)
       : [...selectedFileKeys, fileKey];
-    
+
     setSelectedFileKeys(newKeys);
-    
+
     const nextParams = new URLSearchParams(searchParams);
     if (newKeys.length > 0) {
       nextParams.set("files", newKeys.join(","));
@@ -183,7 +183,7 @@ export default function EmbedEditor() {
     if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
     if (stats?.myFigmaUserId) params.set("userId", stats.myFigmaUserId);
     params.set("style", embedStyle.split(" ")[0].toLowerCase());
-    
+
     if (embedStyle === "Custom Style") {
       params.set("bg", activeBg.replace("#", ""));
       params.set("text", activeText.replace("#", ""));
@@ -192,9 +192,9 @@ export default function EmbedEditor() {
       params.set("radius", rectRadius.toString());
       params.set("size", rectSize.toString());
     }
-    
+
     const fullUrl = `${baseUrl}?${params.toString()}`;
-    
+
     navigator.clipboard.writeText(fullUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -231,10 +231,10 @@ export default function EmbedEditor() {
             <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Heatmap Colors</p>
             <div className="flex gap-2 items-center">
               {[3, 2, 1, 0].map(i => (
-                <ColorPicker 
+                <ColorPicker
                   key={i}
-                  title={`Level ${i+1} color`}
-                  color={activeLevels[i]} 
+                  title={`Level ${i + 1} color`}
+                  color={activeLevels[i]}
                   onChange={newColor => {
                     const newLevels = [...activeLevels];
                     newLevels[i] = newColor;
@@ -243,9 +243,9 @@ export default function EmbedEditor() {
                   }}
                 />
               ))}
-              <ColorPicker 
+              <ColorPicker
                 title="Zero activity color"
-                color={activeEmpty} 
+                color={activeEmpty}
                 onChange={newColor => {
                   setOverrideEmpty(newColor);
                   setEmbedStyle("Custom Style");
@@ -258,24 +258,24 @@ export default function EmbedEditor() {
             <div className="flex flex-col gap-2 flex-1">
               <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Background</p>
               <div className="w-full">
-                <ColorPicker 
-                  color={activeBg} 
-                  onChange={newColor => { 
-                    setOverrideBg(newColor); 
-                    setEmbedStyle("Custom Style"); 
-                  }} 
+                <ColorPicker
+                  color={activeBg}
+                  onChange={newColor => {
+                    setOverrideBg(newColor);
+                    setEmbedStyle("Custom Style");
+                  }}
                 />
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-1">
               <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Text</p>
               <div className="w-full">
-                <ColorPicker 
-                  color={activeText} 
-                  onChange={newColor => { 
-                    setOverrideText(newColor); 
-                    setEmbedStyle("Custom Style"); 
-                  }} 
+                <ColorPicker
+                  color={activeText}
+                  onChange={newColor => {
+                    setOverrideText(newColor);
+                    setEmbedStyle("Custom Style");
+                  }}
                 />
               </div>
             </div>
@@ -311,7 +311,7 @@ export default function EmbedEditor() {
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
             {copied ? "Copied!" : "Copy Embed Link"}
           </button>
-          <button 
+          <button
             onClick={() => {
               const params = new URLSearchParams();
               if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
@@ -351,24 +351,15 @@ export default function EmbedEditor() {
             className={`w-full rounded-2xl border border-transparent shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] p-4 flex flex-col gap-4 relative transition-colors`}
             style={{ backgroundColor: activeBg }}
           >
-            <div className="overflow-x-auto pb-2 custom-scrollbar">
-              <Heatmap
-                data={activity?.dailyTotals ?? {}}
-                theme={embedStyle === 'GitHub Style' ? 'dark' : 'light'}
-                customTheme={activeTheme}
-                profileUrl="/profile"
-              />
-            </div>
+            <Heatmap
+              data={activity?.dailyTotals ?? {}}
+              theme={embedStyle === 'GitHub Style' ? 'dark' : 'light'}
+              customTheme={activeTheme}
+              profileUrl="/profile"
+            />
           </div>
         </div>
 
-        <div className="bg-white flex gap-4 items-start p-6 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full border-l-[4px] border-l-[#1ABCFE]">
-          <Info size={22} className="text-[#1ABCFE] shrink-0" strokeWidth={2.5} />
-          <div className="flex flex-col gap-1.5">
-            <p className="text-[14px] font-bold text-[#A6A6A6] uppercase tracking-wider leading-none mt-0.5">Pro Tip</p>
-            <p className="text-[13px] text-[#1A1A1A] font-medium leading-snug">Changes are saved automatically and reflected across all your active embeds!</p>
-          </div>
-        </div>
 
         {/* File Selection Box */}
         <div className="bg-white flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full text-[#1A1A1A]">
@@ -383,7 +374,7 @@ export default function EmbedEditor() {
           </div>
 
           <div className="flex flex-col gap-1 w-full overflow-y-auto pr-1 max-h-[350px] custom-scrollbar">
-            <div 
+            <div
               onClick={() => {
                 setSelectedFileKeys([]);
                 setSearchParams(prev => {
@@ -400,11 +391,11 @@ export default function EmbedEditor() {
               <span className={`text-[11px] font-bold truncate ${selectedFileKeys.length === 0 ? 'text-[#1A1A1A]' : 'text-[#737373]'}`}>All Files Activity</span>
             </div>
             {files.map((file: any) => (
-              <div 
+              <div
                 key={file.file_key}
                 className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors group ${selectedFileKeys.includes(file.file_key) ? 'bg-[#fffaf4] border border-[#f23b27]/20' : 'hover:bg-[#F5F5F5] border border-transparent'}`}
               >
-                <div 
+                <div
                   onClick={() => handleToggleFile(file.file_key)}
                   className="flex items-center gap-1.5 flex-1 cursor-pointer overflow-hidden"
                 >
@@ -416,7 +407,7 @@ export default function EmbedEditor() {
                     <span className="text-[9px] text-[#A6A6A6] truncate">{file.project_name}</span>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     const baseUrl = window.location.origin + "/embed-widget";
