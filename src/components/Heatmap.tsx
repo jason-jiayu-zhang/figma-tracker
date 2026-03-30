@@ -16,6 +16,8 @@ interface TooltipState {
   count: number;
   dateLabel: string;
   flipped: boolean;
+  overflowRight: boolean;
+  overflowLeft: boolean;
 }
 
 export interface HeatmapTheme {
@@ -39,6 +41,7 @@ interface HeatmapProps {
 /* ── Component ─────────────────────────────────────── */
 
 export default function Heatmap({ data, theme = "light", customTheme, profileUrl }: HeatmapProps) {
+  const componentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
     visible: false,
@@ -47,6 +50,8 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
     count: 0,
     dateLabel: "",
     flipped: false,
+    overflowRight: false,
+    overflowLeft: false,
   });
 
   const isLight = theme === "light";
@@ -123,19 +128,24 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const handleMouseEnter = useCallback(
     (e: React.MouseEvent<HTMLDivElement>, day: Date, count: number) => {
       const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
+      const component = componentRef.current;
+      if (!container || !component) return;
+      
+      const componentRect = component.getBoundingClientRect();
       const cellRect = e.currentTarget.getBoundingClientRect();
       
-      const scrollLeft = container.scrollLeft;
-      const scrollTop = container.scrollTop;
-
-      const cellCenterX = (cellRect.left - rect.left) + scrollLeft + (cellRect.width / 2);
-      const cellTop = (cellRect.top - rect.top) + scrollTop;
-      const cellBottom = (cellRect.bottom - rect.top) + scrollTop;
+      const cellCenterX = (cellRect.left - componentRect.left) + (cellRect.width / 2);
+      const cellTop = (cellRect.top - componentRect.top);
+      const cellBottom = (cellRect.bottom - componentRect.top);
       
-      // Flip below if there's less than 60px of space above the container
-      const flipped = (cellRect.top - rect.top) < 60;
+      // Flip below if there's less than 60px of space above the component
+      const flipped = (cellRect.top - componentRect.top) < 60;
+      
+      // Horizontal flip check: if tooltip would overflow right edge
+      // Assuming tooltip is roughly 120px wide
+      const overflowRight = cellCenterX + 60 > componentRect.width;
+      const overflowLeft = cellCenterX - 60 < 0;
+
       setTooltip({
         visible: true,
         x: cellCenterX,
@@ -143,6 +153,8 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
         count,
         dateLabel: format(day, "MMM d, yyyy"),
         flipped,
+        overflowRight,
+        overflowLeft,
       });
     },
     []
@@ -153,45 +165,12 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   }, []);
 
   return (
-    <div className="flex flex-col gap-4 w-full">
+    <div ref={componentRef} className="flex flex-col gap-4 w-full relative">
       <div 
         ref={containerRef} 
+        onScroll={handleMouseLeave}
         className="overflow-x-auto custom-scrollbar relative"
       >
-        {/* Tooltip */}
-        <div
-          className={`absolute font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-opacity duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100" : "opacity-0"}`}
-          style={{
-            left: tooltip.x,
-            top: tooltip.y,
-            transform: tooltip.flipped
-              ? "translateX(-50%)"
-              : "translateX(-50%) translateY(-100%)",
-            backgroundColor: tTooltipBg,
-            color: tTooltipText,
-            border: "1px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <span className="font-bold text-[13px] leading-none">
-            {tooltip.count} edit{tooltip.count !== 1 ? "s" : ""}
-          </span>
-          <span className="opacity-70 text-[11px] leading-none">
-            {tooltip.dateLabel}
-          </span>
-          {/* Arrow */}
-          {tooltip.flipped ? (
-            <div
-              className="absolute top-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px]"
-              style={{ borderBottomColor: tTooltipBg }}
-            />
-          ) : (
-            <div
-              className="absolute bottom-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px]"
-              style={{ borderTopColor: tTooltipBg }}
-            />
-          )}
-        </div>
-
         {/* Grid Container */}
         <div className="pb-0.5" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
           {/* Month labels */}
@@ -234,7 +213,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
                     return (
                       <div
                         key={di}
-                        className="transition-transform duration-100 hover:scale-125 flex-shrink-0 cursor-default"
+                        className="transition-all duration-100 hover:scale-110 hover:z-10 hover:ring-1 hover:ring-white/30 flex-shrink-0 cursor-default relative"
                         style={{
                           width: tRectSize,
                           height: tRectSize,
@@ -251,6 +230,41 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Tooltip Overlay */}
+      <div
+        className={`absolute font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-opacity duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100" : "opacity-0"}`}
+        style={{
+          left: tooltip.x,
+          top: tooltip.y,
+          transform: `
+            ${tooltip.overflowRight ? "translateX(-100%)" : tooltip.overflowLeft ? "translateX(0%)" : "translateX(-50%)"}
+            ${tooltip.flipped ? "" : "translateY(-100%)"}
+          `,
+          backgroundColor: tTooltipBg,
+          color: tTooltipText,
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}
+      >
+        <span className="font-bold text-[13px] leading-none">
+          {tooltip.count} edit{tooltip.count !== 1 ? "s" : ""}
+        </span>
+        <span className="opacity-70 text-[11px] leading-none">
+          {tooltip.dateLabel}
+        </span>
+        {/* Arrow */}
+        {tooltip.flipped ? (
+          <div
+            className="absolute top-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-b-[5px]"
+            style={{ borderBottomColor: tTooltipBg, left: tooltip.overflowRight ? 'auto' : (tooltip.overflowLeft ? '0' : '50%'), right: tooltip.overflowRight ? '0' : 'auto', transform: tooltip.overflowRight || tooltip.overflowLeft ? 'none' : 'translateX(-50%)' }}
+          />
+        ) : (
+          <div
+            className="absolute bottom-[-5px] left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-[5px] border-l-transparent border-r-[5px] border-r-transparent border-t-[5px]"
+            style={{ borderTopColor: tTooltipBg, left: tooltip.overflowRight ? 'auto' : (tooltip.overflowLeft ? '0' : '50%'), right: tooltip.overflowRight ? '0' : 'auto', transform: tooltip.overflowRight || tooltip.overflowLeft ? 'none' : 'translateX(-50%)' }}
+          />
+        )}
       </div>
 
       {/* Legend Row */}
