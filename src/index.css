@@ -406,6 +406,22 @@ h3 {
     background: var(--border-hover);
   }
 
+  /* Light-background scrollbar (visible on white / cream surfaces) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.28);
+  }
+
   /* ── Toast ───────────────────────────────────────────── */
   .toast {
     position: fixed;
