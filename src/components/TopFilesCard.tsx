@@ -72,7 +72,7 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
           </svg>
         </div>
         <div className="flex flex-col gap-0.5">
-          <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Most Active Files</h2>
+          <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]" style={{ fontFamily: 'var(--font-sans)' }}>Most Active Files</h2>
           <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Global activity breakdown by volume.</p>
         </div>
       </div>
@@ -92,9 +92,9 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
 function Card({ item, index, total }: { item: any; index: number; total: number }) {
   const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
   const colors = [
-    { bg: '#f24e1e', icon: <svg width="17" height="20" viewBox="0 0 17 20" fill="white"><path d="M8.5 0L17 5V15L8.5 20L0 15V5L8.5 0Z" opacity="0.8"/></svg> },
-    { bg: '#a259ff', icon: <svg width="17" height="20" viewBox="0 0 17 20" fill="white"><path d="M8.5 0L17 5V15L8.5 20L0 15V5L8.5 0Z" opacity="0.8"/></svg> },
-    { bg: '#1abcfe', icon: <svg width="17" height="20" viewBox="0 0 17 20" fill="white"><path d="M8.5 0L17 5V15L8.5 20L0 15V5L8.5 0Z" opacity="0.8"/></svg> },
+    { bg: '#f24e1e' },
+    { bg: '#a259ff' },
+    { bg: '#1abcfe' },
   ];
   
   const color = colors[index % colors.length];
@@ -119,9 +119,6 @@ function Card({ item, index, total }: { item: any; index: number; total: number 
             {lastEdit}
           </p>
         </div>
-        <div className="shrink-0 mt-1">
-          {color.icon}
-        </div>
       </div>
       <p className="text-[11px] text-white font-bold tracking-tight">
         {percent}% of total
@@ -145,9 +142,6 @@ function OtherCard({ count, fileCount, total }: { count: number; fileCount: numb
           <p className="text-[11px] text-white/75 font-medium tracking-tight">
             Various files
           </p>
-        </div>
-        <div className="shrink-0 mt-1">
-          <svg width="17" height="20" viewBox="0 0 17 20" fill="white"><path d="M8.5 0L17 5V15L8.5 20L0 15V5L8.5 0Z" opacity="0.8"/></svg>
         </div>
       </div>
       <p className="text-[11px] text-white font-bold tracking-tight">

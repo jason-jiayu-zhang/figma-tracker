@@ -121,11 +121,6 @@ function Card({ item, index, total, style, isOther = false }: { item: any; index
             Last edit: {lastEdit || '—'}
           </p>
         </div>
-        {!isOther && (
-          <div className="h-5 relative shrink-0 w-[17.5px]">
-            {config.icon}
-          </div>
-        )}
       </div>
       <p className={`font-normal leading-[normal] relative shrink-0 text-[12px] tracking-[-0.12px] whitespace-nowrap ${config.textClass}`}>
         {percent}{config.percentSuffix}
@@ -140,8 +135,7 @@ function getCardConfig(index: number) {
       style: { backgroundColor: '#f24e1e' },
       labelClass: 'text-white/75',
       textClass: 'text-white',
-      percentSuffix: '% of total volume',
-      icon: <svg width="17.5" height="20" viewBox="0 0 17.5 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M8.75 0L17.5 5V15L8.75 20L0 15V5L8.75 0Z" opacity="0.8" /></svg>
+      percentSuffix: '% of total volume'
     };
   }
   if (index === 1) {
@@ -149,8 +143,7 @@ function getCardConfig(index: number) {
       style: { backgroundColor: '#a259ff' },
       labelClass: 'text-white/75',
       textClass: 'text-white',
-      percentSuffix: '% of total volume',
-      icon: <svg width="17.5" height="20" viewBox="0 0 17.5 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M8.75 0L17.5 5V15L8.75 20L0 15V5L8.75 0Z" opacity="0.8" /></svg>
+      percentSuffix: '% of total volume'
     };
   }
   if (index === 2) {
@@ -158,8 +151,7 @@ function getCardConfig(index: number) {
       style: { backgroundColor: '#1abcfe' },
       labelClass: 'text-white/75',
       textClass: 'text-white',
-      percentSuffix: '% of total volume',
-      icon: <svg width="17.5" height="20" viewBox="0 0 17.5 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M8.75 0L17.5 5V15L8.75 20L0 15V5L8.75 0Z" opacity="0.8" /></svg>
+      percentSuffix: '% of total volume'
     };
   }
 
@@ -167,7 +159,6 @@ function getCardConfig(index: number) {
     style: { backgroundColor: '#0acf83' },
     labelClass: 'text-white/75',
     textClass: 'text-white',
-    percentSuffix: '% of total volume',
-    icon: <svg width="17.5" height="20" viewBox="0 0 17.5 20" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M8.75 0L17.5 5V15L8.75 20L0 15V5L8.75 0Z" opacity="0.8" /></svg>
+    percentSuffix: '% of total volume'
   };
 }
