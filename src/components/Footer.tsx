@@ -1,5 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import imgFooterSVG from "../assets/FooterSVG.svg";
+import imgFimanuLogoFull from "../assets/FimanuLogoFull.svg";
 
 const Footer: React.FC = () => {
   return (
@@ -10,7 +12,7 @@ const Footer: React.FC = () => {
           <img
             alt=""
             className="block w-full h-full object-cover object-bottom"
-            src="/assets/FooterSVG.svg"
+            src={imgFooterSVG}
           />
         </div>
 
@@ -76,7 +78,7 @@ const Footer: React.FC = () => {
           <img
             alt=""
             className="block max-w-none size-full transition-transform hover:scale-105 duration-300"
-            src="/assets/FimanuLogoFull.svg"
+            src={imgFimanuLogoFull}
           />
         </div>
       </footer>

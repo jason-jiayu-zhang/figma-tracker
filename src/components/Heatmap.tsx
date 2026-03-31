@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import { Zap } from "lucide-react";
+import imgFimanuLogo from "../assets/Fimanu Logo.svg";
 import {
   format,
   subDays,
@@ -300,7 +301,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
             <span className="leading-[normal]">Made by</span>
             <span className="decoration-solid underline">Fimanu</span>
             <img 
-              src="/assets/Fimanu Logo.svg" 
+              src={imgFimanuLogo} 
               alt="Fimanu Logo" 
               style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
             />
@@ -313,7 +314,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
             <span className="leading-[normal]">Made by</span>
             <span className="decoration-solid underline">Fimanu</span>
             <img 
-              src="/assets/Fimanu Logo.svg" 
+              src={imgFimanuLogo} 
               alt="Fimanu Logo" 
               style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
             />

@@ -43,7 +43,7 @@ export default function Profile() {
                     </div>
                   )}
                </div>
-               <h1 className="font-bold text-[24px] tracking-[-0.24px] leading-tight text-black">{user?.display_name || 'Jason Zhang'}</h1>
+               <h1 className="font-bold text-[24px] tracking-[-0.24px] leading-tight text-black" style={{ fontFamily: 'var(--font-sans)' }}>{user?.display_name || 'Jason Zhang'}</h1>
             </div>
 
             {/* About Section */}
@@ -105,7 +105,7 @@ export default function Profile() {
             </svg>
           </div>
           <div className="flex flex-col gap-0.5">
-            <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Activity Breakdown</h2>
+            <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]" style={{ fontFamily: 'var(--font-sans)' }}>Activity Breakdown</h2>
             <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Global activity across all tracked files.</p>
           </div>
         </div>
