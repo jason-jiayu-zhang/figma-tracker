@@ -87,6 +87,12 @@ function App() {
   const [searchParams] = useSearchParams();
   const forceOnboard = searchParams.get("onboard") === "1";
   const justConnected = searchParams.get("connected") === "1";
+  const bypass = searchParams.get("bypass") === "1";
+  const standalone = searchParams.get("standalone") === "1";
+
+  const location = useLocation();
+  // Widget mode is triggered by the specific path OR the standalone flag
+  const isWidgetMode = location.pathname === "/embed-widget" || standalone;
 
   if (loading) {
     return (
@@ -96,10 +102,17 @@ function App() {
     );
   }
 
-  const location = useLocation();
-  const isWidget = location.pathname === "/embed-widget";
-  const isOnboarding = !isWidget && (forceOnboard || justConnected || !stats?.myFigmaUserId);
+  // 1. Priority: Pure Widget View (Isolated from main app and onboarding)
+  if (isWidgetMode) {
+    return (
+      <Routes>
+        <Route path="*" element={<EmbedWidget />} />
+      </Routes>
+    );
+  }
 
+  // 2. Onboarding check (Only for full app views)
+  const isOnboarding = !bypass && (forceOnboard || justConnected || !stats?.myFigmaUserId);
   if (isOnboarding) {
     return (
       <Routes>
@@ -108,9 +121,9 @@ function App() {
     );
   }
 
+  // 3. Main App Layout
   return (
     <Routes>
-      <Route path="/embed-widget" element={<EmbedWidget />} />
       <Route path="*" element={
         <div className="bg-[#fffaf4] overflow-x-hidden">
           {/* Viewport block for Nav Bar and Main Content */}

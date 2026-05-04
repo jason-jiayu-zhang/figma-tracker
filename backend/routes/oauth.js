@@ -1,8 +1,11 @@
 const express = require("express");
 const axios = require("axios");
 const crypto = require("crypto");
+const path = require("path");
 const supabase = require("../supabaseClient");
-require("dotenv").config();
+
+// Explicitly load .env from project root
+require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
 const router = express.Router();
 // In-memory fallback store for oauth states when DB is unavailable
@@ -13,9 +16,16 @@ router.post("/start", async (req, res) => {
   try {
     const { fileKeys } = req.body || {};
     console.log("[/api/oauth/start] Starting OAuth (fileKeys provided:", !!fileKeys, ")");
-    // NOTE: In dev we don't block on missing env vars or DB availability.
-    if (!process.env.FIGMA_CLIENT_ID || !process.env.FIGMA_OAUTH_REDIRECT_URI) {
-      console.warn("[/api/oauth/start] Warning: FIGMA_CLIENT_ID or FIGMA_OAUTH_REDIRECT_URI missing — continuing in dev fallback mode");
+    
+    const clientId = process.env.FIGMA_CLIENT_ID;
+    const redirectUri = process.env.FIGMA_OAUTH_REDIRECT_URI;
+
+    if (!clientId || clientId === "undefined" || !redirectUri || redirectUri === "undefined") {
+      console.error("[/api/oauth/start] Critical Error: FIGMA_CLIENT_ID or FIGMA_OAUTH_REDIRECT_URI is missing or set to 'undefined'.");
+      return res.status(500).json({ 
+        error: "Server configuration error: OAuth credentials missing.",
+        details: "Please ensure FIGMA_CLIENT_ID and FIGMA_OAUTH_REDIRECT_URI are correctly set in your .env file."
+      });
     }
 
     const state = crypto.randomBytes(16).toString("hex");
@@ -34,8 +44,6 @@ router.post("/start", async (req, res) => {
       oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
     }
 
-    const clientId = process.env.FIGMA_CLIENT_ID;
-    const redirectUri = process.env.FIGMA_OAUTH_REDIRECT_URI;
     const scope = "current_user:read file_metadata:read file_versions:read"; // Request minimal scopes (no file_content:read)
 
     const url = `https://www.figma.com/oauth?client_id=${encodeURIComponent(
@@ -158,7 +166,7 @@ router.get("/callback", async (req, res) => {
 
       if (upsertError) {
         console.error("[/api/oauth/callback] Supabase error upserting user:", upsertError.message);
-        return res.status(500).send("Database error saving user session");
+        return res.status(500).send(`Database error saving user session: ${upsertError.message}`);
       }
 
       console.log("[/api/oauth/callback] OAuth successful, redirecting to frontend...");
