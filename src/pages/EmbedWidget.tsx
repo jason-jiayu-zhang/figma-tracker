@@ -22,17 +22,19 @@ const figmaTheme: HeatmapTheme = {
 export default function EmbedWidget() {
   const { activity, loading, selectedFileKeys, setSelectedFileKeys, setUserIdOverride } = useFigmaData();
   const [searchParams] = useSearchParams();
+  const isCattlelog = window.location.pathname === "/cattlelog-embed";
+  const defaultFileKeys = isCattlelog ? ["OmcL296OeqZ4xsHzNcap65"] : [];
 
   // Pick up files and user from URL
   useEffect(() => {
-    const fileKeys = searchParams.get("files")?.split(",").filter(Boolean) || [];
+    const fileKeys = searchParams.get("files")?.split(",").filter(Boolean) || defaultFileKeys;
     if (JSON.stringify(fileKeys) !== JSON.stringify(selectedFileKeys)) {
       setSelectedFileKeys(fileKeys);
     }
 
     const userId = searchParams.get("userId");
     setUserIdOverride(userId);
-  }, [searchParams, setSelectedFileKeys, setUserIdOverride]);
+  }, [searchParams, setSelectedFileKeys, setUserIdOverride, isCattlelog]);
 
   const rawStyle = searchParams.get("style") || "fimanu";
   const bg = searchParams.get("bg");
