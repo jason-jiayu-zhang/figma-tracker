@@ -91,8 +91,9 @@ function App() {
   const standalone = searchParams.get("standalone") === "1";
 
   const location = useLocation();
-  // Widget mode is triggered by the specific path OR the standalone flag
-  const isWidgetMode = location.pathname === "/embed-widget" || standalone;
+  // Widget mode is triggered by specific paths OR the standalone flag
+  const isCattlelog = location.pathname === "/cattlelog-embed";
+  const isWidgetMode = location.pathname === "/embed-widget" || isCattlelog || standalone;
 
   if (loading) {
     return (
