@@ -1,5 +1,6 @@
 const { createClient } = require("@supabase/supabase-js");
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
   console.warn("⚠️ SUPABASE_URL or SUPABASE_SERVICE_KEY missing. This may fail at runtime.");
