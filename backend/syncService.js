@@ -161,9 +161,9 @@ async function runSync() {
   return sessionData;
 }
 
-let nextFileIndex = 0;/**
+/**
  * Page sync — called every few seconds (or via cron).
- * Processes ONE file-user task per call (round-robin).
+ * Processes ONE file-user task per call (round-robin, stateless/serverless friendly).
  */
 async function runPageSync() {
   // 1. Get the first user for their token
@@ -173,12 +173,17 @@ async function runPageSync() {
     .limit(1);
   const defaultToken = users?.[0]?.access_token;
 
-  // 2. Collect all "tasks" from figma_files table
+  // 2. Collect all "tasks" from figma_files table, ordered by updated_at ascending (oldest checked first)
   const { data: files } = await supabase
     .from("figma_files")
-    .select("file_key");
+    .select("file_key, updated_at")
+    .order("updated_at", { ascending: true, nullsFirst: true });
   
-  const tasks = (files || []).map(f => ({ fileKey: f.file_key, token: defaultToken }));
+  const tasks = (files || []).map(f => ({
+    fileKey: f.file_key,
+    token: defaultToken,
+    updatedAt: f.updated_at
+  }));
 
   // Fallback to .env keys
   const envKeys = (process.env.FIGMA_FILE_KEYS || "")
@@ -187,15 +192,22 @@ async function runPageSync() {
     .filter(Boolean);
   for (const k of envKeys) {
     if (!tasks.find(t => t.fileKey === k)) {
-      tasks.push({ fileKey: k, token: null });
+      tasks.push({ fileKey: k, token: null, updatedAt: null });
     }
   }
 
   if (tasks.length === 0) return false;
 
-  const task = tasks[nextFileIndex % tasks.length];
+  // Sort tasks so that the one with the oldest updatedAt (nulls first) is at the start
+  tasks.sort((a, b) => {
+    if (a.updatedAt === null && b.updatedAt === null) return 0;
+    if (a.updatedAt === null) return -1;
+    if (b.updatedAt === null) return 1;
+    return new Date(a.updatedAt) - new Date(b.updatedAt);
+  });
+
+  const task = tasks[0];
   const { fileKey, token } = task;
-  nextFileIndex++;
 
   console.log(`[page-sync-v3] Processing ${fileKey} (using ${token ? "OAuth token" : "PAT/No token"})`);
 
@@ -209,11 +221,21 @@ async function runPageSync() {
 
     if (fetchErr) throw fetchErr;
 
+    const now = new Date();
+
+    // If fileRow exists, update its updated_at immediately so it is moved to the back of the queue.
+    // This prevents a single failing/stuck task from blocking other tasks.
+    if (fileRow) {
+      await supabase
+        .from("figma_files")
+        .update({ updated_at: now.toISOString() })
+        .eq("id", fileRow.id);
+    }
+
     let updateFound = false;
     
     // --- FORWARD SYNC (Fetch newest versions) ---
     // Check for new versions every 5 minutes
-    const now = new Date();
     const fiveMins = 5 * 60 * 1000;
     const lastCheck = fileRow?.last_sync_check ? new Date(fileRow.last_sync_check) : new Date(0);
 

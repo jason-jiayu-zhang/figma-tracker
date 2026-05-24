@@ -13,6 +13,12 @@ export default function Onboard() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    const forcedStep = searchParams.get("step");
+    if (forcedStep) {
+      setStep(parseInt(forcedStep));
+      return;
+    }
+
     // Check if we just returned from OAuth
     if (searchParams.get("connected") === "1") {
       setIsConnected(true);

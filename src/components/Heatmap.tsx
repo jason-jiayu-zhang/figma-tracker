@@ -6,7 +6,6 @@ import {
   subDays,
   startOfToday,
   eachDayOfInterval,
-  startOfWeek,
 } from "date-fns";
 
 /* ── Types ─────────────────────────────────────────── */
@@ -75,11 +74,15 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const weeks = useMemo(() => {
     const today = startOfToday();
     const end = today;
-    const start = subDays(startOfWeek(end, { weekStartsOn: 0 }), 52 * 7);
+    const start = subDays(end, 364);
 
     const daysArr = eachDayOfInterval({ start, end });
     const result: (Date | null)[][] = [];
     let currentWeek: (Date | null)[] = [];
+
+    for (let i = 0; i < start.getDay(); i++) {
+      currentWeek.push(null);
+    }
 
     daysArr.forEach((day) => {
       currentWeek.push(day);
@@ -113,13 +116,17 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
     return labels;
   }, [weeks, tRectSize, tGap]);
 
-  const getLevel = (count: number) => {
+  const maxCount = useMemo(() => {
+    const values = Object.values(data);
+    return values.length > 0 ? Math.max(...values) : 0;
+  }, [data]);
+
+  const getLevel = useCallback((count: number) => {
     if (!count) return 0;
-    if (count < 3) return 1;
-    if (count < 6) return 2;
-    if (count < 10) return 3;
-    return 4;
-  };
+    if (maxCount === 0) return 0;
+    const level = Math.ceil((count / maxCount) * 4);
+    return Math.min(Math.max(level, 1), 4);
+  }, [maxCount]);
 
   const getCellColor = (level: number) => {
     if (level === 0) return tEmptyColor;
@@ -131,17 +138,17 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
       const container = containerRef.current;
       const component = componentRef.current;
       if (!container || !component) return;
-      
+
       const componentRect = component.getBoundingClientRect();
       const cellRect = e.currentTarget.getBoundingClientRect();
-      
+
       const cellCenterX = (cellRect.left - componentRect.left) + (cellRect.width / 2);
       const cellTop = (cellRect.top - componentRect.top);
       const cellBottom = (cellRect.bottom - componentRect.top);
-      
+
       // Flip below if there's less than 60px of space above the component
       const flipped = (cellRect.top - componentRect.top) < 60;
-      
+
       // Horizontal flip check: if tooltip would overflow right edge
       // Assuming tooltip is roughly 120px wide
       const overflowRight = cellCenterX + 60 > componentRect.width;
@@ -166,20 +173,20 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   }, []);
 
   return (
-    <div ref={componentRef} className="flex flex-col gap-4 w-full relative">
-      <div 
-        ref={containerRef} 
+    <div ref={componentRef} className="flex flex-col gap-2 w-full relative">
+      <div
+        ref={containerRef}
         onScroll={handleMouseLeave}
         className="overflow-x-auto custom-scrollbar relative"
       >
         {/* Grid Container */}
-        <div className="pb-0.5" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
+        <div className="pb-1" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
           {/* Month labels */}
-          <div className="relative mb-1 pointer-events-none" style={{ height: tGap * 4, marginLeft: (tRectSize * 2) + tGap }}>
+          <div className="relative pointer-events-none" style={{ height: tFontSize, marginLeft: (tRectSize * 2) + tGap, marginBottom: tGap }}>
             {monthLabels.map((m, i) => (
               <span
                 key={i}
-                className="absolute leading-none whitespace-nowrap"
+                className="absolute bottom-0 leading-none whitespace-nowrap"
                 style={{ left: m.x, color: tTextColor, fontSize: tFontSize }}
               >
                 {m.label}
@@ -272,7 +279,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
       <div className="flex items-center justify-between w-full mt-2" style={{ paddingRight: tGap / 2 }}>
         <div
           className="flex items-center flex-shrink-0"
-          style={{ color: tTextColor, marginLeft: (tRectSize * 2) + tGap, gap: tGap, fontSize: tFontSize }}
+          style={{ color: tTextColor, gap: tGap + 2, fontSize: tFontSize }}
         >
           <span>Less</span>
           <div className="flex items-center" style={{ gap: tGap / 1.5 }}>
@@ -291,31 +298,31 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
           <span>More</span>
         </div>
         {profileUrl ? (
-          <a 
+          <a
             href={profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="content-stretch flex items-center tracking-[-0.1px] mr-1 hover:opacity-70 transition-opacity cursor-pointer text-inherit no-underline" 
+            className="content-stretch flex items-center tracking-[-0.1px] mr-1 hover:opacity-70 transition-opacity cursor-pointer text-inherit no-underline"
             style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
           >
             <span className="leading-[normal]">Made by</span>
             <span className="decoration-solid underline">Fimanu</span>
-            <img 
-              src={imgFimanuLogo} 
-              alt="Fimanu Logo" 
+            <img
+              src={imgFimanuLogo}
+              alt="Fimanu Logo"
               style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
             />
           </a>
         ) : (
-          <div 
-            className="content-stretch flex items-center tracking-[-0.1px] mr-1" 
+          <div
+            className="content-stretch flex items-center tracking-[-0.1px] mr-1"
             style={{ color: tTextColor, gap: tGap, fontSize: tFontSize }}
           >
             <span className="leading-[normal]">Made by</span>
             <span className="decoration-solid underline">Fimanu</span>
-            <img 
-              src={imgFimanuLogo} 
-              alt="Fimanu Logo" 
+            <img
+              src={imgFimanuLogo}
+              alt="Fimanu Logo"
               style={{ height: tFontSize * 1.4, width: "auto", marginLeft: "2px" }}
             />
           </div>
