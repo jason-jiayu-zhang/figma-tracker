@@ -59,6 +59,62 @@ router.post("/start", async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------------
+// DEV-ONLY login bypass. Mints an ft_session for an existing user row
+// WITHOUT the Figma OAuth round-trip, so the auth-gated dashboard/embed
+// pages can be worked on locally. Hard-gated three ways: never in
+// production, requires an explicit DEV_LOGIN=1 flag, and only when the
+// app is served from localhost. If any gate fails the route 404s so it
+// doesn't even advertise its existence.
+// Usage: visit http://localhost:5173/api/oauth/dev-login
+//        (optionally ?email=… / ?handle=… / ?figma_user_id=… to pick a user)
+// ------------------------------------------------------------------
+function devLoginAllowed() {
+  if (process.env.NODE_ENV === "production") return false;
+  if (process.env.DEV_LOGIN !== "1") return false;
+  const appUrl = process.env.APP_URL || process.env.APP_DASHBOARD_URL || "";
+  return appUrl.startsWith("http://localhost") || appUrl.startsWith("http://127.0.0.1");
+}
+
+router.get("/dev-login", async (req, res) => {
+  if (!devLoginAllowed()) return res.status(404).send("Not found");
+  try {
+    const { figma_user_id, email, handle } = req.query;
+
+    let q = supabase.from("users").select("id, figma_user_id, handle, email");
+    if (figma_user_id) q = q.eq("figma_user_id", String(figma_user_id));
+    else if (email) q = q.eq("email", String(email));
+    else if (handle) q = q.eq("handle", String(handle));
+    else q = q.order("created_at", { ascending: false }); // default: newest user
+
+    const { data: user, error } = await q.limit(1).maybeSingle();
+
+    if (error) {
+      console.error("[dev-login] DB error:", error.message);
+      return res.status(500).send("dev-login: DB error — " + error.message);
+    }
+    if (!user) {
+      return res
+        .status(404)
+        .send(
+          "dev-login: no matching user in the database. Log in once via real OAuth (e.g. on the deployed app) so a user row exists, or pass ?email=…",
+        );
+    }
+
+    supabase.setSessionCookie(res, { id: user.id, figma_user_id: user.figma_user_id });
+    console.warn(
+      `[dev-login] ⚠️  Minted a DEV session for ${user.handle || user.email || user.figma_user_id}`,
+    );
+
+    const dashboardBase =
+      process.env.APP_DASHBOARD_URL || process.env.APP_URL || "http://localhost:5173";
+    res.redirect(`${dashboardBase}/dashboard`);
+  } catch (err) {
+    console.error("[dev-login] error:", err.message);
+    res.status(500).send("dev-login failed");
+  }
+});
+
 // GET /api/oauth/callback
 router.get("/callback", async (req, res) => {
   console.log("[/api/oauth/callback] Callback received", req.query);
