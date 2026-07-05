@@ -134,7 +134,7 @@ export default function Dashboard() {
               className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
             >
               <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
-                My Edits
+                My changes
               </p>
             </button>
             <button
@@ -142,7 +142,7 @@ export default function Dashboard() {
               className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${!filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
             >
               <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
-                All Edits
+                All changes
               </p>
             </button>
           </div>

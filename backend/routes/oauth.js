@@ -136,43 +136,73 @@ router.get("/callback", async (req, res) => {
       const { access_token, refresh_token, expires_in, scope } = tokenRes.data;
       console.log("[/api/oauth/callback] Token exchange successful");
 
-      // Fetch user profile using the access token
-      console.log("[/api/oauth/callback] Fetching user profile...");
+      const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
+
+      // AWAIT the profile fetch + user upsert BEFORE redirecting.
+      // This kills the login-loop race where the frontend redirects before the
+      // user row exists. We need the resulting users.id for the session cookie.
+      console.log("[/api/oauth/callback] Fetching Figma profile...");
       const meRes = await axios.get("https://api.figma.com/v1/me", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
-      const user = meRes.data;
-      console.log("[/api/oauth/callback] User profile fetched:", user?.id);
+      const profile = meRes.data;
+      console.log("[/api/oauth/callback] Profile fetched:", profile?.id);
 
-      // Store or update user record in Supabase (server-side only)
-      const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
-      console.log("[/api/oauth/callback] Upserting user record with fileKeys:", states.metadata?.fileKeys);
-      const { error: upsertError } = await supabase
+      const { data: userRow, error: upsertError } = await supabase
         .from("users")
         .upsert(
           {
-            figma_user_id: user?.id,
-            display_name: user?.handle || user?.name || null,
-            email: user?.email || null,
-            img_url: user?.img_url || null,
+            figma_user_id: profile?.id,
+            handle: profile?.handle || profile?.name || null,
+            display_name: profile?.handle || profile?.name || null,
+            email: profile?.email || null,
+            img_url: profile?.img_url || null,
             access_token,
             refresh_token: refresh_token || null,
             scopes: scope || null,
             token_expires_at: expiresAt,
-            // Tracked files are now global in figma_files, no need to store in user profile
           },
           { onConflict: "figma_user_id" },
-        );
+        )
+        .select("id, figma_user_id")
+        .single();
 
-      if (upsertError) {
-        console.error("[/api/oauth/callback] Supabase error upserting user:", upsertError.message);
-        return res.status(500).send(`Database error saving user session: ${upsertError.message}`);
+      if (upsertError || !userRow) {
+        console.error("[/api/oauth/callback] User upsert failed:", upsertError?.message);
+        return res.status(500).send("Failed to persist user profile");
+      }
+      console.log("[/api/oauth/callback] User upserted:", userRow.id);
+
+      // Set the real session cookie now that the user row exists.
+      supabase.setSessionCookie(res, {
+        id: userRow.id,
+        figma_user_id: userRow.figma_user_id,
+      });
+
+      // Seed any files that were requested during OAuth start, scoped to this user.
+      if (states.metadata?.fileKeys) {
+        const fileKeys = String(states.metadata.fileKeys)
+          .split(",")
+          .map((k) => k.trim())
+          .filter(Boolean);
+        if (fileKeys.length > 0) {
+          console.log("[/api/oauth/callback] Seeding files:", fileKeys);
+          const worker = require("../workers/onboardingWorker");
+          for (const fileKey of fileKeys) {
+            worker.emit("fetch_file_metadata", {
+              fileKey,
+              access_token,
+              userId: userRow.id,
+            });
+          }
+        }
       }
 
-      console.log("[/api/oauth/callback] OAuth successful, redirecting to frontend...");
-      // Redirect back to the frontend app
-      const frontendRedirect = process.env.APP_URL || "http://localhost:5173";
-      res.redirect(`${frontendRedirect}/?connected=1`);
+      // Redirect to the dashboard app (fallback to root site).
+      const dashboardBase =
+        process.env.APP_DASHBOARD_URL || process.env.APP_URL || "http://localhost:5173";
+      console.log("[/api/oauth/callback] Session set, redirecting to dashboard...");
+      res.redirect(`${dashboardBase}/dashboard`);
     } catch (tokenErr) {
       console.error("[/api/oauth/callback] Token exchange error status:", tokenErr.response?.status);
       console.error("[/api/oauth/callback] Token exchange error data:", JSON.stringify(tokenErr.response?.data, null, 2));

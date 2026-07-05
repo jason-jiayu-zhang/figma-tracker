@@ -1,29 +1,90 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useFigmaData } from '../useFigmaData';
+import { useSession } from '../session';
+import { APP_ORIGIN } from '../config';
 import Heatmap from '../components/Heatmap';
 import TopFilesCard from '../components/TopFilesCard';
-import { Calendar, User as UserIcon } from 'lucide-react';
-import { format } from 'date-fns';
+import { Calendar, User as UserIcon, Globe, Copy, Check, LogOut } from 'lucide-react';
+
+function browserTz(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles';
+  } catch {
+    return 'America/Los_Angeles';
+  }
+}
 
 export default function Profile() {
-  const { stats, activity, files, loading } = useFigmaData();
-  // Separate unfiltered activity fetch for the heatmap — shows ALL data
+  const { activity, files, loading } = useFigmaData();
+  const { user, refresh } = useSession();
+
+  // Separate unfiltered activity fetch for the heatmap — shows ALL data, tz-aware.
   const [allActivity, setAllActivity] = useState<Record<string, number>>({});
   useEffect(() => {
-    axios.get('/api/activity?mine=true&days=365').then(res => {
-      setAllActivity(res.data?.dailyTotals ?? {});
-    }).catch(() => {});
+    axios
+      .get(`/api/activity?mode=all&days=365&tz=${encodeURIComponent(browserTz())}`)
+      .then((res) => setAllActivity(res.data?.dailyTotals ?? {}))
+      .catch(() => {});
   }, []);
 
-  if (loading && !stats) return (
+  // Public profile controls.
+  const [slug, setSlug] = useState('');
+  const [publicEnabled, setPublicEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setSlug(user.profile_slug ?? '');
+      setPublicEnabled(user.public_enabled ?? false);
+    }
+  }, [user]);
+
+  const publicUrl = slug ? `${APP_ORIGIN}/u/${slug}` : '';
+  const embedUrl = slug ? `${APP_ORIGIN}/embed-widget?slug=${slug}` : '';
+
+  const saveProfile = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await axios.put('/api/user/profile', {
+        profile_slug: slug.trim() || null,
+        public_enabled: publicEnabled,
+      });
+      await refresh();
+    } catch (err: any) {
+      setSaveError(
+        err?.response?.data?.error || 'Failed to save. The slug may already be taken.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await axios.post('/api/user/logout');
+    } catch {
+      /* ignore */
+    }
+    window.location.href = '/';
+  };
+
+  const copy = (text: string, which: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(which);
+    setTimeout(() => setCopied(null), 1800);
+  };
+
+  if (loading && !activity) return (
     <div className="flex items-center justify-center h-full">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]"></div>
     </div>
   );
 
-  const user = stats?.user;
-  const joinedDate = user?.created_at ? format(new Date(user.created_at), 'MMMM yyyy') : 'March 2026';
+  const displayName = user?.handle || 'Your Profile';
 
   return (
     <div className="flex flex-col gap-8 w-full min-h-[768px]">
@@ -36,73 +97,114 @@ export default function Profile() {
             <div className="flex flex-col gap-2 items-start justify-center w-full">
                <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-20 overflow-hidden bg-[#F5F5F5]">
                   {user?.img_url ? (
-                    <img src={user.img_url} alt={user.display_name || 'Profile'} className="w-full h-full object-cover" />
+                    <img src={user.img_url} alt={displayName} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#A6A6A6]">
                       <UserIcon size={40} />
                     </div>
                   )}
                </div>
-               <h1 className="font-bold text-[24px] tracking-[-0.24px] leading-tight text-black" style={{ fontFamily: 'var(--font-sans)' }}>{user?.display_name || 'Jason Zhang'}</h1>
+               <h1 className="font-bold text-[24px] tracking-[-0.24px] leading-tight text-black" style={{ fontFamily: 'var(--font-sans)' }}>{displayName}</h1>
             </div>
 
-            {/* About Section */}
+            {/* Connection status */}
             <div className="flex flex-col gap-2 items-start w-full">
-              <p className="text-[14px] text-[#737373] font-medium tracking-[-0.14px]">About</p>
-              <p className="text-[14px] text-black leading-snug">
-                Something something about {user?.display_name || 'Jason'} idk what im writing i just need text
-              </p>
-            </div>
-
-            {/* Connections */}
-            <div className="flex flex-col gap-2 items-start w-full">
-              <p className="text-[14px] text-[#737373] font-medium tracking-[-0.14px]">Connections</p>
-              <div className="flex flex-col gap-2 w-full">
-                <div className="flex items-center gap-[10px]">
-                  <div className="size-6 shrink-0">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 24C18.6274 24 24 18.6274 24 12C24 5.37258 18.6274 0 12 0C5.37258 0 0 5.37258 0 12C0 18.6274 5.37258 24 12 24Z" fill="white"/>
-                      <path d="M7 6H11V8.2C11.5 7.5 12.2 7 13.5 7C15.5 7 17 8.5 17 11V18H13V11.5C13 10.5 12.5 10 11.5 10C10.5 10 10 10.5 10 11.5V18H6V11.5C6 11 6.5 6 7 6Z" fill="#1ABCFE" stroke="#1ABCFE" strokeWidth="0.5"/>
-                      <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM18.2 12.5C18.2 13.2 18.2 13.9 18.2 14.6C18.2 15.3 18.2 16 18.2 16.7C18.2 17.4 18.2 18 18.2 18.7C18.2 19.4 18.2 19.4 17.5 19.4C16.8 19.4 16.1 19.4 15.4 19.4C14.7 19.4 14.7 19.4 14.7 18.7C14.7 18 14.7 17.3 14.7 16.6C14.7 15.9 14.7 15.2 14.7 14.5C14.7 13.8 14.7 13.1 14.7 12.4C14.7 11.7 14.7 11 14.7 10.3C14.7 9.6 14.7 9.3 14 9.3C13.3 9.3 12.8 9.6 12.8 10.3C12.8 11 12.8 11.7 12.8 12.4C12.8 13.1 12.8 13.8 12.8 14.5C12.8 15.2 12.8 15.9 12.8 16.6C12.8 17.3 12.8 18 12.8 18.7C12.8 19.4 12.8 19.4 12.1 19.4C11.4 19.4 10.7 19.4 10 19.4C9.3 19.4 9.3 19.4 9.3 18.7C9.3 18 9.3 17.3 9.3 16.6C9.3 15.9 9.3 15.2 9.3 14.5C9.3 13.8 9.3 13.1 9.3 12.4C9.3 11.7 9.3 11 9.3 10.3C9.3 9.6 9.3 8.9 9.3 8.2C9.3 7.5 9.3 6.8 9.3 6.1C9.3 5.4 9.3 5.4 10 5.4C10.7 5.4 11.4 5.4 12.1 5.4C12.8 5.4 12.8 5.4 12.8 6.1C12.8 6.8 12.8 7.5 12.8 8.2C13.5 7.5 14.4 7.2 15.5 7.2C16.9 7.2 18.2 8.4 18.2 10V12.5Z" fill="#1ABCFE"/>
-                    </svg>
-                  </div>
-                  <a href={`mailto:${user?.email || ''}`} className="text-[14px] text-black font-medium hover:underline truncate">
-                    {user?.email || 'jason.jiayu.zhang@gmail.com'}
-                  </a>
-                </div>
+              <p className="text-[14px] text-[#737373] font-medium tracking-[-0.14px]">Figma account</p>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#0acf83]" />
+                <span className="text-[14px] text-black font-medium">Connected</span>
               </div>
             </div>
           </div>
 
           <div className="mt-auto flex flex-col gap-3 w-full pt-3 border-t border-[#F5F5F5]">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-1.5 text-[#A6A6A6]">
-                <Calendar size={14} />
-                <span className="text-[11px] font-bold tracking-tight">Joined {joinedDate}</span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[#A6A6A6]">
-                <UserIcon size={14} />
-                <span className="text-[11px] font-bold tracking-tight">Fimanu Creator</span>
-              </div>
-            </div>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-[13px] font-bold text-[#f43f5e] hover:opacity-80 transition-opacity"
+            >
+              <LogOut size={15} /> Log out
+            </button>
           </div>
         </div>
 
-        {/* Top Files Card - Now part of the top row */}
+        {/* Top Files Card */}
         <div className="flex-1 min-w-0">
           <TopFilesCard activity={activity} files={files} />
         </div>
       </div>
 
-      {/* Bottom Row - Activity Breakdown Heatmap */}
+      {/* Public profile publishing controls */}
+      <div className="bg-white flex flex-col gap-5 p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)]">
+        <div className="flex gap-3 items-center">
+          <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1abcfe]">
+            <Globe size={22} />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Public Profile</h2>
+            <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Publish a read-only heatmap and share it anywhere.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-4 w-full max-w-[560px]">
+          {/* Slug */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Profile URL</label>
+            <div className="flex items-center gap-1 bg-[#fffaf4] border border-[#EBEBEB] rounded-xl px-3 py-2 focus-within:border-[#1ABCFE] transition-colors">
+              <span className="text-[13px] text-[#A6A6A6] font-mono whitespace-nowrap">{APP_ORIGIN}/u/</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase())}
+                placeholder="your-handle"
+                className="flex-1 bg-transparent outline-none text-[13px] font-mono text-[#181818] min-w-0"
+              />
+            </div>
+          </div>
+
+          {/* Public toggle */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col">
+              <span className="text-[14px] font-semibold text-black">Enable public profile</span>
+              <span className="text-[12px] text-[#A6A6A6]">When off, the public URL and embeds return nothing.</span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={publicEnabled}
+              onClick={() => setPublicEnabled((v) => !v)}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${publicEnabled ? 'bg-[#0acf83]' : 'bg-[#d9d9d9]'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${publicEnabled ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+
+          {saveError && <p className="text-[12px] text-[#f43f5e] font-medium">{saveError}</p>}
+
+          <div>
+            <button
+              onClick={saveProfile}
+              disabled={saving}
+              className="bg-[#1ABCFE] hover:bg-[#16a6e0] text-white px-5 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+
+          {/* Share links (only meaningful once published) */}
+          {slug && publicEnabled && (
+            <div className="flex flex-col gap-3 pt-2 border-t border-[#F5F5F5]">
+              <ShareRow label="Public link" value={publicUrl} onCopy={() => copy(publicUrl, 'public')} copied={copied === 'public'} />
+              <ShareRow label="Embed link" value={embedUrl} onCopy={() => copy(embedUrl, 'embed')} copied={copied === 'embed'} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Activity Breakdown Heatmap */}
       <div className="bg-white flex flex-col p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] min-h-[300px]">
         <div className="flex gap-3 items-center mb-6">
           <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M3 9h18" />
-              <path d="M9 21V9" />
-            </svg>
+            <Calendar size={22} />
           </div>
           <div className="flex flex-col gap-0.5">
             <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]" style={{ fontFamily: 'var(--font-sans)' }}>Activity Breakdown</h2>
@@ -112,13 +214,31 @@ export default function Profile() {
 
         <div className="flex-1 overflow-x-auto pb-2 custom-scrollbar flex items-center justify-center">
           <div className="w-full max-w-[900px]">
-            <Heatmap
-              data={allActivity}
-              theme="light"
-              profileUrl="/profile"
-            />
+            <Heatmap data={allActivity} theme="light" profileUrl="/profile" />
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ShareRow({ label, value, onCopy, copied }: { label: string; value: string; onCopy: () => void; copied: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[12px] font-bold text-[#A6A6A6] uppercase tracking-wider">{label}</span>
+      <div className="flex items-center gap-2">
+        <input
+          readOnly
+          value={value}
+          className="flex-1 bg-[#fffaf4] border border-[#EBEBEB] rounded-lg px-3 py-2 text-[12px] font-mono text-[#181818] outline-none min-w-0"
+        />
+        <button
+          onClick={onCopy}
+          className="shrink-0 flex items-center gap-1.5 bg-[#181818] hover:bg-black text-white px-3 py-2 rounded-lg text-[12px] font-bold transition-colors"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
       </div>
     </div>
   );

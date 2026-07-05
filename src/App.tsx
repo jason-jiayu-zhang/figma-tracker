@@ -1,161 +1,182 @@
-import React from "react";
-import { Routes, Route, Link, useLocation, useSearchParams } from "react-router-dom";
+import React, { Suspense, useEffect } from "react";
+import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import axios from "axios";
-import Dashboard from "./pages/Dashboard";
-import Embed from "./pages/Embed";
-import EmbedWidget from "./pages/EmbedWidget";
-import { useFigmaData } from "./useFigmaData";
-import Onboard from "./pages/Onboard";
 import Footer from "./components/Footer";
 import Sidebar from "./components/Sidebar";
-import Files from "./pages/Files";
-import Profile from "./pages/Profile";
+import DashboardSkeleton from "./components/DashboardSkeleton";
+import { useSession } from "./session";
+import { IS_APP_MODE } from "./config";
 
-function Header({ stats }: { stats: any }) {
+const Dashboard = React.lazy(() => import("./pages/Dashboard"));
+const Embed = React.lazy(() => import("./pages/Embed"));
+const EmbedWidget = React.lazy(() => import("./pages/EmbedWidget"));
+const Onboard = React.lazy(() => import("./pages/Onboard"));
+const Landing = React.lazy(() => import("./pages/Landing"));
+const Files = React.lazy(() => import("./pages/Files"));
+const Profile = React.lazy(() => import("./pages/Profile"));
+const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
+function Spinner({ label }: { label?: string }) {
   return (
-    <header
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        borderBottom: "1px solid rgba(0,0,0,0.07)",
-        background: "rgba(255,255,255,0.75)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        display: "flex",
-        justifyContent: "flex-end",
-      }}
-    >
-      <div className="w-full px-6 py-0 h-15 flex items-center justify-end">
+    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+      <div className="flex flex-col items-center gap-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]" />
+        {label && (
+          <span className="text-[12px] text-[#A6A6A6] uppercase tracking-[0.12em] font-semibold">
+            {label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              fontWeight: 600,
-              color: stats?.myFigmaUserId ? "#0acf83" : "var(--text-muted)",
-            }}
-          >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: stats?.myFigmaUserId ? "#0acf83" : "#5a6070",
-                display: "inline-block",
-                boxShadow: stats?.myFigmaUserId ? "0 0 8px #0acf8380" : "none",
-              }}
-            />
-            {stats?.myFigmaUserId ? "Connected" : "Not connected"}
+// Kick off Figma OAuth (GET /api/oauth/start → { url }).
+async function startOAuth() {
+  try {
+    const res = await axios.get("/api/oauth/start");
+    if (res.data?.url) {
+      window.location.href = res.data.url;
+      return;
+    }
+  } catch (err) {
+    console.error("Failed to start OAuth:", err);
+  }
+}
+
+function OAuthRedirect() {
+  useEffect(() => {
+    startOAuth();
+  }, []);
+  return <Spinner label="Redirecting to Figma…" />;
+}
+
+// The authenticated dashboard shell: sidebar + routed content + footer.
+function AppLayout() {
+  return (
+    <div className="bg-[#fffaf4] overflow-x-hidden">
+      <div className="w-full min-h-screen flex items-center justify-center py-2 px-6 lg:px-8">
+        <div className="flex flex-row gap-8 w-[1080px] max-w-full relative">
+          <Sidebar className="bg-white flex flex-col gap-12 h-[800px] items-start justify-center px-3 py-2 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22" />
+          <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 h-[800px]">
+            <Suspense fallback={<DashboardSkeleton />}>
+              <Routes>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/files" element={<Files />} />
+                <Route path="/embed" element={<Embed />} />
+                <Route path="/profile" element={<Profile />} />
+                {/* Legacy alias */}
+                <Route path="/home" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </Suspense>
           </div>
-          <button
-            onClick={async () => {
-              try {
-                const res = await axios.post("/api/oauth/start");
-                if (res.data?.url) window.location.href = res.data.url;
-                else alert("Failed to start OAuth");
-              } catch (err) {
-                console.error("start oauth failed", err);
-                alert("Failed to start OAuth");
-              }
-            }}
-            className="ml-4 px-3 py-1.5 rounded-lg font-bold"
-            style={{
-              background: "#1ABCFE",
-              color: "white",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Connect
-          </button>
         </div>
       </div>
-    </header>
+      <div className="w-full flex justify-center pb-8">
+        <Footer />
+      </div>
+    </div>
+  );
+}
+
+// App-subdomain (dashboard) routing, gated on the cookie session.
+function AppRoutes() {
+  const { loggedIn, loading, refresh } = useSession();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const justConnected = searchParams.get("connected") === "1";
+  const path = location.pathname;
+
+  // Right after OAuth (?connected=1) the session cookie is set synchronously by
+  // the backend, but the SPA may have loaded /me before the redirect landed.
+  // Poll a few times instead of re-triggering OAuth (fixes the login loop).
+  useEffect(() => {
+    if (!justConnected || loggedIn) return;
+    let tries = 0;
+    const id = setInterval(async () => {
+      tries += 1;
+      const u = await refresh();
+      if (u || tries >= 6) clearInterval(id);
+    }, 800);
+    return () => clearInterval(id);
+  }, [justConnected, loggedIn, refresh]);
+
+  if (loading) return <Spinner label="Loading" />;
+
+  if (!loggedIn) {
+    // Let the self-serve onboarding flow render (it drives its own connect),
+    // and keep showing it while we poll for the freshly-set session.
+    if (path === "/onboard" || justConnected) {
+      return (
+        <Suspense fallback={<Spinner />}>
+          <Routes>
+            <Route path="/onboard" element={<Onboard />} />
+            <Route path="*" element={<Onboard />} />
+          </Routes>
+        </Suspense>
+      );
+    }
+    // Any other app route with no session → straight to OAuth.
+    return <OAuthRedirect />;
+  }
+
+  // Logged in: onboarding is still reachable (add-files step), everything else
+  // renders in the dashboard shell. Root auto-redirects to /dashboard.
+  return (
+    <Suspense fallback={<Spinner label="Loading" />}>
+      <Routes>
+        <Route path="/onboard" element={<Onboard />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<AppLayout />} />
+      </Routes>
+    </Suspense>
   );
 }
 
 function App() {
-  const { stats, loading } = useFigmaData();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const forceOnboard = searchParams.get("onboard") === "1";
-  const justConnected = searchParams.get("connected") === "1";
-  const bypass = searchParams.get("bypass") === "1";
+  const path = location.pathname;
   const standalone = searchParams.get("standalone") === "1";
 
-  const location = useLocation();
-  // Widget mode is triggered by specific paths OR the standalone flag
-  const isCattlelog = location.pathname === "/cattlelog-embed";
-  const isWidgetMode = location.pathname === "/embed-widget" || isCattlelog || standalone;
-
-  if (loading) {
+  // 1. Embed widget — fully public, no auth/session gating.
+  const isWidget =
+    path === "/embed-widget" || path === "/cattlelog-embed" || standalone;
+  if (isWidget) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]"></div>
-      </div>
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="*" element={<EmbedWidget />} />
+        </Routes>
+      </Suspense>
     );
   }
 
-  // 1. Priority: Pure Widget View (Isolated from main app and onboarding)
-  if (isWidgetMode) {
+  // 2. Public profile — fully public, no auth.
+  if (path.startsWith("/u/")) {
     return (
-      <Routes>
-        <Route path="*" element={<EmbedWidget />} />
-      </Routes>
+      <Suspense fallback={<Spinner />}>
+        <Routes>
+          <Route path="/u/:slug" element={<PublicProfile />} />
+        </Routes>
+      </Suspense>
     );
   }
 
-  // 2. Onboarding check (Only for full app views)
-  const isOnboarding = !bypass && (forceOnboard || justConnected || !stats?.myFigmaUserId);
-  if (isOnboarding) {
+  // 3. Marketing site (root domain): render the Landing page only.
+  if (!IS_APP_MODE) {
     return (
-      <Routes>
-        <Route path="*" element={<Onboard />} />
-      </Routes>
+      <Suspense fallback={<Spinner />}>
+        <Routes>
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </Suspense>
     );
   }
 
-  // 3. Main App Layout
-  return (
-    <Routes>
-      <Route path="*" element={
-        <div className="bg-[#fffaf4] overflow-x-hidden">
-          {/* Viewport block for Nav Bar and Main Content */}
-          <div className="w-full min-h-screen flex items-center justify-center py-2 px-6 lg:px-8">
-            <div className="flex flex-row gap-8 w-[1080px] max-w-full relative">
-              <Sidebar className="bg-white flex flex-col gap-12 h-[800px] items-start justify-center px-3 py-2 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22" />
-
-              <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 h-[800px]">
-                <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/files" element={<Files />} />
-                  <Route path="/embed" element={<Embed />} />
-                  <Route path="/profile" element={<Profile />} />
-                </Routes>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer naturally flows below the fold */}
-          <div className="w-full flex justify-center pb-8">
-            <Routes>
-              <Route path="/" element={<Footer />} />
-              <Route path="/files" element={<Footer />} />
-              <Route path="/embed" element={<Footer />} />
-              <Route path="/profile" element={<Footer />} />
-            </Routes>
-          </div>
-        </div>
-      } />
-    </Routes>
-  );
+  // 4. Dashboard app (app.* subdomain or VITE_IS_APP=1).
+  return <AppRoutes />;
 }
 
 export default App;

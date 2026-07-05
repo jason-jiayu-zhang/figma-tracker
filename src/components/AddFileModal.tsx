@@ -54,7 +54,7 @@ export default function AddFileModal({ isOpen, onClose, onSuccess }: { isOpen: b
               value={newFileUrl}
               onChange={(e) => setNewFileUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddFile()}
-              placeholder="https://www.figma.com/design/OmcL296OeqZ4xsHzNcap65/..."
+              placeholder="https://www.figma.com/design/<file-key>/<file-name>"
               className="w-full px-4 py-3 bg-[#fffaf4] border border-[#EBEBEB] text-[#181818] rounded-xl outline-none focus:border-[#1ABCFE] focus:ring-2 focus:ring-[#1ABCFE]/20 transition-all font-mono text-base"
             />
           </div>

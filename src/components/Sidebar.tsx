@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useFigmaData } from "../useFigmaData";
+import { useSession } from "../session";
 import { User as UserIcon } from "lucide-react";
 
 import imgNavDashboard from "../assets/NavDashboard.svg";
@@ -9,17 +9,15 @@ import imgNavEmbed from "../assets/NavEmbed.svg";
 import imgNavNew from "../assets/NavNew.svg";
 
 export default function Sidebar({ className }: { className?: string }) {
-  const { stats } = useFigmaData();
+  const { user } = useSession();
   const location = useLocation();
   const path = location.pathname;
 
-  const user = stats?.user;
-
   const navItems = [
-    { icon: imgNavDashboard, path: "/" },
+    { icon: imgNavDashboard, path: "/dashboard" },
     { icon: imgNavFiles, path: "/files" },
     { icon: imgNavEmbed, path: "/embed" },
-    { icon: imgNavNew, path: "/new" },
+    { icon: imgNavNew, path: "/files" },
   ];
 
   return (
@@ -29,7 +27,7 @@ export default function Sidebar({ className }: { className?: string }) {
         className={`aspect-square bg-[#fffaf4] flex items-center justify-center overflow-hidden relative rounded-4xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 w-full mb-[-32px] transition-all hover:scale-105 active:scale-95 border-2 ${path === '/profile' ? 'border-[#1ABCFE]' : 'border-transparent'}`}
       >
         {user?.img_url ? (
-          <img alt={user.display_name || 'Profile'} className="block size-full object-cover" src={user.img_url} />
+          <img alt={user.handle || 'Profile'} className="block size-full object-cover" src={user.img_url} />
         ) : (
           <div className="flex items-center justify-center size-full text-[#A6A6A6]">
             <UserIcon size={24} />

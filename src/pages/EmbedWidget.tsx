@@ -1,7 +1,8 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
-import { useFigmaData } from "../useFigmaData";
+import { APP_ORIGIN } from "../config";
 
 const fimanuTheme: HeatmapTheme = {
   rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
@@ -19,22 +20,39 @@ const figmaTheme: HeatmapTheme = {
   textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white"
 };
 
+function browserTz(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles";
+  } catch {
+    return "America/Los_Angeles";
+  }
+}
+
 export default function EmbedWidget() {
-  const { activity, loading, selectedFileKeys, setSelectedFileKeys, setUserIdOverride } = useFigmaData();
   const [searchParams] = useSearchParams();
-  const isCattlelog = window.location.pathname === "/cattlelog-embed";
-  const defaultFileKeys = isCattlelog ? ["OmcL296OeqZ4xsHzNcap65"] : [];
 
-  // Pick up files and user from URL
+  const slug = searchParams.get("slug") || "";
+  const fileKeys = (searchParams.get("files")?.split(",").filter(Boolean)) || [];
+
+  const [dailyTotals, setDailyTotals] = useState<Record<string, number>>({});
+  const [loading, setLoading] = useState(true);
+
+  // Public embed: fetch from /api/public/:slug/activity (no auth/cookie required).
   useEffect(() => {
-    const fileKeys = searchParams.get("files")?.split(",").filter(Boolean) || defaultFileKeys;
-    if (JSON.stringify(fileKeys) !== JSON.stringify(selectedFileKeys)) {
-      setSelectedFileKeys(fileKeys);
+    if (!slug) {
+      setLoading(false);
+      return;
     }
-
-    const userId = searchParams.get("userId");
-    setUserIdOverride(userId);
-  }, [searchParams, setSelectedFileKeys, setUserIdOverride, isCattlelog]);
+    const tz = browserTz();
+    const fileKeysParam =
+      fileKeys.length > 0 ? `&fileKeys=${encodeURIComponent(fileKeys.join(","))}` : "";
+    axios
+      .get(`/api/public/${encodeURIComponent(slug)}/activity?mode=all&days=365&tz=${encodeURIComponent(tz)}${fileKeysParam}`)
+      .then((res) => setDailyTotals(res.data?.dailyTotals ?? {}))
+      .catch(() => setDailyTotals({}))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, searchParams.get("files")]);
 
   const rawStyle = searchParams.get("style") || "fimanu";
   const bg = searchParams.get("bg");
@@ -50,12 +68,12 @@ export default function EmbedWidget() {
     ...baseTheme,
     emptyColor: empty ? `#${empty}` : baseTheme.emptyColor,
     textColor: text ? `#${text}` : baseTheme.textColor,
-    levelColors: levels && levels.length === 4 ? levels.map(l => `#${l}`) : baseTheme.levelColors,
+    levelColors: levels && levels.length === 4 ? levels.map((l) => `#${l}`) : baseTheme.levelColors,
     rectRadius: radius ? parseFloat(radius) : baseTheme.rectRadius,
     rectSize: size ? parseFloat(size) : baseTheme.rectSize,
   };
 
-  // Override global body background for the widget
+  // Override global body background for the widget (transparent iframe).
   useEffect(() => {
     const originalBodyBg = document.body.style.backgroundColor;
     const originalHtmlBg = document.documentElement.style.backgroundColor;
@@ -77,11 +95,19 @@ export default function EmbedWidget() {
   }, []);
 
   const bgColor = bg ? `#${bg}` : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
+  const profileUrl = slug ? `${APP_ORIGIN}/u/${slug}` : `${APP_ORIGIN}`;
 
-  const userId = searchParams.get("userId");
-  const profileUrl = userId ? `${window.location.origin}/profile?userId=${userId}` : `${window.location.origin}/profile`;
+  if (loading) return null;
 
-  if (loading && !activity) return null;
+  if (!slug) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", width: "100%" }}>
+        <div style={{ fontSize: 12, color: "#A6A6A6", fontFamily: "system-ui, sans-serif" }}>
+          This embed needs a published profile (missing <code>slug</code>).
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -94,7 +120,7 @@ export default function EmbedWidget() {
     }}>
       <div style={{ backgroundColor: bgColor, padding: "16px", display: "inline-block", borderRadius: "16px" }}>
         <Heatmap
-          data={activity?.dailyTotals ?? {}}
+          data={dailyTotals}
           theme={rawStyle === "github" ? "dark" : "light"}
           customTheme={activeTheme}
           profileUrl={profileUrl}

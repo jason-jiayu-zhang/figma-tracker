@@ -22,13 +22,13 @@ const Footer: React.FC = () => {
             <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
               NAVIGATION
             </p>
-            <Link to="/" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
+            <Link to="/dashboard" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
               Dashboard
             </Link>
             <Link to="/files" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
               Files
             </Link>
-            <Link to="/settings" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
+            <Link to="/profile" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
               Settings
             </Link>
             <Link to="/embed" className="text-[16px] text-black tracking-[-0.16px] hover:underline">

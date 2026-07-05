@@ -9,13 +9,19 @@ const figmaApi = axios.create({
 });
 
 /**
- * Creates request config with either OAuth or Personal Access Token
+ * Build auth headers for a Figma API call.
+ * Multi-account model: every call MUST use a real per-user OAuth access token.
+ * The legacy global FIGMA_TOKEN (PAT) fallback has been removed — callers must
+ * resolve and pass the owning user's token (see syncService.getOwnerToken).
  */
 function getHeaders(token = null) {
-  const pat = process.env.FIGMA_TOKEN;
-  if (token) return { Authorization: `Bearer ${token}` };
-  if (pat) return { "X-Figma-Token": pat };
-  return {};
+  if (!token) {
+    throw new Error(
+      "Figma API call requires a per-user OAuth access token; none was provided. " +
+        "The legacy FIGMA_TOKEN PAT fallback has been removed.",
+    );
+  }
+  return { Authorization: `Bearer ${token}` };
 }
 
 // Add a small delay between requests to stay within 30 req/min Figma rate limit
@@ -27,6 +33,40 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function getMe(token = null) {
   const res = await figmaApi.get("/me", { headers: getHeaders(token) });
   return res.data;
+}
+
+/**
+ * Exchange a refresh_token for a fresh access_token.
+ * Figma token endpoint: POST https://api.figma.com/v1/oauth/token (grant_type=refresh_token).
+ * @returns {{ access_token: string, refresh_token: string|null, expires_in: number }}
+ */
+async function refreshAccessToken(refreshToken) {
+  if (!refreshToken) throw new Error("refreshAccessToken: missing refresh_token");
+
+  const payload = new URLSearchParams({
+    client_id: process.env.FIGMA_CLIENT_ID,
+    client_secret: process.env.FIGMA_CLIENT_SECRET,
+    refresh_token: refreshToken,
+    grant_type: "refresh_token",
+  });
+
+  const res = await axios.post(
+    "https://api.figma.com/v1/oauth/token",
+    payload,
+    {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+    },
+  );
+
+  return {
+    access_token: res.data.access_token,
+    // Figma typically keeps the same refresh_token; pass through if a new one is returned.
+    refresh_token: res.data.refresh_token || null,
+    expires_in: res.data.expires_in,
+  };
 }
 
 /**
@@ -150,6 +190,7 @@ async function getProjectFiles(projectId) {
 
 module.exports = {
   getMe,
+  refreshAccessToken,
   getFileVersions,
   getFileVersionsPage,
   getFileMeta,

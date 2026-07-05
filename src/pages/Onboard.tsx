@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from "react";
-import Heatmap from "../components/Heatmap";
 import axios from "axios";
-import { Info, FileText, Plus, X, CheckCircle2, ArrowRight } from "lucide-react";
+import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
+import { Plus, X, CheckCircle2, ArrowRight } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSession } from "../session";
 
 export default function Onboard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, refresh } = useSession();
   const [step, setStep] = useState(1); // 1: Connect, 2: Files, 3: Success
   const [isConnected, setIsConnected] = useState(false);
   const [files, setFiles] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Keep the local "connected" flag in sync with the cookie session.
+  useEffect(() => {
+    if (user) {
+      setIsConnected(true);
+      setStep((s) => (s < 2 ? 2 : s));
+    }
+  }, [user]);
 
   useEffect(() => {
     const forcedStep = searchParams.get("step");
@@ -19,32 +29,26 @@ export default function Onboard() {
       return;
     }
 
-    // Check if we just returned from OAuth
-    if (searchParams.get("connected") === "1") {
-      setIsConnected(true);
-      setStep(2);
-    } else {
-      checkConnection();
+    // Returning from OAuth: the session cookie is already set. Rely on it —
+    // poll /api/user/me until it resolves instead of re-triggering OAuth.
+    if (searchParams.get("connected") === "1" && !user) {
+      let tries = 0;
+      const id = setInterval(async () => {
+        tries += 1;
+        const u = await refresh();
+        if (u || tries >= 6) clearInterval(id);
+      }, 800);
+      return () => clearInterval(id);
     }
-  }, [searchParams]);
-
-  const checkConnection = async () => {
-    try {
-      const res = await axios.get("/api/user/me");
-      if (res.data.connected) {
-        setIsConnected(true);
-        setStep(2);
-      }
-    } catch (err) {
-      console.error("Failed to check connection", err);
-    }
-  };
+  }, [searchParams, user, refresh]);
 
   const startOAuth = async () => {
     try {
-      const res = await axios.post("/api/oauth/start");
+      const res = await axios.get("/api/oauth/start");
       if (res.data?.url) {
         window.location.href = res.data.url;
+      } else {
+        alert("Failed to start OAuth");
       }
     } catch (err) {
       alert("Failed to start OAuth");
@@ -71,25 +75,18 @@ export default function Onboard() {
       return;
     }
 
+    // The session is guaranteed by the time we reach the files step, so just add.
+    if (!isConnected && !user) {
+      // Session not established yet — send the user back to connect.
+      setStep(1);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      // Ensure user is connected via OAuth before adding files
-      const meRes = await axios.get("/api/user/me");
-      if (!meRes.data?.connected) {
-        // Start OAuth and include requested file keys so they're saved on callback
-        const startRes = await axios.post("/api/oauth/start", { fileKeys: validFiles.join(",") });
-        if (startRes.data?.url) {
-          window.location.href = startRes.data.url;
-          return;
-        } else {
-          alert("Failed to start OAuth");
-          return;
-        }
-      }
+      // Submit all files concurrently for faster optimistic UI response
+      await Promise.all(validFiles.map(fileKey => axios.post("/api/user/files", { fileKey })));
 
-      for (const fileKey of validFiles) {
-        await axios.post("/api/user/files", { fileKey });
-      }
       setStep(3);
     } catch (err) {
       alert("Failed to save files.");
@@ -98,13 +95,6 @@ export default function Onboard() {
     }
   };
 
-  const sampleData: Record<string, number> = {};
-  const d = new Date();
-  for (let i = 0; i < 60; i++) {
-    const day = new Date(d.getTime() - i * 24 * 60 * 60 * 1000);
-    sampleData[day.toISOString().slice(0, 10)] = Math.floor(Math.random() * 6);
-  }
-
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
       <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -112,9 +102,8 @@ export default function Onboard() {
           {/* Left Side: Steps/Info */}
           <div className="w-full md:w-[350px] bg-[#181818] text-white p-10 flex flex-col justify-between">
             <div>
-              <div className="flex items-center gap-2 mb-10">
-                <div className="w-8 h-8 bg-[#1ABCFE] rounded-lg"></div>
-                <span className="text-xl font-bold tracking-tight">FigPulse</span>
+              <div className="flex items-center mb-10">
+                <img src={imgFimanuLogo} alt="Fimanu" className="h-8 w-auto brightness-0 invert" />
               </div>
 
               <div className="flex flex-col gap-8">
@@ -211,7 +200,7 @@ export default function Onboard() {
                 <h2 className="text-4xl font-black text-[#181818] mb-4">You're all set!</h2>
                 <p className="text-lg text-[#6B6B6B] mb-10">We've started syncing your files. It may take a few minutes for the full history to appear on your dashboard.</p>
                 <button
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/dashboard")}
                   className="bg-[#181818] text-white px-12 py-4 rounded-xl font-black text-lg hover:bg-black transition-all active:scale-95"
                 >
                   Go to Dashboard
