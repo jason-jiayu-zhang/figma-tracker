@@ -8,14 +8,91 @@ import {
   Layers,
   GitCommit,
   Zap,
+  Flame,
   RotateCcw,
   CheckCircle2,
 } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
-import { format } from "date-fns";
+import { format, subDays, startOfToday, formatDistanceToNowStrict } from "date-fns";
 import { FigmaFile, FigmaVersion } from "../types";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
+
+/* Contribution stats derived entirely from the heatmap's dailyTotals — no
+   backend call needed. Streaks walk the 365-day window ending today. */
+function computeContribStats(dailyTotals: Record<string, number>) {
+  const total = Object.values(dailyTotals).reduce((a, b) => a + b, 0);
+
+  let best = { count: 0, date: "" };
+  for (const [date, count] of Object.entries(dailyTotals)) {
+    if (count > best.count) best = { count, date };
+  }
+
+  const active = new Set(
+    Object.entries(dailyTotals)
+      .filter(([, c]) => c > 0)
+      .map(([d]) => d)
+  );
+
+  const today = startOfToday();
+  const todayKey = format(today, "yyyy-MM-dd");
+
+  // Current streak: count back from today. If today is empty, still allow the
+  // streak to run through yesterday (GitHub-style) so it doesn't reset midday.
+  let current = 0;
+  const startOffset = active.has(todayKey) ? 0 : 1;
+  for (let i = startOffset; i < 366; i++) {
+    if (active.has(format(subDays(today, i), "yyyy-MM-dd"))) current++;
+    else break;
+  }
+
+  // Longest streak inside the visible 365-day window.
+  let longest = 0;
+  let run = 0;
+  for (let i = 364; i >= 0; i--) {
+    if (active.has(format(subDays(today, i), "yyyy-MM-dd"))) {
+      run++;
+      if (run > longest) longest = run;
+    } else {
+      run = 0;
+    }
+  }
+
+  return { total, best, current, longest };
+}
+
+function StatTile({
+  icon,
+  iconBg,
+  iconColor,
+  value,
+  label,
+}: {
+  icon: React.ReactNode;
+  iconBg: string;
+  iconColor: string;
+  value: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div className="bg-white flex items-center gap-3 p-4 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex-1 min-w-0">
+      <div
+        className="size-10 shrink-0 flex items-center justify-center rounded-xl"
+        style={{ backgroundColor: iconBg, color: iconColor }}
+      >
+        {icon}
+      </div>
+      <div className="flex flex-col min-w-0">
+        <p className="font-semibold text-[22px] tracking-[-0.22px] text-black leading-none truncate">
+          {value}
+        </p>
+        <p className="text-[12px] text-[#737373] tracking-[-0.12px] mt-1 truncate">
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const fimanuTheme: HeatmapTheme = {
   rectSize: 12,
@@ -103,12 +180,58 @@ export default function Dashboard() {
     );
   }
 
-  const totalEdits = activity
-    ? Object.values(activity.dailyTotals).reduce((a, b) => a + b, 0)
-    : 0;
+  const contrib = computeContribStats(activity?.dailyTotals ?? {});
+
+  const lastSyncLabel = stats?.lastSync
+    ? formatDistanceToNowStrict(new Date(stats.lastSync), { addSuffix: true })
+    : "Never";
 
   return (
     <div className="content-stretch flex flex-col gap-6 items-start relative shrink-0 w-full">
+
+      {/* KPI ROW */}
+      <div className="flex gap-4 items-stretch w-full shrink-0">
+        <StatTile
+          icon={<FileText size={20} />}
+          iconBg="#1abcfe1a"
+          iconColor="#1abcfe"
+          value={(stats?.filesTracked ?? files.length).toLocaleString()}
+          label="Files tracked"
+        />
+        <StatTile
+          icon={<GitCommit size={20} />}
+          iconBg="#a259ff1a"
+          iconColor="#a259ff"
+          value={(stats?.totalVersions ?? 0).toLocaleString()}
+          label="Total versions"
+        />
+        <StatTile
+          icon={<Zap size={20} />}
+          iconBg="#0acf831a"
+          iconColor="#0acf83"
+          value={(stats?.editsToday ?? 0).toLocaleString()}
+          label="Edits today"
+        />
+        {/* Sync tile — clickable, wired to the existing manual-sync action */}
+        <button
+          onClick={() => triggerSync()}
+          disabled={syncing}
+          title="Sync now"
+          className="bg-white flex items-center gap-3 p-4 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex-1 min-w-0 text-left transition-all hover:shadow-[0px_4px_10px_0px_rgba(107,97,75,0.3)] active:scale-[0.98] disabled:opacity-70"
+        >
+          <div className="size-10 shrink-0 flex items-center justify-center rounded-xl bg-[#f23b271a] text-[#f23b27]">
+            <RefreshCw size={20} className={syncing ? "animate-spin" : ""} />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <p className="font-semibold text-[16px] tracking-[-0.16px] text-black leading-tight truncate">
+              {syncing ? "Syncing…" : lastSyncLabel}
+            </p>
+            <p className="text-[12px] text-[#737373] tracking-[-0.12px] mt-1 truncate">
+              {syncing ? "Please wait" : "Last synced · tap to sync"}
+            </p>
+          </div>
+        </button>
+      </div>
 
       {/* ACTIVITY BREAKDOWN SECTION */}
       <div className="bg-white content-stretch flex flex-col gap-4 items-center justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-fit">
@@ -123,9 +246,18 @@ export default function Dashboard() {
               <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
                 Activity Breakdown
               </p>
-              <p className="font-normal relative shrink-0 text-[12px] tracking-[-0.12px] text-[#737373]">
-                Number of version history changes by user by file.
-              </p>
+              <div className="flex items-center gap-2 text-[12px] tracking-[-0.12px] text-[#737373] whitespace-nowrap">
+                <span className="font-semibold text-[#181818]">
+                  {contrib.total.toLocaleString()} edits
+                </span>
+                <span className="text-[#d9d9d9]">·</span>
+                <span className="flex items-center gap-1">
+                  <Flame size={13} className="text-[#f23b27]" />
+                  {contrib.current}-day streak
+                </span>
+                <span className="text-[#d9d9d9]">·</span>
+                <span>best {contrib.best.count}</span>
+              </div>
             </div>
           </div>
           <div className="bg-[#fffaf4] content-stretch flex items-center p-1 relative rounded-lg shrink-0">
