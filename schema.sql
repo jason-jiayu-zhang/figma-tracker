@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
   refresh_token TEXT,
   scopes TEXT,
   token_expires_at TIMESTAMPTZ,
+  profile_slug TEXT UNIQUE,
+  public_enabled BOOLEAN NOT NULL DEFAULT false,
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -39,7 +41,8 @@ CREATE TABLE IF NOT EXISTS teams (
 -- Tracked Figma files
 CREATE TABLE IF NOT EXISTS figma_files (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  file_key TEXT UNIQUE NOT NULL,
+  owner_user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  file_key TEXT NOT NULL,
   name TEXT,
   team_id UUID REFERENCES teams(id),
   project_id TEXT,
@@ -50,7 +53,9 @@ CREATE TABLE IF NOT EXISTS figma_files (
   sync_completed BOOLEAN DEFAULT FALSE,
   last_sync_check TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Each account tracks the same file independently (per-owner uniqueness).
+  UNIQUE(owner_user_id, file_key)
 );
 
 -- Every version entry from GET /v1/files/:key/versions
@@ -90,3 +95,5 @@ CREATE INDEX IF NOT EXISTS idx_file_versions_file_id ON file_versions(file_id);
 CREATE INDEX IF NOT EXISTS idx_file_versions_created_at ON file_versions(created_at);
 CREATE INDEX IF NOT EXISTS idx_daily_activity_date ON daily_activity(activity_date);
 CREATE INDEX IF NOT EXISTS idx_daily_activity_file_id ON daily_activity(file_id);
+CREATE INDEX IF NOT EXISTS idx_figma_files_owner ON figma_files(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_users_profile_slug ON users(profile_slug);

@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import { Copy, Telescope, Check, Info } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
+import { useSession } from "../session";
+import { APP_ORIGIN } from "../config";
 import { useSearchParams } from "react-router-dom";
 import { HexColorPicker } from "react-colorful";
 
@@ -100,7 +102,12 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
 };
 
 export default function EmbedEditor() {
-  const { stats, activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
+  const { activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
+  const { user } = useSession();
+  // Public embeds are addressed by the user's profile_slug (no auth). The embed
+  // only renders data once the profile is published (public_enabled).
+  const slug = user?.profile_slug || "";
+  const published = !!user?.public_enabled && !!slug;
 
   // Embed shows all edits (not just mine) so file selection works for any file
   useEffect(() => {
@@ -178,10 +185,10 @@ export default function EmbedEditor() {
   };
 
   const handleCopy = () => {
-    const baseUrl = window.location.origin + "/embed-widget";
+    const baseUrl = APP_ORIGIN + "/embed-widget";
     const params = new URLSearchParams();
+    if (slug) params.set("slug", slug);
     if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
-    if (stats?.myFigmaUserId) params.set("userId", stats.myFigmaUserId);
     params.set("style", embedStyle.split(" ")[0].toLowerCase());
 
     if (embedStyle === "Custom Style") {
@@ -307,6 +314,11 @@ export default function EmbedEditor() {
         </div>
 
         <div className="flex flex-col gap-3 w-[calc(100%-8px)] mt-auto pt-4 pb-2">
+          {!published && (
+            <p className="text-[11px] leading-snug text-[#A6A6A6] bg-[#fffaf4] border border-[#EBEBEB] rounded-lg px-3 py-2">
+              Publish your profile (set a URL + enable public in <span className="font-bold text-[#737373]">Profile</span>) so this embed can load without a login.
+            </p>
+          )}
           <button onClick={handleCopy} className="bg-[#f23b27] hover:bg-[#d83523] active:bg-[#bd2f1f] transition-colors text-white font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full">
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
             {copied ? "Copied!" : "Copy Embed Link"}
@@ -314,8 +326,8 @@ export default function EmbedEditor() {
           <button
             onClick={() => {
               const params = new URLSearchParams();
+              if (slug) params.set("slug", slug);
               if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
-              if (stats?.myFigmaUserId) params.set("userId", stats.myFigmaUserId);
               params.set("style", embedStyle.split(" ")[0].toLowerCase());
               if (embedStyle === "Custom Style") {
                 params.set("bg", activeBg.replace("#", ""));
@@ -325,7 +337,7 @@ export default function EmbedEditor() {
                 params.set("radius", rectRadius.toString());
                 params.set("size", rectSize.toString());
               }
-              window.open(`${window.location.origin}/embed-widget?${params.toString()}`, "_blank");
+              window.open(`${APP_ORIGIN}/embed-widget?${params.toString()}`, "_blank");
             }}
             className="bg-white border border-[#f23b27] text-[#f23b27] hover:bg-[#fffaf4] transition-colors font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full"
           >
@@ -410,10 +422,10 @@ export default function EmbedEditor() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const baseUrl = window.location.origin + "/embed-widget";
+                    const baseUrl = APP_ORIGIN + "/embed-widget";
                     const params = new URLSearchParams();
+                    if (slug) params.set("slug", slug);
                     params.set("files", file.file_key);
-                    if (stats?.myFigmaUserId) params.set("userId", stats.myFigmaUserId);
                     params.set("style", embedStyle.split(" ")[0].toLowerCase());
                     if (embedStyle === "Custom Style") {
                       params.set("bg", activeBg.replace("#", ""));
