@@ -14,6 +14,7 @@ const Onboard = React.lazy(() => import("./pages/Onboard"));
 const Landing = React.lazy(() => import("./pages/Landing"));
 const Files = React.lazy(() => import("./pages/Files"));
 const Profile = React.lazy(() => import("./pages/Profile"));
+const Settings = React.lazy(() => import("./pages/Settings"));
 const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
 function Spinner({ label }: { label?: string }) {
@@ -54,17 +55,18 @@ function OAuthRedirect() {
 // The authenticated dashboard shell: sidebar + routed content + footer.
 function AppLayout() {
   return (
-    <div className="bg-[#fffaf4] overflow-x-hidden">
+    <div className="bg-[#fffaf4] overflow-x-clip">
       <div className="w-full min-h-screen flex items-center justify-center py-2 px-6 lg:px-8">
         <div className="flex flex-row gap-8 w-[1080px] max-w-full relative">
-          <Sidebar className="bg-white flex flex-col gap-12 h-[800px] items-start justify-center px-3 py-2 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22" />
-          <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 h-[800px]">
+          <Sidebar className="bg-white flex flex-col items-center justify-between min-h-[800px] px-3 py-4 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22 self-stretch" />
+          <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 min-h-[800px]">
             <Suspense fallback={<DashboardSkeleton />}>
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/files" element={<Files />} />
                 <Route path="/embed" element={<Embed />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/settings" element={<Settings />} />
                 {/* Legacy alias */}
                 <Route path="/home" element={<Navigate to="/dashboard" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

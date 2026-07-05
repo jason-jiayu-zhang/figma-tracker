@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Plus, X, Trash2, FileText, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useFigmaData } from "../useFigmaData";
 import { formatDistanceToNow } from "date-fns";
 import AddFileModal from "../components/AddFileModal";
@@ -9,6 +10,23 @@ const rowColors = ["#f24e1e", "#9851f9", "#1abcfe", "#0acf83"];
 export default function Files() {
   const { files, removeFile, refresh, loading } = useFigmaData();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // The nav's "+" quick-add action deep-links here with ?add=1 — open the modal
+  // and strip the param so a refresh/back doesn't re-trigger it.
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setShowAddModal(true);
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.delete("add");
+          return next;
+        },
+        { replace: true }
+      );
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleRemoveFile = async (fileKey: string) => {
     if (confirm("Are you sure you want to stop tracking this file?")) {

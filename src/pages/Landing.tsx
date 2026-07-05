@@ -16,7 +16,7 @@ export default function Landing() {
   const ctaHref = loggedIn ? dashHref : signInHref;
 
   return (
-    <div className="min-h-screen bg-[#fffaf4] flex flex-col items-center overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#fffaf4] flex flex-col items-center overflow-x-clip font-sans">
       {/* Navigation */}
       <nav className="w-full max-w-6xl px-6 py-6 flex justify-between items-center z-10">
         <div className="flex items-center">
