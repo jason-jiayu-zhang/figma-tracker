@@ -3,22 +3,12 @@ import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import { APP_ORIGIN } from "../config";
+import { themeForStyle } from "../embedThemes";
 
-const fimanuTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
-  levelColors: ["#1bca7c", "#1ab7fa", "#9851f9", "#f23b27"],
-  textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white"
-};
-const githubTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#151b23",
-  levelColors: ["#023a16", "#196c2e", "#2da042", "#56d364"],
-  textColor: "#9198a1", tooltipBgColor: "#c9d1d9", tooltipTextColor: "#0d1116"
-};
-const figmaTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
-  levelColors: ["#0acf83", "#1abcfe", "#a259ff", "#f24e1e"],
-  textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white"
-};
+// True when rendered inside an <iframe>. Embedded, we hug the content so the
+// host iframe isn't padded out to a full 100vh of empty space; standalone
+// (the "Preview in Browser" tab) we center it in the viewport.
+const isEmbedded = typeof window !== "undefined" && window.self !== window.top;
 
 function browserTz(): string {
   try {
@@ -62,7 +52,7 @@ export default function EmbedWidget() {
   const radius = searchParams.get("radius");
   const size = searchParams.get("size");
 
-  const baseTheme = rawStyle === "github" ? githubTheme : rawStyle === "figma" ? figmaTheme : fimanuTheme;
+  const baseTheme = themeForStyle(rawStyle);
 
   const activeTheme: HeatmapTheme = {
     ...baseTheme,
@@ -94,7 +84,10 @@ export default function EmbedWidget() {
     };
   }, []);
 
-  const bgColor = bg ? `#${bg}` : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
+  const bgColor =
+    bg === "transparent" ? "transparent"
+    : bg ? `#${bg}`
+    : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
   const profileUrl = slug ? `${APP_ORIGIN}/u/${slug}` : `${APP_ORIGIN}`;
 
   if (loading) return null;
@@ -109,16 +102,24 @@ export default function EmbedWidget() {
     );
   }
 
+  const outerStyle: React.CSSProperties = isEmbedded
+    ? { width: "100%", background: "transparent" }
+    : {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        width: "100%",
+        background: "transparent",
+      };
+
+  const innerStyle: React.CSSProperties = isEmbedded
+    ? { backgroundColor: bgColor, padding: 16, borderRadius: 16, width: "100%", boxSizing: "border-box" }
+    : { backgroundColor: bgColor, padding: 16, borderRadius: 16, display: "inline-block" };
+
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "100vh",
-      width: "100%",
-      background: "transparent"
-    }}>
-      <div style={{ backgroundColor: bgColor, padding: "16px", display: "inline-block", borderRadius: "16px" }}>
+    <div style={outerStyle}>
+      <div style={innerStyle}>
         <Heatmap
           data={dailyTotals}
           theme={rawStyle === "github" ? "dark" : "light"}

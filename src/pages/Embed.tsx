@@ -6,22 +6,12 @@ import { useSession } from "../session";
 import { APP_ORIGIN } from "../config";
 import { useSearchParams } from "react-router-dom";
 import { HexColorPicker } from "react-colorful";
-
-const fimanuTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
-  levelColors: ["#1bca7c", "#1ab7fa", "#9851f9", "#f23b27"],
-  textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white"
-};
-const githubTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#151b23",
-  levelColors: ["#023a16", "#196c2e", "#2da042", "#56d364"],
-  textColor: "#9198a1", tooltipBgColor: "#c9d1d9", tooltipTextColor: "#0d1116"
-};
-const figmaTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
-  levelColors: ["#0acf83", "#1abcfe", "#a259ff", "#f24e1e"],
-  textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white"
-};
+import {
+  fimanuTheme,
+  githubTheme,
+  figmaTheme,
+  estimateWidgetHeight,
+} from "../embedThemes";
 
 function getPreviewColor(theme: string, level: number) {
   if (theme === 'github') return ['bg-[#151b23]', 'bg-[#023a16]', 'bg-[#196c2e]', 'bg-[#2da042]', 'bg-[#56d364]'][level - 1];
@@ -116,6 +106,9 @@ export default function EmbedEditor() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [embedStyle, setEmbedStyle] = useState("Fimanu Style");
   const [copied, setCopied] = useState(false);
+  // How the "Copy" button emits the embed: a bare URL (paste into Notion etc.)
+  // or a ready-to-drop <iframe> tag (for websites / READMEs that allow HTML).
+  const [copyFormat, setCopyFormat] = useState<"link" | "iframe">("link");
 
   // Settings State
   const [rectSize, setRectSize] = useState<number>(12);
@@ -124,6 +117,8 @@ export default function EmbedEditor() {
   const [overrideText, setOverrideText] = useState<string>("");
   const [overrideLevels, setOverrideLevels] = useState<string[]>([]);
   const [overrideEmpty, setOverrideEmpty] = useState<string>("");
+  // Paint no background behind the heatmap so it blends into the host page.
+  const [transparentBg, setTransparentBg] = useState<boolean>(false);
 
   // Sync state with URL params on mount and when params change
   useEffect(() => {
@@ -144,6 +139,7 @@ export default function EmbedEditor() {
     setOverrideText("");
     setOverrideLevels([]);
     setOverrideEmpty("");
+    setTransparentBg(false);
   }, [embedStyle]);
 
   // Update URL when state changes
@@ -172,7 +168,9 @@ export default function EmbedEditor() {
   const baseTheme = embedStyle === 'GitHub Style' ? githubTheme : embedStyle === 'Figma Style' ? figmaTheme : fimanuTheme;
   const activeLevels = overrideLevels.length === 4 ? overrideLevels : baseTheme.levelColors || [];
   const activeEmpty = overrideEmpty || baseTheme.emptyColor || "#d9d9d9";
-  const activeBg = overrideBg || (embedStyle === 'GitHub Style' ? '#0d1116' : '#fffaf4');
+  const activeBg = transparentBg
+    ? "transparent"
+    : overrideBg || (embedStyle === 'GitHub Style' ? '#0d1116' : '#fffaf4');
   const activeText = overrideText || baseTheme.textColor || "#1A1A1A";
 
   const activeTheme: HeatmapTheme = {
@@ -184,25 +182,47 @@ export default function EmbedEditor() {
     textColor: activeText,
   };
 
+  // Single source of truth for the widget URL — used by the copy button, the
+  // per-file copy shortcut, and "Preview in Browser" (previously duplicated).
+  const buildWidgetUrl = useCallback(
+    (fileKeysList: string[]) => {
+      const params = new URLSearchParams();
+      if (slug) params.set("slug", slug);
+      if (fileKeysList.length > 0) params.set("files", fileKeysList.join(","));
+      params.set("style", embedStyle.split(" ")[0].toLowerCase());
+
+      if (embedStyle === "Custom Style") {
+        params.set("bg", activeBg.replace("#", ""));
+        params.set("text", activeText.replace("#", ""));
+        params.set("empty", activeEmpty.replace("#", ""));
+        if (activeLevels.length === 4)
+          params.set("levels", activeLevels.map((c) => c.replace("#", "")).join("-"));
+        params.set("radius", rectRadius.toString());
+        params.set("size", rectSize.toString());
+      } else if (transparentBg) {
+        // Transparent applies on top of any preset without going fully custom.
+        params.set("bg", "transparent");
+      }
+
+      return `${APP_ORIGIN}/embed-widget?${params.toString()}`;
+    },
+    [slug, embedStyle, activeBg, activeText, activeEmpty, activeLevels, rectRadius, rectSize, transparentBg]
+  );
+
+  // Wrap the URL in the chosen output format (bare link or <iframe> tag).
+  const buildEmbedCode = useCallback(
+    (url: string) => {
+      if (copyFormat === "iframe") {
+        const h = estimateWidgetHeight(rectSize);
+        return `<iframe src="${url}" width="100%" height="${h}" frameborder="0" scrolling="no" style="border:none;overflow:hidden;" title="Figma activity"></iframe>`;
+      }
+      return url;
+    },
+    [copyFormat, rectSize]
+  );
+
   const handleCopy = () => {
-    const baseUrl = APP_ORIGIN + "/embed-widget";
-    const params = new URLSearchParams();
-    if (slug) params.set("slug", slug);
-    if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
-    params.set("style", embedStyle.split(" ")[0].toLowerCase());
-
-    if (embedStyle === "Custom Style") {
-      params.set("bg", activeBg.replace("#", ""));
-      params.set("text", activeText.replace("#", ""));
-      params.set("empty", activeEmpty.replace("#", ""));
-      if (activeLevels.length === 4) params.set("levels", activeLevels.map(c => c.replace("#", "")).join("-"));
-      params.set("radius", rectRadius.toString());
-      params.set("size", rectSize.toString());
-    }
-
-    const fullUrl = `${baseUrl}?${params.toString()}`;
-
-    navigator.clipboard.writeText(fullUrl);
+    navigator.clipboard.writeText(buildEmbedCode(buildWidgetUrl(selectedFileKeys)));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -210,9 +230,11 @@ export default function EmbedEditor() {
   if (loading && !activity) return null;
 
   return (
-    <div className="flex gap-8 items-stretch shrink-0 w-full h-fit">
-      {/* Settings Box */}
-      <div className="bg-white flex flex-col gap-6 items-center justify-start p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[360px] overflow-y-auto custom-scrollbar">
+    <div className="flex gap-8 items-start shrink-0 w-full">
+      {/* Settings Box — sticky so it stays put while the preview/file list scroll.
+          No overflow/max-h here on purpose: making it a scroll container would
+          capture the mouse wheel and stop the page from scrolling on hover. */}
+      <div className="bg-white flex flex-col gap-6 items-center justify-start p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-[360px] sticky top-2 self-start">
         <div className="flex gap-3 items-center w-full">
           <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
             <SettingsIcon />
@@ -311,6 +333,22 @@ export default function EmbedEditor() {
               </div>
             </div>
           </div>
+
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Transparent background</p>
+              <p className="text-[11px] text-[#A6A6A6] tracking-[-0.11px]">Blend into any page — no background fill.</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={transparentBg}
+              onClick={() => setTransparentBg((v) => !v)}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${transparentBg ? "bg-[#0acf83]" : "bg-[#d9d9d9]"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${transparentBg ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col gap-3 w-[calc(100%-8px)] mt-auto pt-4 pb-2">
@@ -319,26 +357,27 @@ export default function EmbedEditor() {
               Publish your profile (set a URL + enable public in <span className="font-bold text-[#737373]">Profile</span>) so this embed can load without a login.
             </p>
           )}
+          {/* Output format: bare link (Notion/paste) vs. <iframe> tag (websites) */}
+          <div className="bg-[#fffaf4] flex items-center p-1 rounded-lg w-full">
+            {([
+              { key: "link", label: "Link" },
+              { key: "iframe", label: "iframe" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setCopyFormat(opt.key)}
+                className={`flex-1 h-8 flex items-center justify-center rounded-md text-[13px] font-medium tracking-[-0.13px] transition-all ${copyFormat === opt.key ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <button onClick={handleCopy} className="bg-[#f23b27] hover:bg-[#d83523] active:bg-[#bd2f1f] transition-colors text-white font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full">
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
-            {copied ? "Copied!" : "Copy Embed Link"}
+            {copied ? "Copied!" : copyFormat === "iframe" ? "Copy iframe Code" : "Copy Embed Link"}
           </button>
           <button
-            onClick={() => {
-              const params = new URLSearchParams();
-              if (slug) params.set("slug", slug);
-              if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
-              params.set("style", embedStyle.split(" ")[0].toLowerCase());
-              if (embedStyle === "Custom Style") {
-                params.set("bg", activeBg.replace("#", ""));
-                params.set("text", activeText.replace("#", ""));
-                params.set("empty", activeEmpty.replace("#", ""));
-                if (activeLevels.length === 4) params.set("levels", activeLevels.map(c => c.replace("#", "")).join("-"));
-                params.set("radius", rectRadius.toString());
-                params.set("size", rectSize.toString());
-              }
-              window.open(`${APP_ORIGIN}/embed-widget?${params.toString()}`, "_blank");
-            }}
+            onClick={() => window.open(buildWidgetUrl(selectedFileKeys), "_blank")}
             className="bg-white border border-[#f23b27] text-[#f23b27] hover:bg-[#fffaf4] transition-colors font-bold h-10 rounded-lg flex gap-2 items-center justify-center shadow-sm w-full"
           >
             <Telescope size={16} strokeWidth={2.5} /> Preview in Browser
@@ -358,10 +397,21 @@ export default function EmbedEditor() {
             </div>
           </div>
 
-          {/* Fake Widget Container */}
+          {/* Fake Widget Container. When transparent, show a checkerboard so the
+              "no background" effect is visible in the preview. */}
           <div
             className={`w-full rounded-2xl border border-transparent shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] p-4 flex flex-col gap-4 relative transition-colors`}
-            style={{ backgroundColor: activeBg }}
+            style={
+              transparentBg
+                ? {
+                    backgroundColor: "#fff",
+                    backgroundImage:
+                      "linear-gradient(45deg,#eee 25%,transparent 25%),linear-gradient(-45deg,#eee 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eee 75%),linear-gradient(-45deg,transparent 75%,#eee 75%)",
+                    backgroundSize: "16px 16px",
+                    backgroundPosition: "0 0,0 8px,8px -8px,-8px 0",
+                  }
+                : { backgroundColor: activeBg }
+            }
           >
             <Heatmap
               data={activity?.dailyTotals ?? {}}
@@ -422,23 +472,10 @@ export default function EmbedEditor() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const baseUrl = APP_ORIGIN + "/embed-widget";
-                    const params = new URLSearchParams();
-                    if (slug) params.set("slug", slug);
-                    params.set("files", file.file_key);
-                    params.set("style", embedStyle.split(" ")[0].toLowerCase());
-                    if (embedStyle === "Custom Style") {
-                      params.set("bg", activeBg.replace("#", ""));
-                      params.set("text", activeText.replace("#", ""));
-                      params.set("empty", activeEmpty.replace("#", ""));
-                      if (activeLevels.length === 4) params.set("levels", activeLevels.map(c => c.replace("#", "")).join("-"));
-                      params.set("radius", rectRadius.toString());
-                      params.set("size", rectSize.toString());
-                    }
-                    navigator.clipboard.writeText(`${baseUrl}?${params.toString()}`);
+                    navigator.clipboard.writeText(buildEmbedCode(buildWidgetUrl([file.file_key])));
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white rounded transition-all text-[#A6A6A6] hover:text-[#f23b27] shadow-sm border border-transparent hover:border-[#EBEBEB]"
-                  title="Copy individual embed link"
+                  title={copyFormat === "iframe" ? "Copy iframe for this file" : "Copy embed link for this file"}
                 >
                   <Copy size={11} />
                 </button>
