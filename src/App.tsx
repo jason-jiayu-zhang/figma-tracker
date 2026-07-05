@@ -31,10 +31,10 @@ function Spinner({ label }: { label?: string }) {
   );
 }
 
-// Kick off Figma OAuth (GET /api/oauth/start → { url }).
+// Kick off Figma OAuth (POST /api/oauth/start → { url }).
 async function startOAuth() {
   try {
-    const res = await axios.get("/api/oauth/start");
+    const res = await axios.post("/api/oauth/start");
     if (res.data?.url) {
       window.location.href = res.data.url;
       return;

@@ -44,7 +44,7 @@ export default function Onboard() {
 
   const startOAuth = async () => {
     try {
-      const res = await axios.get("/api/oauth/start");
+      const res = await axios.post("/api/oauth/start");
       if (res.data?.url) {
         window.location.href = res.data.url;
       } else {
