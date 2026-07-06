@@ -178,16 +178,20 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
         ref={containerRef}
         onScroll={handleMouseLeave}
         // overflow-y-clip is load-bearing: `overflow-x: auto` alone would
-        // promote overflow-y from `visible` to `auto` (CSS spec), producing a
-        // phantom vertical scrollbar at rest — the "vertical overflow before
-        // hover" bug. `clip` (not `hidden`/`visible`) resists that promotion
-        // and isn't a scroll container. The tooltip is a sibling outside this
-        // div, and hover scale-110 fits within the grid's padding, so nothing
-        // visible gets clipped vertically.
+        // promote overflow-y from `visible` to `auto` (CSS spec), so the forced
+        // 6px horizontal scrollbar (.custom-scrollbar) eats vertical space and a
+        // phantom vertical scrollbar appears down the right edge — the "vertical
+        // overflow before hover" bug. `overflow-y-clip` removes the vertical
+        // scroll axis so no vertical scrollbar can render.
+        //
+        // That alone would let the horizontal scrollbar's reserved 6px clip the
+        // bottom cell row (only popped back into view on hover via scale-110),
+        // so the grid's bottom padding below must be >= that 6px to clear it.
         className="overflow-x-auto overflow-y-clip custom-scrollbar relative"
       >
-        {/* Grid Container */}
-        <div className="pb-1" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
+        {/* Grid Container — pb-2 (8px) clears the 6px horizontal scrollbar so
+            overflow-y-clip doesn't cut off the bottom row of cells. */}
+        <div className="pb-2" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
           {/* Month labels */}
           <div className="relative pointer-events-none" style={{ height: tFontSize, marginLeft: (tRectSize * 2) + tGap, marginBottom: tGap }}>
             {monthLabels.map((m, i) => (
