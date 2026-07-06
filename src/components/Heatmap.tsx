@@ -173,7 +173,11 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   }, []);
 
   return (
-    <div ref={componentRef} className="flex flex-col gap-2 w-full relative">
+    <div
+      ref={componentRef}
+      onMouseLeave={handleMouseLeave}
+      className="flex flex-col gap-2 w-full relative"
+    >
       <div
         ref={containerRef}
         onScroll={handleMouseLeave}
