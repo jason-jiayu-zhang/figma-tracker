@@ -177,7 +177,14 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
       <div
         ref={containerRef}
         onScroll={handleMouseLeave}
-        className="overflow-x-auto custom-scrollbar relative"
+        // overflow-y-clip is load-bearing: `overflow-x: auto` alone would
+        // promote overflow-y from `visible` to `auto` (CSS spec), producing a
+        // phantom vertical scrollbar at rest — the "vertical overflow before
+        // hover" bug. `clip` (not `hidden`/`visible`) resists that promotion
+        // and isn't a scroll container. The tooltip is a sibling outside this
+        // div, and hover scale-110 fits within the grid's padding, so nothing
+        // visible gets clipped vertically.
+        className="overflow-x-auto overflow-y-clip custom-scrollbar relative"
       >
         {/* Grid Container */}
         <div className="pb-1" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
