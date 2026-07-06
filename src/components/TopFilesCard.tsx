@@ -57,23 +57,23 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
   }, [activity, files]);
 
   if (displayItems.length === 0) return (
-    <div className="bg-white p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex items-center justify-center w-full h-full min-h-40">
-      <p className="text-sm text-[#737373] italic">No file activity tracked.</p>
+    <div className="bg-surface p-6 rounded-4xl shadow-card flex items-center justify-center w-full h-full min-h-40">
+      <p className="text-sm text-body italic">No file activity tracked.</p>
     </div>
   );
 
   return (
-    <div className="bg-white p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex flex-col gap-5 w-full h-full min-h-[300px]">
+    <div className="bg-surface p-6 rounded-4xl shadow-card flex flex-col gap-5 w-full h-full min-h-[300px]">
       <div className="flex gap-3 items-center">
-        <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
+        <div className="size-10 flex items-center justify-center bg-hairline rounded-xl text-ink">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
         </div>
         <div className="flex flex-col gap-0.5">
-          <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]" style={{ fontFamily: 'var(--font-sans)' }}>Most Active Files</h2>
-          <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Global activity breakdown by volume.</p>
+          <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-ink" style={{ fontFamily: 'var(--font-sans)' }}>Most Active Files</h2>
+          <p className="text-[12px] text-muted tracking-[-0.12px] leading-none">Global activity breakdown by volume.</p>
         </div>
       </div>
 

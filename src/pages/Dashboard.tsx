@@ -1,22 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
-import {
-  RefreshCw,
-  X,
-  Clock,
-  FileText,
-  Activity,
-  Layers,
-  GitCommit,
-  Zap,
-  Flame,
-  RotateCcw,
-  CheckCircle2,
-} from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { RefreshCw, FileText, Activity, Layers, GitCommit, Zap, Flame } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { format, subDays, startOfToday, formatDistanceToNowStrict } from "date-fns";
 import { FigmaFile, FigmaVersion } from "../types";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
+import { Card, SectionHeader, StatInline, StatTile, SegmentedControl } from "../components/ui";
 
 /* Contribution stats derived entirely from the heatmap's dailyTotals — no
    backend call needed. Streaks walk the 365-day window ending today. */
@@ -59,39 +48,6 @@ function computeContribStats(dailyTotals: Record<string, number>) {
   }
 
   return { total, best, current, longest };
-}
-
-function StatTile({
-  icon,
-  iconBg,
-  iconColor,
-  value,
-  label,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  value: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <div className="bg-white flex items-center gap-3 p-4 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex-1 min-w-0">
-      <div
-        className="size-10 shrink-0 flex items-center justify-center rounded-xl"
-        style={{ backgroundColor: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="flex flex-col min-w-0">
-        <p className="font-semibold text-[22px] tracking-[-0.22px] text-black leading-none truncate">
-          {value}
-        </p>
-        <p className="text-[12px] text-[#737373] tracking-[-0.12px] mt-1 truncate">
-          {label}
-        </p>
-      </div>
-    </div>
-  );
 }
 
 const fimanuTheme: HeatmapTheme = {
@@ -186,147 +142,83 @@ export default function Dashboard() {
     ? formatDistanceToNowStrict(new Date(stats.lastSync), { addSuffix: true })
     : "Never";
 
+  const rangeOptions = [
+    { label: "1W", value: 7 },
+    { label: "1M", value: 30 },
+    { label: "90D", value: 90 },
+    { label: "1Y", value: 365 },
+    { label: "YTD", value: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) + 1 },
+    { label: "All", value: 3650 },
+  ];
+
   return (
-    <div className="content-stretch flex flex-col gap-6 items-start relative shrink-0 w-full">
+    <div className="flex flex-col gap-6 items-start w-full">
 
       {/* KPI ROW */}
       <div className="flex gap-4 items-stretch w-full shrink-0">
-        <StatTile
-          icon={<FileText size={20} />}
-          iconBg="#1abcfe1a"
-          iconColor="#1abcfe"
-          value={(stats?.filesTracked ?? files.length).toLocaleString()}
-          label="Files tracked"
-        />
-        <StatTile
-          icon={<GitCommit size={20} />}
-          iconBg="#a259ff1a"
-          iconColor="#a259ff"
-          value={(stats?.totalVersions ?? 0).toLocaleString()}
-          label="Total versions"
-        />
-        <StatTile
-          icon={<Zap size={20} />}
-          iconBg="#0acf831a"
-          iconColor="#0acf83"
-          value={(stats?.editsToday ?? 0).toLocaleString()}
-          label="Edits today"
-        />
+        <StatTile color="blue" icon={<FileText size={20} />} value={(stats?.filesTracked ?? files.length).toLocaleString()} label="Files tracked" />
+        <StatTile color="purple" icon={<GitCommit size={20} />} value={(stats?.totalVersions ?? 0).toLocaleString()} label="Total versions" />
+        <StatTile color="green" icon={<Zap size={20} />} value={(stats?.editsToday ?? 0).toLocaleString()} label="Edits today" />
         {/* Sync tile — clickable, wired to the existing manual-sync action */}
-        <button
+        <StatTile
+          color="accent"
+          icon={<RefreshCw size={20} className={syncing ? "animate-spin" : ""} />}
+          value={<span className="text-[16px] leading-tight">{syncing ? "Syncing…" : lastSyncLabel}</span>}
+          label={syncing ? "Please wait" : "Last synced · tap to sync"}
           onClick={() => triggerSync()}
           disabled={syncing}
           title="Sync now"
-          className="bg-white flex items-center gap-3 p-4 rounded-3xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] flex-1 min-w-0 text-left transition-all hover:shadow-[0px_4px_10px_0px_rgba(107,97,75,0.3)] active:scale-[0.98] disabled:opacity-70"
-        >
-          <div className="size-10 shrink-0 flex items-center justify-center rounded-xl bg-[#f23b271a] text-[#f23b27]">
-            <RefreshCw size={20} className={syncing ? "animate-spin" : ""} />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <p className="font-semibold text-[16px] tracking-[-0.16px] text-black leading-tight truncate">
-              {syncing ? "Syncing…" : lastSyncLabel}
-            </p>
-            <p className="text-[12px] text-[#737373] tracking-[-0.12px] mt-1 truncate">
-              {syncing ? "Please wait" : "Last synced · tap to sync"}
-            </p>
-          </div>
-        </button>
+        />
       </div>
 
       {/* ACTIVITY BREAKDOWN SECTION */}
-      <div className="bg-white content-stretch flex flex-col gap-4 items-center justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-fit">
-        <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
-          <div className="content-stretch flex gap-3 items-center relative shrink-0">
-            <div className="relative shrink-0 size-10">
-              <div className="w-10 h-10 bg-[#1abcfe]/10 flex items-center justify-center rounded-xl text-[#1abcfe]">
-                <Activity size={20} />
-              </div>
-            </div>
-            <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
-              <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
-                Activity Breakdown
-              </p>
-              <div className="flex items-center gap-2 text-[12px] tracking-[-0.12px] text-[#737373] whitespace-nowrap">
-                <span className="font-semibold text-[#181818]">
-                  {contrib.total.toLocaleString()} edits
-                </span>
-                <span className="text-[#d9d9d9]">·</span>
-                <span className="flex items-center gap-1">
-                  <Flame size={13} className="text-[#f23b27]" />
-                  {contrib.current}-day streak
-                </span>
-                <span className="text-[#d9d9d9]">·</span>
-                <span>best {contrib.best.count}</span>
-              </div>
-            </div>
-          </div>
-          <div className="bg-[#fffaf4] content-stretch flex items-center p-1 relative rounded-lg shrink-0">
-            <button
-              onClick={() => setFilterMine(true)}
-              className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
-            >
-              <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
-                My changes
-              </p>
-            </button>
-            <button
-              onClick={() => setFilterMine(false)}
-              className={`content-stretch flex h-9 items-center justify-center px-4 py-1.5 relative rounded-lg shrink-0 transition-all ${!filterMine ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black" : "text-[#A6A6A6] hover:text-[#181818]"}`}
-            >
-              <p className="font-normal leading-5 relative shrink-0 text-[14px] tracking-[-0.16px] whitespace-nowrap">
-                All changes
-              </p>
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-[#fffaf4] content-stretch flex flex-col gap-3 items-start justify-end p-4 relative rounded-2xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-full">
+      <Card className="flex flex-col gap-4 items-center p-6 w-full">
+        <SectionHeader
+          color="blue"
+          icon={<Activity size={20} />}
+          title="Activity Breakdown"
+          subtitle={
+            <StatInline
+              items={[
+                { label: `${contrib.total.toLocaleString()} edits`, strong: true },
+                { icon: <Flame size={13} className="text-accent" />, label: `${contrib.current}-day streak` },
+                { label: `best ${contrib.best.count}` },
+              ]}
+            />
+          }
+          action={
+            <SegmentedControl
+              value={filterMine}
+              onChange={setFilterMine}
+              options={[
+                { label: "My changes", value: true },
+                { label: "All changes", value: false },
+              ]}
+            />
+          }
+        />
+        <div className="bg-canvas flex flex-col gap-3 items-start justify-end p-4 rounded-2xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] w-full">
           <Heatmap data={activity?.dailyTotals ?? {}} theme="light" customTheme={fimanuTheme} profileUrl="/profile" />
         </div>
-      </div>
+      </Card>
 
       {/* VOLUME BREAKDOWN SECTION */}
-      <div className="bg-white content-stretch flex flex-col gap-4 items-start justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-[455px]">
-        <div className="content-stretch flex items-center justify-between relative shrink-0 w-full mb-2">
-          <div className="content-stretch flex gap-3 h-full items-center relative shrink-0">
-            <div className="relative shrink-0 size-10">
-              <div className="w-10 h-10 bg-[#a259ff]/10 flex items-center justify-center rounded-xl text-[#a259ff]">
-                <Layers size={20} />
-              </div>
-            </div>
-            <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
-              <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
-                Volume Breakdown
-              </p>
-              <p className="font-normal relative shrink-0 text-[12px] tracking-[-0.12px] text-[#737373]">
-                Percentage of total edit volume per file.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-[#fffaf4] content-stretch flex items-center p-1 relative rounded-lg shrink-0">
-            {([{ label: '1W', value: 7 }, { label: '1M', value: 30 }, { label: '90D', value: 90 }, { label: '1Y', value: 365 }, { label: 'YTD', value: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) + 1 }, { label: 'All', value: 3650 }] as { label: string; value: number }[]).map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => setDays(opt.value)}
-                className={`content-stretch flex h-9 items-center justify-center px-[14px] py-1.5 relative rounded-lg shrink-0 transition-all text-[15px] font-normal tracking-[-0.15px] ${days === opt.value
-                    ? "bg-white shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-black"
-                    : "text-[#A6A6A6] hover:text-[#181818]"
-                  }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <Card className="flex flex-col gap-4 items-start p-6 w-full h-[455px]">
+        <SectionHeader
+          color="purple"
+          icon={<Layers size={20} />}
+          title="Volume Breakdown"
+          subtitle="Percentage of total edit volume per file."
+          action={<SegmentedControl value={days} onChange={setDays} options={rangeOptions} />}
+          className="mb-2"
+        />
         <FileVolumeBreakdown
           activity={activity}
           files={files}
           selectedFileKey={selectedFileKey}
           setSelectedFileKey={setSelectedFileKey}
         />
-      </div>
+      </Card>
 
     </div>
   );

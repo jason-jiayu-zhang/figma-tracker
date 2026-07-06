@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useSession } from '../session';
 import { APP_ORIGIN } from '../config';
 import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut } from 'lucide-react';
+import { Card, SectionHeader, Button } from '../components/ui';
 
 export default function Settings() {
   const { user, refresh } = useSession();
@@ -61,25 +62,22 @@ export default function Settings() {
   return (
     <div className="flex flex-col gap-8 w-full min-h-[768px]">
       {/* Header */}
-      <div className="flex gap-3 items-center">
-        <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1A1A1A]">
-          <SettingsIcon size={22} />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <h1 className="font-bold text-[24px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Settings</h1>
-          <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Manage your account and public profile.</p>
-        </div>
-      </div>
+      <SectionHeader
+        color="accent"
+        icon={<SettingsIcon size={20} />}
+        title="Settings"
+        subtitle="Manage your account and public profile."
+      />
 
       {/* Account */}
-      <div className="bg-white flex flex-col gap-5 p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)]">
-        <h2 className="font-bold text-[18px] tracking-[-0.18px] text-[#1A1A1A]">Account</h2>
+      <Card className="flex flex-col gap-5 p-6">
+        <h2 className="font-bold text-[18px] tracking-[-0.18px] text-ink">Account</h2>
         <div className="flex items-center gap-4">
-          <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-16 overflow-hidden bg-[#F5F5F5]">
+          <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-16 overflow-hidden bg-hairline">
             {user?.img_url ? (
               <img src={user.img_url} alt={displayName} className="w-full h-full object-cover" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-[#A6A6A6]">
+              <div className="w-full h-full flex items-center justify-center text-muted">
                 <UserIcon size={32} />
               </div>
             )}
@@ -88,11 +86,11 @@ export default function Settings() {
             <h3 className="font-bold text-[18px] tracking-[-0.18px] leading-tight text-black">{displayName}</h3>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-[#0acf83]" />
-              <span className="text-[13px] text-[#737373] font-medium">Figma account connected</span>
+              <span className="text-[13px] text-body font-medium">Figma account connected</span>
             </div>
           </div>
         </div>
-        <div className="pt-4 border-t border-[#F5F5F5]">
+        <div className="pt-4 border-t border-hairline">
           <button
             onClick={logout}
             className="flex items-center gap-2 text-[13px] font-bold text-[#f43f5e] hover:opacity-80 transition-opacity"
@@ -100,32 +98,29 @@ export default function Settings() {
             <LogOut size={15} /> Log out
           </button>
         </div>
-      </div>
+      </Card>
 
       {/* Public profile publishing controls */}
-      <div className="bg-white flex flex-col gap-5 p-6 rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)]">
-        <div className="flex gap-3 items-center">
-          <div className="size-10 flex items-center justify-center bg-[#F5F5F5] rounded-xl text-[#1abcfe]">
-            <Globe size={22} />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <h2 className="font-bold text-[20px] tracking-[-0.24px] leading-none text-[#1A1A1A]">Public Profile</h2>
-            <p className="text-[12px] text-[#A6A6A6] tracking-[-0.12px] leading-none">Publish a read-only heatmap and share it anywhere.</p>
-          </div>
-        </div>
+      <Card className="flex flex-col gap-5 p-6">
+        <SectionHeader
+          color="blue"
+          icon={<Globe size={20} />}
+          title="Public Profile"
+          subtitle="Publish a read-only heatmap and share it anywhere."
+        />
 
         <div className="flex flex-col gap-4 w-full max-w-[560px]">
           {/* Slug */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-bold text-[#A6A6A6] uppercase tracking-wider">Profile URL</label>
-            <div className="flex items-center gap-1 bg-[#fffaf4] border border-[#EBEBEB] rounded-xl px-3 py-2 focus-within:border-[#1ABCFE] transition-colors">
-              <span className="text-[13px] text-[#A6A6A6] font-mono whitespace-nowrap">{APP_ORIGIN}/u/</span>
+            <label className="text-[13px] font-bold text-muted uppercase tracking-wider">Profile URL</label>
+            <div className="flex items-center gap-1 bg-canvas border border-line rounded-xl px-3 py-2 focus-within:border-accent transition-colors">
+              <span className="text-[13px] text-muted font-mono whitespace-nowrap">{APP_ORIGIN}/u/</span>
               <input
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase())}
                 placeholder="your-handle"
-                className="flex-1 bg-transparent outline-none text-[13px] font-mono text-[#181818] min-w-0"
+                className="flex-1 bg-transparent outline-none text-[13px] font-mono text-ink min-w-0"
               />
             </div>
           </div>
@@ -134,7 +129,7 @@ export default function Settings() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
               <span className="text-[14px] font-semibold text-black">Enable public profile</span>
-              <span className="text-[12px] text-[#A6A6A6]">When off, the public URL and embeds return nothing.</span>
+              <span className="text-[12px] text-muted">When off, the public URL and embeds return nothing.</span>
             </div>
             <button
               type="button"
@@ -143,31 +138,27 @@ export default function Settings() {
               onClick={() => setPublicEnabled((v) => !v)}
               className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${publicEnabled ? 'bg-[#0acf83]' : 'bg-[#d9d9d9]'}`}
             >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${publicEnabled ? 'translate-x-5' : ''}`} />
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${publicEnabled ? 'translate-x-5' : ''}`} />
             </button>
           </div>
 
           {saveError && <p className="text-[12px] text-[#f43f5e] font-medium">{saveError}</p>}
 
           <div>
-            <button
-              onClick={saveProfile}
-              disabled={saving}
-              className="bg-[#1ABCFE] hover:bg-[#16a6e0] text-white px-5 py-2.5 rounded-xl font-bold transition-colors disabled:opacity-50"
-            >
+            <Button onClick={saveProfile} disabled={saving} className="rounded-xl">
               {saving ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
 
           {/* Share links (only meaningful once published) */}
           {slug && publicEnabled && (
-            <div className="flex flex-col gap-3 pt-2 border-t border-[#F5F5F5]">
+            <div className="flex flex-col gap-3 pt-2 border-t border-hairline">
               <ShareRow label="Public link" value={publicUrl} onCopy={() => copy(publicUrl, 'public')} copied={copied === 'public'} />
               <ShareRow label="Embed link" value={embedUrl} onCopy={() => copy(embedUrl, 'embed')} copied={copied === 'embed'} />
             </div>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -175,12 +166,12 @@ export default function Settings() {
 function ShareRow({ label, value, onCopy, copied }: { label: string; value: string; onCopy: () => void; copied: boolean }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[12px] font-bold text-[#A6A6A6] uppercase tracking-wider">{label}</span>
+      <span className="text-[12px] font-bold text-muted uppercase tracking-wider">{label}</span>
       <div className="flex items-center gap-2">
         <input
           readOnly
           value={value}
-          className="flex-1 bg-[#fffaf4] border border-[#EBEBEB] rounded-lg px-3 py-2 text-[12px] font-mono text-[#181818] outline-none min-w-0"
+          className="flex-1 bg-canvas border border-line rounded-lg px-3 py-2 text-[12px] font-mono text-ink outline-none min-w-0"
         />
         <button
           onClick={onCopy}
