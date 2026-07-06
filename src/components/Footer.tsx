@@ -6,7 +6,7 @@ import imgFimanuLogoFull from "../assets/FimanuLogoFull.svg";
 const Footer: React.FC = () => {
   return (
     <div className="w-full flex justify-center pb-12 mt-12">
-      <footer className="bg-white flex h-[551px] items-start justify-between overflow-hidden px-24 py-12 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] w-[1080px] max-w-[calc(100vw-32px)]">
+      <footer className="bg-surface flex h-[551px] items-start justify-between overflow-hidden px-24 py-12 relative rounded-4xl shadow-card w-[1080px] max-w-[calc(100vw-32px)]">
         {/* Background Layer with the SVG Wave */}
         <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
           <img
@@ -19,7 +19,7 @@ const Footer: React.FC = () => {
         {/* Content Layer above the SVG */}
         <div className="relative z-10 w-full flex justify-between items-start gap-8 flex-wrap">
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
-            <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
+            <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               NAVIGATION
             </p>
             <Link to="/dashboard" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
@@ -36,7 +36,7 @@ const Footer: React.FC = () => {
             </Link>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
-            <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
+            <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               RESOURCES
             </p>
             <Link to="#" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
@@ -50,7 +50,7 @@ const Footer: React.FC = () => {
             </Link>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
-            <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
+            <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               ABOUT
             </p>
             <Link to="#" className="text-[16px] text-black tracking-[-0.16px] hover:underline">
@@ -61,7 +61,7 @@ const Footer: React.FC = () => {
             </Link>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
-            <p className="text-[#737373] text-[14px] tracking-[-0.14px] mb-1">
+            <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               LEGAL
             </p>
             <Link to="#" className="text-[16px] text-black tracking-[-0.16px] hover:underline">

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, Trash2, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { useFigmaData } from "../useFigmaData";
 import { formatDistanceToNow } from "date-fns";
 import AddFileModal from "../components/AddFileModal";
+import { Card, SectionHeader, Button } from "../components/ui";
 
 const rowColors = ["#f24e1e", "#9851f9", "#1abcfe", "#0acf83"];
 
@@ -45,34 +46,20 @@ export default function Files() {
   }
 
   return (
-    <div className="content-stretch flex flex-col gap-6 items-start relative shrink-0 w-full mb-[50px]">
-      <div className="bg-white content-stretch flex flex-col gap-4 items-start justify-center p-6 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-full h-fit">
+    <div className="flex flex-col gap-6 items-start w-full mb-[50px]">
+      <Card className="flex flex-col gap-4 items-start p-6 w-full h-fit">
         {/* Header */}
-        <div className="content-stretch flex items-center justify-between relative shrink-0 w-full">
-          <div className="content-stretch flex gap-3 items-center relative shrink-0">
-            <div className="relative shrink-0 size-10 flex items-center justify-center rounded-xl bg-[#fffaf4] text-[#1abcfe]">
-              <FileText size={20} />
-            </div>
-            <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 text-black whitespace-nowrap">
-              <p className="font-semibold relative shrink-0 text-[24px] tracking-[-0.24px]">
-                Files Tracked
-              </p>
-              <p className="font-normal relative shrink-0 text-[12px] tracking-[-0.12px] text-[#737373]">
-                Check version history for each file tracked.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-[#fffaf4] hover:bg-[#f5ebd9] transition-colors content-stretch flex gap-2 h-9 items-center justify-center pl-[14px] pr-4 py-1.5 relative rounded-lg shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] shrink-0 w-40"
-          >
-            <Plus size={16} className="text-black" />
-            <p className="font-normal leading-5 relative shrink-0 text-[16px] text-black tracking-[-0.16px] whitespace-nowrap">
-              Add File
-            </p>
-          </button>
-        </div>
+        <SectionHeader
+          color="blue"
+          icon={<FileText size={20} />}
+          title="Files Tracked"
+          subtitle="Check version history for each file tracked."
+          action={
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus size={16} /> Add File
+            </Button>
+          }
+        />
 
         {/* Table Content */}
         <div className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full rounded-lg pb-2 mt-4">
@@ -135,19 +122,19 @@ export default function Files() {
           })}
 
           {files.length === 0 && (
-            <div className="w-full py-12 flex flex-col items-center justify-center text-[#737373]">
+            <div className="w-full py-12 flex flex-col items-center justify-center text-body">
               <FileText size={48} className="mb-4 opacity-50" />
               <p>No files are currently tracked.</p>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="mt-4 text-[#1abcfe] font-medium hover:underline"
+                className="mt-4 text-accent font-semibold hover:underline"
               >
                 Add your first file
               </button>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Add File Modal */}
       <AddFileModal

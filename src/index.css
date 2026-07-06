@@ -3,35 +3,43 @@
 @theme {
   --spacing: 4px;
 
+  /* Figma brand palette — used as CATEGORY colors (per file / per section). */
   --color-green: #0acf83;
   --color-blue: #1abcfe;
   --color-purple: #a259ff;
   --color-orange: #f24e1e;
   --color-red: #ef4444;
+
+  /* ── Semantic design tokens (the light UI) ─────────────── */
+  /* Text scale */
+  --color-ink: #1a1a1a; /* headings / near-black */
+  --color-body: #737373; /* secondary / descriptions */
+  --color-muted: #a6a6a6; /* tertiary / labels */
+  /* Surfaces & lines */
+  --color-canvas: #fffaf4; /* page background (cream) */
+  --color-surface: #ffffff; /* cards */
+  --color-line: #ebebeb; /* borders */
+  --color-hairline: #f5f5f5; /* faint fills / dividers */
+  /* Primary action */
+  --color-accent: #f23b27;
+  --color-accent-hover: #d83523;
+  --color-accent-active: #bd2f1f;
+
+  /* Card elevation */
+  --shadow-card: 0px 2px 5px 0px rgba(107, 97, 75, 0.25);
+  --shadow-card-hover: 0px 4px 10px 0px rgba(107, 97, 75, 0.3);
 }
 
 :root {
-  --bg: #030407;
-  --bg-subtle: rgba(255, 255, 255, 0.04);
-  --card: rgba(255, 255, 255, 0.04);
-  --card-hover: rgba(255, 255, 255, 0.06);
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.16);
-  --text: #f0f0f0;
+  /* Legacy dark-theme vars — still referenced by Heatmap's dark fallbacks. */
   --text-muted: #5a6070;
-  --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.3);
-  --accent-hover: #818cf8;
   --green: #0acf83;
   --blue: #1abcfe;
   --purple: #a259ff;
   --orange: #f24e1e;
   --red: #ef4444;
-  --radius: 14px;
   --font-sans: "Urbanist", system-ui, -apple-system, sans-serif;
   --font-display: "Outfit", "Inter", system-ui, sans-serif;
-  --shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.5);
-  --shadow-sm: 0 2px 8px 0 rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -40,8 +48,8 @@
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: var(--color-canvas);
+  color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.5;
@@ -56,340 +64,6 @@ h3 {
 }
 
 @layer components {
-  /* ── Card ────────────────────────────────────────────── */
-  .card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    transition: border-color 0.2s;
-  }
-
-  /* ── Section Header ──────────────────────────────────── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--spacing-4.5) var(--spacing-6);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    font-family: var(--font-display);
-  }
-
-  .section-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
-    flex-shrink: 0;
-  }
-
-  /* ── Badge / Chip ────────────────────────────────────── */
-  .badge {
-    font-size: 11px;
-    color: var(--text-muted);
-    background: var(--bg-subtle);
-    border: 1px solid var(--border);
-    padding: var(--spacing-0.5) var(--spacing-2);
-    border-radius: 20px;
-    font-weight: 500;
-  }
-
-  .chip {
-    font-size: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    padding: var(--spacing-0.5) var(--spacing-2.5);
-    border-radius: 6px;
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-
-  .status-chip {
-    display: inline-flex;
-    align-items: center;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    padding: var(--spacing-0.75) var(--spacing-2.5);
-    border-radius: 20px;
-    gap: var(--spacing-1);
-  }
-
-  /* ── Buttons ─────────────────────────────────────────── */
-  .btn-primary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: var(--accent);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: var(--spacing-1.75) var(--spacing-4);
-    font-size: 13px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      box-shadow 0.2s,
-      transform 0.1s;
-  }
-  .btn-primary:hover {
-    background: var(--accent-hover);
-    box-shadow: 0 0 24px var(--accent-glow);
-  }
-  .btn-primary:active {
-    transform: scale(0.97);
-  }
-  .btn-primary:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: transparent;
-    color: var(--text-muted);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: var(--spacing-1.5) var(--spacing-3);
-    font-size: 12px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    cursor: pointer;
-    transition:
-      background 0.2s,
-      color 0.2s,
-      border-color 0.2s;
-  }
-  .btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text);
-    border-color: var(--border-hover);
-  }
-
-  /* ── Toggle Group ────────────────────────────────────── */
-  .toggle-group {
-    display: flex;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    gap: 2px;
-  }
-
-  .toggle-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-muted);
-    font-size: 12px;
-    font-weight: 600;
-    font-family: var(--font-sans);
-    padding: var(--spacing-1.25) var(--spacing-3);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .toggle-btn:hover {
-    color: var(--text);
-  }
-  .toggle-btn.active {
-    background: rgba(99, 102, 241, 0.15);
-    color: var(--accent-hover);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-  }
-
-  /* ── Stat Card ───────────────────────────────────────── */
-  .stat-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: calc(var(--spacing) * 5) calc(var(--spacing) * 5.5);
-    display: flex;
-    flex-direction: column;
-    box-shadow: var(--shadow);
-    position: relative;
-    overflow: hidden;
-    transition:
-      border-color 0.2s,
-      transform 0.2s;
-  }
-  .stat-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: var(--card-accent, var(--accent));
-    opacity: 0.7;
-  }
-  .stat-card:hover {
-    border-color: var(--border-hover);
-    transform: translateY(-2px);
-  }
-  .stat-card:hover::before {
-    opacity: 1;
-  }
-
-  .stat-card-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 9px;
-  }
-
-  .stat-value {
-    font-family: var(--font-display);
-    font-weight: 700;
-    line-height: 1;
-    letter-spacing: -0.02em;
-    color: var(--text);
-  }
-
-  .stat-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
-  }
-
-  /* ── Data Table ──────────────────────────────────────── */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-
-  .data-table th {
-    padding: var(--spacing-3) var(--spacing-6);
-    text-align: left;
-    font-size: 11px;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .data-table td {
-    padding: var(--spacing-3.25) var(--spacing-6);
-    font-size: 13px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  }
-
-  .data-table tbody tr {
-    transition: background 0.1s;
-  }
-  .data-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.03);
-  }
-  .data-table tbody tr.row-even {
-    background: rgba(255, 255, 255, 0.015);
-  }
-  .data-table tbody tr.row-even:hover {
-    background: rgba(255, 255, 255, 0.04);
-  }
-  .data-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .file-link {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent-hover);
-    cursor: pointer;
-    font-family: var(--font-sans);
-    transition: color 0.15s;
-    text-decoration: none;
-  }
-  .file-link:hover {
-    color: white;
-    text-decoration: underline;
-  }
-
-  .empty-state {
-    text-align: center;
-    color: var(--text-muted);
-    padding: var(--spacing-12) var(--spacing-6);
-    font-style: italic;
-    font-size: 13px;
-  }
-
-  /* ── Timeline ────────────────────────────────────────── */
-  .timeline-entry {
-    display: flex;
-    gap: 20px;
-    position: relative;
-  }
-
-  .timeline-line {
-    position: absolute;
-    left: 5px;
-    top: 14px;
-    bottom: 0;
-    width: 1px;
-    background: var(--border);
-    transition: background 0.2s;
-  }
-
-  .timeline-entry:hover .timeline-line {
-    background: var(--accent);
-    opacity: 0.5;
-  }
-
-  .timeline-dot {
-    width: 11px;
-    height: 11px;
-    border-radius: 50%;
-    background: var(--accent);
-    margin-top: 4px;
-    flex-shrink: 0;
-    box-shadow: 0 0 10px var(--accent-glow);
-    position: relative;
-  }
-
-  /* ── Spinner ─────────────────────────────────────────── */
-  .spinning svg {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  @keyframes pulse-dot {
-    0%,
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.5;
-      transform: scale(0.8);
-    }
-  }
-
   /* ── Scrollbar ───────────────────────────────────────── */
   ::-webkit-scrollbar {
     width: 6px;
@@ -399,11 +73,11 @@ h3 {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--border);
+    background: rgba(0, 0, 0, 0.12);
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--border-hover);
+    background: rgba(0, 0, 0, 0.24);
   }
 
   /* Light-background scrollbar (visible on white / cream surfaces) */
@@ -422,31 +96,6 @@ h3 {
     background: rgba(0, 0, 0, 0.28);
   }
 
-  /* ── Toast ───────────────────────────────────────────── */
-  .toast {
-    position: fixed;
-    bottom: 32px;
-    right: 32px;
-    background: rgba(15, 16, 22, 0.95);
-    border: 1px solid var(--accent);
-    padding: var(--spacing-3.5) var(--spacing-5);
-    border-radius: 12px;
-    box-shadow:
-      0 12px 48px rgba(0, 0, 0, 0.6),
-      0 0 0 1px rgba(99, 102, 241, 0.2);
-    transform: translateY(120px);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 2000;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 600;
-    font-size: 13px;
-    backdrop-filter: blur(12px);
-  }
-  .toast-icon {
-    color: var(--accent);
-  }
   /* ── Landing fade-in-up (used by Landing.tsx) ─────────── */
   @keyframes fade-in-up {
     from {
@@ -489,6 +138,6 @@ h3 {
     width: 14px;
     height: 14px;
     border: 2px solid #fff;
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
   }
 }
