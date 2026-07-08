@@ -1,5 +1,7 @@
 const express = require("express");
 const supabase = require("../supabaseClient");
+const figma = require("../figmaService");
+const { ensureFreshToken, runSyncAfterDelay } = require("../syncService");
 const { getSessionUser, clearSessionCookie } = supabase;
 const router = express.Router();
 
@@ -45,28 +47,62 @@ router.post("/files", async (req, res) => {
     const { fileKey } = req.body || {};
     if (!fileKey) return res.status(400).json({ error: "Missing fileKey" });
 
-    // Fetch the session user's access token to fetch file metadata.
+    // Fetch the session user's token (refreshing if expired, like the sync path).
     const { data: user, error: uErr } = await supabase
       .from("users")
-      .select("access_token")
+      .select("id, access_token, refresh_token, token_expires_at")
       .eq("id", session.id)
       .maybeSingle();
     if (uErr) throw uErr;
     if (!user?.access_token) return res.status(401).json({ error: "No access token for user" });
 
-    // Optimistic 202 — worker does the slow metadata fetch + insert.
-    res.status(202).json({
+    const token = await ensureFreshToken(user);
+
+    // Fetch metadata synchronously so we can report real success/failure instead
+    // of an optimistic 202 that silently swallows Figma errors.
+    let meta;
+    try {
+      meta = await figma.getFileMeta(fileKey, token);
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 404) {
+        return res.status(404).json({ error: "File not found. Check that the file key or link is correct." });
+      }
+      if (status === 403) {
+        return res.status(403).json({ error: "Your Figma account doesn't have access to this file." });
+      }
+      const detail = err.response?.data?.err || err.response?.data?.message || err.message;
+      return res.status(502).json({ error: `Couldn't look up that file on Figma: ${detail}` });
+    }
+
+    const { error: upsertErr } = await supabase
+      .from("figma_files")
+      .upsert(
+        {
+          owner_user_id: user.id,
+          file_key: fileKey,
+          name: meta.name,
+          thumbnail_url: meta.thumbnailUrl,
+          last_modified: meta.lastModified,
+          updated_at: new Date().toISOString(),
+          sync_completed: false,
+        },
+        { onConflict: "owner_user_id,file_key" },
+      );
+    if (upsertErr) throw upsertErr;
+
+    res.status(201).json({
       success: true,
-      message: "File added to sync queue",
-      file: { file_key: fileKey },
+      file: {
+        file_key: fileKey,
+        name: meta.name,
+        thumbnail_url: meta.thumbnailUrl,
+        last_modified: meta.lastModified,
+      },
     });
 
-    const worker = require("../workers/onboardingWorker");
-    worker.emit("fetch_file_metadata", {
-      fileKey,
-      access_token: user.access_token,
-      userId: session.id,
-    });
+    // Pull version history in the background (best-effort).
+    runSyncAfterDelay(100);
   } catch (err) {
     console.error("[/api/user/files] Error:", err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message });

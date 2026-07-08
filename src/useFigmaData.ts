@@ -118,7 +118,10 @@ export function useFigmaData() {
       return { success: true };
     } catch (err) {
       console.error("Failed to add file:", err);
-      return { success: false, error: err };
+      const message =
+        (axios.isAxiosError(err) && err.response?.data?.error) ||
+        "Failed to track file. Make sure the URL or key is valid.";
+      return { success: false, error: message };
     }
   };
 
