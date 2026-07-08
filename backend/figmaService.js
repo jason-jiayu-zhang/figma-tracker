@@ -154,15 +154,18 @@ async function getFileVersionsPage(fileKey, beforeCursor = null, token = null) {
  */
 async function getFileMeta(fileKey, token = null) {
   try {
-    const res = await figmaApi.get(`/files/${fileKey}`, {
-      params: { depth: 1 },
+    // Use /files/:key/meta, not /files/:key. The full-file endpoint requires the
+    // file_content:read scope, which our OAuth tokens don't request; /meta needs
+    // only file_metadata:read and returns everything we track.
+    const res = await figmaApi.get(`/files/${fileKey}/meta`, {
       headers: getHeaders(token)
     });
+    const file = res.data.file || {};
     return {
-      name: res.data.name,
-      lastModified: res.data.lastModified,
-      thumbnailUrl: res.data.thumbnailUrl,
-      version: res.data.version,
+      name: file.name,
+      lastModified: file.last_touched_at,
+      thumbnailUrl: file.thumbnail_url,
+      version: file.version,
     };
   } catch (err) {
     console.error(`[figma] getFileMeta failed for ${fileKey}:`, err.response?.data || err.message);
