@@ -669,6 +669,8 @@ router.get("/public/:slug/insights", async (req, res) => {
 // GET /api/sync-history — last 20 sync sessions
 router.get("/sync-history", async (req, res) => {
   try {
+    const session = getSessionUser(req);
+    if (!session) return res.status(401).json({ error: "Not authenticated" });
     const { data, error } = await supabase
       .from("sync_sessions")
       .select("*")
