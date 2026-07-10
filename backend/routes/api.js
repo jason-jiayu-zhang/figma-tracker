@@ -251,6 +251,201 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
   return { rows, dailyTotals, totalEdits, days, mode, tz };
 }
 
+/** Resolve target file ids for a user, optionally narrowed by file keys. */
+async function resolveTargetFileIds(user, fileKeys) {
+  if (fileKeys && fileKeys.length > 0) {
+    const { data, error } = await supabase
+      .from("figma_files")
+      .select("id")
+      .eq("owner_user_id", user.id)
+      .in("file_key", fileKeys);
+    if (error) throw error;
+    return (data || []).map((r) => r.id);
+  }
+  return getOwnerFileIds(user.id);
+}
+
+const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/** YYYY-MM-DD shifted by `delta` days (UTC-safe). */
+function shiftDay(dateStr, delta) {
+  const d = new Date(dateStr + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Current + longest streak of active days from a set of YYYY-MM-DD strings. */
+function computeStreaks(activeDates, todayStr) {
+  const sorted = [...activeDates].sort();
+  let longest = 0;
+  let run = 0;
+  let prev = null;
+  for (const d of sorted) {
+    if (prev && shiftDay(prev, 1) === d) run++;
+    else run = 1;
+    if (run > longest) longest = run;
+    prev = d;
+  }
+
+  // Current streak: count back from today; if today is empty, allow it to run
+  // through yesterday (GitHub-style) so it doesn't reset before the day's edits.
+  let current = 0;
+  let cursor = activeDates.has(todayStr) ? todayStr : shiftDay(todayStr, -1);
+  if (activeDates.has(cursor)) {
+    current = 1;
+    while (activeDates.has(shiftDay(cursor, -1))) {
+      current++;
+      cursor = shiftDay(cursor, -1);
+    }
+  }
+  return { current, longest };
+}
+
+/**
+ * Derived analytics from stored version + comment + dev-resource data.
+ * Everything here is computed from data already synced — no live Figma calls.
+ */
+async function computeInsights(user, { mode, tz, fileKeys }) {
+  const individual = mode === "individual";
+  const dateFmt = makeDateFormatter(tz);
+  const hourFmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    hourCycle: "h23",
+  });
+  const wdFmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" });
+
+  const targetIds = await resolveTargetFileIds(user, fileKeys);
+
+  const empty = {
+    mode,
+    tz,
+    streak: { current: 0, longest: 0 },
+    named: { named: 0, total: 0, pct: 0 },
+    documented: { documented: 0, total: 0, pct: 0 },
+    byHour: Array(24).fill(0),
+    byWeekday: Array(7).fill(0),
+    busiestHour: null,
+    busiestWeekday: null,
+    velocity: { last7: 0, prev7: 0, last30: 0, prev30: 0 },
+    comments: { total: 0, unresolved: 0, resolvedPct: 0, last30: 0 },
+    devResources: { total: 0 },
+  };
+  if (targetIds.length === 0) return empty;
+
+  // -- Versions (all history for streaks/velocity/patterns) --
+  const versions = await paginateVersions(() => {
+    let q = supabase
+      .from("file_versions")
+      .select("created_at, label, description")
+      .in("file_id", targetIds);
+    if (individual) q = q.eq("created_by_figma_user_id", user.figma_user_id);
+    return q;
+  });
+
+  const byHour = Array(24).fill(0);
+  const byWeekday = Array(7).fill(0);
+  const activeDates = new Set();
+  let named = 0;
+  let documented = 0;
+  const now = Date.now();
+  const vel = { last7: 0, prev7: 0, last30: 0, prev30: 0 };
+
+  for (const v of versions) {
+    const d = new Date(v.created_at);
+    activeDates.add(dateFmt.format(d));
+    byHour[parseInt(hourFmt.format(d), 10) % 24]++;
+    const wd = WEEKDAY_INDEX[wdFmt.format(d)];
+    if (wd !== undefined) byWeekday[wd]++;
+    if (v.label) named++;
+    if (v.description) documented++;
+
+    const ageDays = (now - d.getTime()) / 86400000;
+    if (ageDays < 7) vel.last7++;
+    else if (ageDays < 14) vel.prev7++;
+    if (ageDays < 30) vel.last30++;
+    else if (ageDays < 60) vel.prev30++;
+  }
+
+  const total = versions.length;
+  const todayStr = dateFmt.format(new Date());
+  const streak = computeStreaks(activeDates, todayStr);
+
+  const maxIdx = (arr) => {
+    let bi = -1;
+    let bv = 0;
+    arr.forEach((v, i) => {
+      if (v > bv) {
+        bv = v;
+        bi = i;
+      }
+    });
+    return bi;
+  };
+
+  // -- Comments summary (Tier-2: tolerate the table not existing yet so the
+  //    Tier-1 stats above always render) --
+  const thirtyAgo = now - 30 * 86400000;
+  let unresolved = 0;
+  let last30Comments = 0;
+  let commentTotal = 0;
+  try {
+    const comments = await paginateVersions(() => {
+      let q = supabase
+        .from("file_comments")
+        .select("created_at, resolved_at")
+        .in("file_id", targetIds);
+      if (individual) q = q.eq("author_figma_user_id", user.figma_user_id);
+      return q;
+    });
+    for (const c of comments) {
+      if (!c.resolved_at) unresolved++;
+      if (new Date(c.created_at).getTime() >= thirtyAgo) last30Comments++;
+    }
+    commentTotal = comments.length;
+  } catch (e) {
+    console.warn("[insights] comments unavailable (run migration?):", e.message);
+  }
+
+  // -- Dev resources (current count; not author-scoped) --
+  let devCount = 0;
+  try {
+    const { count } = await supabase
+      .from("dev_resources")
+      .select("id", { count: "exact", head: true })
+      .in("file_id", targetIds);
+    devCount = count || 0;
+  } catch (e) {
+    console.warn("[insights] dev_resources unavailable (run migration?):", e.message);
+  }
+
+  return {
+    mode,
+    tz,
+    streak,
+    named: { named, total, pct: total ? Math.round((named / total) * 100) : 0 },
+    documented: {
+      documented,
+      total,
+      pct: total ? Math.round((documented / total) * 100) : 0,
+    },
+    byHour,
+    byWeekday,
+    busiestHour: total ? maxIdx(byHour) : null,
+    busiestWeekday: total ? maxIdx(byWeekday) : null,
+    velocity: vel,
+    comments: {
+      total: commentTotal,
+      unresolved,
+      resolvedPct: commentTotal
+        ? Math.round(((commentTotal - unresolved) / commentTotal) * 100)
+        : 0,
+      last30: last30Comments,
+    },
+    devResources: { total: devCount || 0 },
+  };
+}
+
 /** Resolve a public profile slug → user, gated on public_enabled. */
 async function resolvePublicUser(slug) {
   const { data, error } = await supabase
@@ -351,6 +546,22 @@ router.get("/activity", async (req, res) => {
   }
 });
 
+// GET /api/insights?mode=all|individual&tz=<IANA>&fileKeys=
+router.get("/insights", async (req, res) => {
+  try {
+    const session = getSessionUser(req);
+    if (!session) return res.status(401).json({ error: "Not authenticated" });
+    const result = await computeInsights(session, {
+      mode: parseMode(req),
+      tz: req.query.tz || DEFAULT_TZ,
+      fileKeys: parseFileKeys(req),
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/versions/:fileKey — version timeline for a session-owned file
 router.get("/versions/:fileKey", async (req, res) => {
   try {
@@ -428,6 +639,21 @@ router.get("/public/:slug/activity", async (req, res) => {
       days,
       mode: parseMode(req),
       tz,
+      fileKeys: parseFileKeys(req),
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/public/:slug/insights", async (req, res) => {
+  try {
+    const user = await resolvePublicUser(req.params.slug);
+    if (!user) return res.status(404).json({ error: "Profile not found" });
+    const result = await computeInsights(user, {
+      mode: parseMode(req),
+      tz: req.query.tz || DEFAULT_TZ,
       fileKeys: parseFileKeys(req),
     });
     res.json(result);
