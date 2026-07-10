@@ -31,8 +31,9 @@ export default function Profile() {
   }, []);
 
   if (loading && !activity) return (
-    <div className="flex items-center justify-center h-full">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]"></div>
+    <div role="status" className="flex items-center justify-center h-full">
+      <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue"></div>
+      <span className="sr-only">Loading</span>
     </div>
   );
 
@@ -42,9 +43,9 @@ export default function Profile() {
   const publicUrl = slug ? `${APP_ORIGIN}/u/${slug}` : '';
 
   return (
-    <div className="flex flex-col gap-8 w-full min-h-[768px]">
+    <div className="flex flex-col gap-6 w-full min-h-[768px]">
       {/* Identity header — mirrors what visitors see on the public profile */}
-      <Card className="flex flex-col gap-6 p-6">
+      <Card className="flex flex-col gap-5 p-6">
         <div className="flex items-center gap-4">
           <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-20 overflow-hidden bg-hairline">
             {user?.img_url ? (
@@ -63,7 +64,7 @@ export default function Profile() {
                 href={publicUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[13px] font-semibold text-[#0acf83] hover:opacity-80 transition-opacity w-fit"
+                className="flex items-center gap-1.5 text-[13px] font-semibold text-green hover:opacity-80 transition-opacity w-fit"
               >
                 <Globe size={14} /> Public
                 <span className="text-muted font-mono font-normal truncate">/u/{slug}</span>
@@ -82,6 +83,7 @@ export default function Profile() {
           <Link
             to="/settings"
             title="Settings"
+            aria-label="Settings"
             className="ml-auto self-start size-9 flex items-center justify-center rounded-xl bg-canvas border border-line text-body hover:text-ink hover:bg-[#f5ebd9] transition-colors"
           >
             <SettingsIcon size={17} />
@@ -93,13 +95,12 @@ export default function Profile() {
       <TopFilesCard activity={activity} files={files} />
 
       {/* Activity Breakdown Heatmap */}
-      <Card className="flex flex-col p-6 min-h-[300px]">
+      <Card className="flex flex-col gap-5 p-6 min-h-[300px]">
         <SectionHeader
-          color="green"
+          plain
           icon={<Calendar size={20} />}
           title="Activity Breakdown"
           subtitle="Global activity across all tracked files."
-          className="mb-6"
         />
 
         <div className="flex-1 overflow-x-auto pb-2 custom-scrollbar flex items-center justify-center">

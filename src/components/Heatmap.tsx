@@ -59,7 +59,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const tRectSize = customTheme?.rectSize ?? 12; // default 12px (w-3)
   const tGap = customTheme?.gap ?? 4; // default 4px (gap-1)
   const tRadius = customTheme?.rectRadius ?? 2; // default 2px (rounded-sm)
-  const tTextColor = customTheme?.textColor ?? (isLight ? "#A6A6A6" : "var(--text-muted)");
+  const tTextColor = customTheme?.textColor ?? (isLight ? "#737373" : "var(--text-muted)");
   const tEmptyColor = customTheme?.emptyColor ?? (isLight ? "#ebebeb" : "rgba(255,255,255,0.07)");
   const tLevelColors = customTheme?.levelColors ?? (isLight
     ? ["#0acf83", "#1abcfe", "#a259ff", "#ef4444"]
@@ -120,6 +120,11 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
     const values = Object.values(data);
     return values.length > 0 ? Math.max(...values) : 0;
   }, [data]);
+
+  const total = useMemo(
+    () => Object.values(data).reduce((a, b) => a + b, 0),
+    [data]
+  );
 
   const getLevel = useCallback((count: number) => {
     if (!count) return 0;
@@ -195,7 +200,12 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
       >
         {/* Grid Container — pb-2 (8px) clears the 6px horizontal scrollbar so
             overflow-y-clip doesn't cut off the bottom row of cells. */}
-        <div className="pb-2" style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}>
+        <div
+          className="pb-2"
+          role="img"
+          aria-label={`Activity heatmap: ${total} edits over the last year`}
+          style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}
+        >
           {/* Month labels */}
           <div className="relative pointer-events-none" style={{ height: tFontSize, marginLeft: (tRectSize * 2) + tGap, marginBottom: tGap }}>
             {monthLabels.map((m, i) => (
@@ -233,10 +243,14 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
                     const count = data[dateKey] || 0;
                     const level = getLevel(count);
                     const cellColor = getCellColor(level);
+                    const cellLabel = `${count} edits on ${format(day, "MMM d, yyyy")}`;
                     return (
                       <div
                         key={di}
-                        className="transition-all duration-100 hover:scale-110 hover:z-10 hover:ring-1 hover:ring-white/30 flex-shrink-0 cursor-default relative"
+                        role="img"
+                        aria-label={cellLabel}
+                        title={cellLabel}
+                        className="transition-transform duration-150 ease-out hover:scale-110 hover:z-10 hover:ring-1 hover:ring-white/30 flex-shrink-0 cursor-default relative"
                         style={{
                           width: tRectSize,
                           height: tRectSize,
@@ -257,7 +271,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
 
       {/* Tooltip Overlay */}
       <div
-        className={`absolute font-medium rounded-md whitespace-nowrap pointer-events-none z-[100] shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-opacity duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100" : "opacity-0"}`}
+        className={`absolute font-medium rounded-md whitespace-nowrap pointer-events-none z-50 shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-opacity duration-150 ease-out px-2 py-1.5 flex flex-col items-center gap-1 ${tooltip.visible ? "opacity-100" : "opacity-0"}`}
         style={{
           left: tooltip.x,
           top: tooltip.y,
@@ -270,7 +284,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
           border: "1px solid rgba(255,255,255,0.1)",
         }}
       >
-        <span className="font-bold text-[13px] leading-none">
+        <span className="font-bold text-[13px] leading-none tabular-nums">
           {tooltip.count} edit{tooltip.count !== 1 ? "s" : ""}
         </span>
         <span className="opacity-70 text-[11px] leading-none">

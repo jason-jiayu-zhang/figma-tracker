@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
-import { Copy, Telescope, Check, Info, SlidersHorizontal, Monitor, Layers } from "lucide-react";
+import { Copy, Telescope, Check, SlidersHorizontal, Monitor, Layers } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { useSession } from "../session";
 import { APP_ORIGIN } from "../config";
@@ -12,10 +12,10 @@ import {
   figmaTheme,
   estimateWidgetHeight,
 } from "../embedThemes";
-import { SectionHeader, Button, SegmentedControl } from "../components/ui";
+import { SectionHeader, Button } from "../components/ui";
 
 function getPreviewColor(theme: string, level: number) {
-  if (theme === 'github') return ['bg-[#151b23]', 'bg-[#023a16]', 'bg-[#196c2e]', 'bg-[#2da042]', 'bg-[#56d364]'][level - 1];
+  if (theme === 'github') return ['bg-[#151b23]', 'bg-[#0e4429]', 'bg-[#196c2e]', 'bg-[#2da042]', 'bg-[#56d364]'][level - 1];
   if (theme === 'fimanu') return ['bg-[#d9d9d9]', 'bg-[#1bca7c]', 'bg-[#1ab7fa]', 'bg-[#9851f9]', 'bg-[#f23b27]'][level - 1];
   if (theme === 'figma') return ['bg-[#d9d9d9]', 'bg-[#0acf83]', 'bg-[#1abcfe]', 'bg-[#a259ff]', 'bg-[#f24e1e]'][level - 1];
   return ['bg-[#d9d9d9]', 'bg-[#1bca7c]', 'bg-[#1ab7fa]', 'bg-[#9851f9]', 'bg-[#f23b27]'][level - 1];
@@ -23,16 +23,16 @@ function getPreviewColor(theme: string, level: number) {
 
 const StyleOption = ({ active, label, previewTheme, onClick }: any) => {
   return (
-    <div onClick={onClick} className="flex flex-col gap-2 items-start justify-center cursor-pointer transition-all hover:-translate-y-0.5" style={{ width: '140px' }}>
+    <button type="button" role="radio" aria-checked={active} onClick={onClick} className="flex flex-col gap-2 items-start justify-center text-left cursor-pointer rounded-lg transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:animate-none" style={{ width: '140px' }}>
       <div className="flex gap-2 items-center shrink-0">
-        <div className={`h-4 w-4 rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? 'bg-[#1A1A1A]' : 'bg-canvas border border-line'}`}>
+        <div className={`h-4 w-4 rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? 'bg-ink' : 'bg-canvas border border-line'}`}>
           {active && <Check size={10} color="white" strokeWidth={3} />}
         </div>
         <p className={`font-sans text-[12px] tracking-[-0.12px] whitespace-nowrap transition-colors ${active ? 'font-bold text-ink' : 'font-normal text-body'}`}>
           {label}
         </p>
       </div>
-      <div className={`${previewTheme === 'github' ? 'bg-[#0d1116]' : 'bg-surface border border-line'} flex items-center justify-center px-2 py-1.5 rounded-lg shadow-sm w-full`}>
+      <div className={`${previewTheme === 'github' ? 'bg-[#0d1116]' : 'bg-surface border border-line'} flex items-center justify-center px-2 py-1.5 rounded-lg shadow-sm w-full transition-shadow ${active ? 'ring-2 ring-accent/40' : ''}`}>
         <div className="flex gap-1.5 items-center">
           <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-ink'}`}>Less</p>
           <div className="flex gap-0.5">
@@ -43,7 +43,7 @@ const StyleOption = ({ active, label, previewTheme, onClick }: any) => {
           <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-ink'}`}>More</p>
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 
@@ -58,24 +58,34 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
         close();
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
     if (isOpen) {
       document.addEventListener("mousedown", handleOutsideClick);
+      document.addEventListener("keydown", handleKeyDown);
     }
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isOpen, close]);
 
   return (
     <div className="relative">
-      <div
+      <button
+        type="button"
+        aria-label={title}
+        aria-expanded={isOpen}
         onClick={() => setIsOpen(!isOpen)}
-        className="size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-all hover:scale-110 active:scale-95"
+        className="size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-transform hover:scale-110 active:scale-95 motion-reduce:transition-none motion-reduce:animate-none"
         style={{ backgroundColor: color }}
         title={title}
       />
       {isOpen && (
         <div
           ref={popover}
-          className="absolute bottom-[calc(100%+8px)] left-0 z-50 p-2 bg-surface rounded-xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-[#ECECEC] animate-in fade-in zoom-in duration-200"
+          className="absolute bottom-[calc(100%+8px)] left-0 z-50 p-2 bg-surface rounded-xl shadow-card-hover border border-line animate-in fade-in zoom-in duration-200 motion-reduce:transition-none motion-reduce:animate-none"
         >
           <div className="custom-picker">
             <HexColorPicker color={color} onChange={onChange} />
@@ -107,6 +117,7 @@ export default function EmbedEditor() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [embedStyle, setEmbedStyle] = useState("Fimanu Style");
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // How the "Copy" button emits the embed: a bare URL (paste into Notion etc.)
   // or a ready-to-drop <iframe> tag (for websites / READMEs that allow HTML).
   const [copyFormat, setCopyFormat] = useState<"link" | "iframe">("link");
@@ -159,12 +170,6 @@ export default function EmbedEditor() {
     }
     setSearchParams(nextParams);
   };
-
-  const totalEdits = useMemo(() => {
-    return activity
-      ? Object.values(activity.dailyTotals).reduce((a, b: any) => a + b, 0)
-      : 0;
-  }, [activity]);
 
   const baseTheme = embedStyle === 'GitHub Style' ? githubTheme : embedStyle === 'Figma Style' ? figmaTheme : fimanuTheme;
   const activeLevels = overrideLevels.length === 4 ? overrideLevels : baseTheme.levelColors || [];
@@ -223,12 +228,38 @@ export default function EmbedEditor() {
   );
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(buildEmbedCode(buildWidgetUrl(selectedFileKeys)));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard
+      .writeText(buildEmbedCode(buildWidgetUrl(selectedFileKeys)))
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
   };
 
-  if (loading && !activity) return null;
+  const handleCopyFile = (fileKey: string) => {
+    navigator.clipboard
+      .writeText(buildEmbedCode(buildWidgetUrl([fileKey])))
+      .then(() => {
+        setCopiedKey(fileKey);
+        setTimeout(() => setCopiedKey((k) => (k === fileKey ? null : k)), 2000);
+      });
+  };
+
+  if (loading && !activity) {
+    return (
+      <div
+        aria-busy="true"
+        className="flex gap-8 items-start shrink-0 w-full"
+      >
+        <div className="bg-surface rounded-4xl shadow-card shrink-0 w-[360px] h-[520px] animate-pulse motion-reduce:animate-none" />
+        <div className="flex flex-col gap-6 flex-1 min-w-0">
+          <div className="bg-surface rounded-4xl shadow-card w-full h-[220px] animate-pulse motion-reduce:animate-none" />
+          <div className="bg-surface rounded-4xl shadow-card w-full h-[280px] animate-pulse motion-reduce:animate-none" />
+        </div>
+        <span className="sr-only" role="status" aria-live="polite">Loading embed editor…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-8 items-start shrink-0 w-full">
@@ -237,7 +268,7 @@ export default function EmbedEditor() {
           capture the mouse wheel and stop the page from scrolling on hover. */}
       <div className="bg-surface flex flex-col gap-6 items-center justify-start p-6 rounded-4xl shadow-card shrink-0 w-[360px] sticky top-2 self-start">
         <SectionHeader
-          color="accent"
+          plain
           icon={<SlidersHorizontal size={20} />}
           title="Embed Settings"
           subtitle="Change information and design of your embed."
@@ -246,7 +277,7 @@ export default function EmbedEditor() {
         <div className="flex flex-col gap-6 w-full px-1">
           <div className="flex flex-col gap-3">
             <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Embed Styles</p>
-            <div className="flex flex-wrap gap-3 w-full">
+            <div role="radiogroup" aria-label="Embed style" className="flex flex-wrap gap-3 w-full">
               <StyleOption active={embedStyle === "Fimanu Style"} label="Fimanu Style" previewTheme="fimanu" onClick={() => setEmbedStyle("Fimanu Style")} />
               <StyleOption active={embedStyle === "GitHub Style"} label="GitHub Style" previewTheme="github" onClick={() => setEmbedStyle("GitHub Style")} />
               <StyleOption active={embedStyle === "Figma Style"} label="Figma Style" previewTheme="figma" onClick={() => setEmbedStyle("Figma Style")} />
@@ -286,6 +317,7 @@ export default function EmbedEditor() {
               <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Background</p>
               <div className="w-full">
                 <ColorPicker
+                  title="Background color"
                   color={activeBg}
                   onChange={newColor => {
                     setOverrideBg(newColor);
@@ -298,6 +330,7 @@ export default function EmbedEditor() {
               <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Text</p>
               <div className="w-full">
                 <ColorPicker
+                  title="Text color"
                   color={activeText}
                   onChange={newColor => {
                     setOverrideText(newColor);
@@ -309,9 +342,9 @@ export default function EmbedEditor() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap">Border Radius: {rectRadius.toFixed(1)}px</p>
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">Border Radius: {rectRadius.toFixed(1)}px</p>
             <div className="flex flex-col gap-1.5 w-full mt-1">
-              <input type="range" className="w-[calc(100%-8px)] mx-auto accent-[#f23b27] h-1 bg-[#EBEBEB] rounded-lg appearance-none cursor-pointer border-none shadow-none focus:outline-none" min="0" max={rectSize / 2} step="0.5" value={rectRadius} onChange={e => { setRectRadius(parseFloat(e.target.value)); setEmbedStyle("Custom Style"); }} />
+              <input type="range" aria-label="Border radius" className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" min="0" max={rectSize / 2} step="0.5" value={rectRadius} onChange={e => { setRectRadius(parseFloat(e.target.value)); setEmbedStyle("Custom Style"); }} />
               <div className="flex justify-between text-[10px] text-muted font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Sharp</span>
                 <span>Soft</span>
@@ -321,9 +354,9 @@ export default function EmbedEditor() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap">Embed Size: {rectSize}px</p>
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">Embed Size: {rectSize}px</p>
             <div className="flex flex-col gap-1.5 w-full mt-1">
-              <input type="range" className="w-[calc(100%-8px)] mx-auto accent-[#f23b27] h-1 bg-[#EBEBEB] rounded-lg appearance-none cursor-pointer border-none shadow-none focus:outline-none" min="6" max="24" step="1" value={rectSize} onChange={e => { setRectSize(parseInt(e.target.value)); setEmbedStyle("Custom Style"); }} />
+              <input type="range" aria-label="Embed size" className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" min="6" max="24" step="1" value={rectSize} onChange={e => { setRectSize(parseInt(e.target.value)); setEmbedStyle("Custom Style"); }} />
               <div className="flex justify-between text-[10px] text-muted font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Small</span>
                 <span>Medium</span>
@@ -340,11 +373,12 @@ export default function EmbedEditor() {
             <button
               type="button"
               role="switch"
+              aria-label="Transparent background"
               aria-checked={transparentBg}
               onClick={() => setTransparentBg((v) => !v)}
-              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${transparentBg ? "bg-[#0acf83]" : "bg-[#d9d9d9]"}`}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${transparentBg ? "bg-green" : "bg-muted/40"}`}
             >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${transparentBg ? "translate-x-5" : ""}`} />
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform duration-200 ease-out ${transparentBg ? "translate-x-5" : ""}`} />
             </button>
           </div>
         </div>
@@ -356,7 +390,7 @@ export default function EmbedEditor() {
             </p>
           )}
           {/* Output format: bare link (Notion/paste) vs. <iframe> tag (websites) */}
-          <div className="bg-canvas flex items-center p-1 rounded-lg w-full">
+          <div role="group" aria-label="Embed output format" className="bg-canvas flex items-center p-1 rounded-lg w-full">
             {([
               { key: "link", label: "Link" },
               { key: "iframe", label: "iframe" },
@@ -364,16 +398,24 @@ export default function EmbedEditor() {
               <button
                 key={opt.key}
                 onClick={() => setCopyFormat(opt.key)}
-                className={`flex-1 h-8 flex items-center justify-center rounded-md text-[13px] font-medium tracking-[-0.13px] transition-all ${copyFormat === opt.key ? "bg-surface shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] text-ink" : "text-muted hover:text-ink"}`}
+                aria-pressed={copyFormat === opt.key}
+                className={`flex-1 h-8 flex items-center justify-center rounded-md text-[13px] font-medium tracking-[-0.13px] transition-[color,box-shadow] duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${copyFormat === opt.key ? "bg-surface shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] text-ink" : "text-muted hover:text-ink"}`}
               >
                 {opt.label}
               </button>
             ))}
           </div>
-          <Button onClick={handleCopy} className="w-full">
+          <Button
+            onClick={handleCopy}
+            aria-label={copyFormat === "iframe" ? "Copy iframe embed code" : "Copy embed link"}
+            className="w-full"
+          >
             {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
             {copied ? "Copied!" : copyFormat === "iframe" ? "Copy iframe Code" : "Copy Embed Link"}
           </Button>
+          <span className="sr-only" role="status" aria-live="polite">
+            {copied || copiedKey ? "Copied to clipboard" : ""}
+          </span>
           <Button
             variant="secondary"
             onClick={() => window.open(buildWidgetUrl(selectedFileKeys), "_blank")}
@@ -385,13 +427,12 @@ export default function EmbedEditor() {
       </div>
 
       <div className="flex flex-col gap-6 flex-1 min-w-0">
-        <div className="bg-surface flex flex-col items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
+        <div className="bg-surface flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
           <SectionHeader
-            color="blue"
+            plain
             icon={<Monitor size={20} />}
             title="Embed Preview"
             subtitle="View what your embed will appear as."
-            className="mb-6"
           />
 
           {/* Fake Widget Container. When transparent, show a checkerboard so the
@@ -423,14 +464,17 @@ export default function EmbedEditor() {
         {/* File Selection Box */}
         <div className="bg-surface flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
           <SectionHeader
-            color="purple"
+            plain
             icon={<Layers size={20} />}
             title="Select Files"
             subtitle="Choose which files to display in your embed."
           />
 
           <div className="flex flex-col gap-1 w-full overflow-y-auto pr-1 max-h-[350px] custom-scrollbar">
-            <div
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={selectedFileKeys.length === 0}
               onClick={() => {
                 setSelectedFileKeys([]);
                 setSearchParams(prev => {
@@ -439,39 +483,43 @@ export default function EmbedEditor() {
                   return next;
                 });
               }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-colors ${selectedFileKeys.length === 0 ? 'bg-canvas border border-[#f23b27]/20' : 'hover:bg-hairline border border-transparent'}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-colors text-left w-full ${selectedFileKeys.length === 0 ? 'bg-canvas border border-accent/20' : 'hover:bg-hairline border border-transparent'}`}
             >
-              <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.length === 0 ? 'bg-[#f23b27] border-[#f23b27]' : 'border-line bg-surface'}`}>
+              <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.length === 0 ? 'bg-accent border-accent' : 'border-line bg-surface'}`}>
                 {selectedFileKeys.length === 0 && <Check size={8} color="white" strokeWidth={4} />}
               </div>
               <span className={`text-[11px] font-bold truncate ${selectedFileKeys.length === 0 ? 'text-ink' : 'text-body'}`}>All Files Activity</span>
-            </div>
+            </button>
             {files.map((file: any) => (
               <div
                 key={file.file_key}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors group ${selectedFileKeys.includes(file.file_key) ? 'bg-canvas border border-[#f23b27]/20' : 'hover:bg-hairline border border-transparent'}`}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors group ${selectedFileKeys.includes(file.file_key) ? 'bg-canvas border border-accent/20' : 'hover:bg-hairline border border-transparent'}`}
               >
-                <div
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={selectedFileKeys.includes(file.file_key)}
                   onClick={() => handleToggleFile(file.file_key)}
-                  className="flex items-center gap-1.5 flex-1 cursor-pointer overflow-hidden"
+                  className="flex items-center gap-1.5 flex-1 min-w-0 text-left cursor-pointer overflow-hidden"
                 >
-                  <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.includes(file.file_key) ? 'bg-[#f23b27] border-[#f23b27]' : 'border-line bg-surface'}`}>
+                  <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.includes(file.file_key) ? 'bg-accent border-accent' : 'border-line bg-surface'}`}>
                     {selectedFileKeys.includes(file.file_key) && <Check size={8} color="white" strokeWidth={4} />}
                   </div>
                   <div className="flex flex-col overflow-hidden leading-tight">
                     <span className={`text-[11px] font-bold truncate ${selectedFileKeys.includes(file.file_key) ? 'text-ink' : 'text-body'}`}>{file.name}</span>
                     <span className="text-[9px] text-muted truncate">{file.project_name}</span>
                   </div>
-                </div>
+                </button>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigator.clipboard.writeText(buildEmbedCode(buildWidgetUrl([file.file_key])));
+                    handleCopyFile(file.file_key);
                   }}
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-surface rounded transition-all text-muted hover:text-[#f23b27] shadow-sm border border-transparent hover:border-line"
+                  className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-within:opacity-100 p-1 hover:bg-surface rounded transition-all text-muted hover:text-accent shadow-sm border border-transparent hover:border-line"
+                  aria-label={copyFormat === "iframe" ? "Copy iframe for this file" : "Copy embed link for this file"}
                   title={copyFormat === "iframe" ? "Copy iframe for this file" : "Copy embed link for this file"}
                 >
-                  <Copy size={11} />
+                  {copiedKey === file.file_key ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
                 </button>
               </div>
             ))}

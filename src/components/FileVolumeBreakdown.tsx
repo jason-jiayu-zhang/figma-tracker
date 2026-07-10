@@ -1,15 +1,14 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
 
 interface FileVolumeBreakdownProps {
   activity: ActivityData | null;
   files: FigmaFile[];
-  selectedFileKey: string | null;
-  setSelectedFileKey: (key: string | null) => void;
 }
 
-export default function FileVolumeBreakdown({ activity, files, selectedFileKey, setSelectedFileKey }: FileVolumeBreakdownProps) {
+export default function FileVolumeBreakdown({ activity, files }: FileVolumeBreakdownProps) {
   const { displayItems, total } = useMemo(() => {
     if (!activity || !activity.rows) return { displayItems: [], total: 0 };
     const map: Record<string, { fileKey: string; name: string; count: number; lastModified?: string }> = {};
@@ -46,7 +45,20 @@ export default function FileVolumeBreakdown({ activity, files, selectedFileKey, 
     return { displayItems, total };
   }, [activity, files]);
 
-  if (displayItems.length === 0) return null;
+  if (displayItems.length === 0)
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 w-full rounded-2xl bg-canvas">
+        <p className="text-[13px] text-body tracking-[-0.12px] text-balance text-center">
+          No edit volume to break down yet.
+        </p>
+        <Link
+          to="/files"
+          className="text-[13px] font-bold text-white bg-accent hover:bg-accent-hover active:bg-accent-active px-4 py-2 rounded-lg transition-colors no-underline"
+        >
+          Add a file
+        </Link>
+      </div>
+    );
 
   return (
     <div className="flex-[1_0_0] gap-x-2 gap-y-2 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.70fr)] grid-rows-[minmax(0,1fr)_minmax(0,0.70fr)] min-h-px min-w-px relative w-full rounded-2xl overflow-hidden">
@@ -109,20 +121,20 @@ function Card({ item, index, total, style, isOther = false }: { item: any; index
       className="content-stretch flex flex-col items-start justify-between justify-self-stretch p-4 relative rounded-2xl self-stretch shrink-0 whitespace-nowrap"
       style={{ ...bgStyle, ...style }}
     >
-      <div className="content-stretch flex items-start justify-between relative shrink-0 w-full">
-        <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative shrink-0 whitespace-nowrap">
-          <p className={`font-medium overflow-hidden relative shrink-0 text-[12px] text-ellipsis tracking-[-0.12px] uppercase ${config.labelClass}`}>
+      <div className="content-stretch flex items-start justify-between relative shrink-0 w-full min-w-0">
+        <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative min-w-0 w-full">
+          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] uppercase ${config.labelClass}`}>
             {item.name}
           </p>
-          <p className={`font-extrabold relative shrink-0 text-[18px] tracking-[-0.18px] ${config.textClass}`}>
+          <p className={`font-extrabold relative shrink-0 text-[18px] tracking-[-0.18px] tabular-nums ${config.textClass}`}>
             {item.count} Edits
           </p>
-          <p className={`font-medium relative shrink-0 text-[12px] tracking-[-0.12px] ${config.labelClass}`}>
+          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] tabular-nums ${config.labelClass}`}>
             Last edit: {lastEdit || '—'}
           </p>
         </div>
       </div>
-      <p className={`font-normal leading-[normal] relative shrink-0 text-[12px] tracking-[-0.12px] whitespace-nowrap ${config.textClass}`}>
+      <p className={`font-normal leading-[normal] relative shrink-0 text-[12px] tracking-[-0.12px] whitespace-nowrap tabular-nums ${config.textClass}`}>
         {percent}{config.percentSuffix}
       </p>
     </div>
@@ -133,7 +145,7 @@ function getCardConfig(index: number) {
   if (index === 0) {
     return {
       style: { backgroundColor: '#f24e1e' },
-      labelClass: 'text-white/75',
+      labelClass: 'text-white',
       textClass: 'text-white',
       percentSuffix: '% of total volume'
     };
@@ -141,7 +153,7 @@ function getCardConfig(index: number) {
   if (index === 1) {
     return {
       style: { backgroundColor: '#a259ff' },
-      labelClass: 'text-white/75',
+      labelClass: 'text-white',
       textClass: 'text-white',
       percentSuffix: '% of total volume'
     };
@@ -149,7 +161,7 @@ function getCardConfig(index: number) {
   if (index === 2) {
     return {
       style: { backgroundColor: '#1abcfe' },
-      labelClass: 'text-white/75',
+      labelClass: 'text-white',
       textClass: 'text-white',
       percentSuffix: '% of total volume'
     };

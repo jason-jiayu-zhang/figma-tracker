@@ -10,7 +10,7 @@ export const fimanuTheme: HeatmapTheme = {
 
 export const githubTheme: HeatmapTheme = {
   rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#151b23",
-  levelColors: ["#023a16", "#196c2e", "#2da042", "#56d364"],
+  levelColors: ["#0e4429", "#196c2e", "#2da042", "#56d364"],
   textColor: "#9198a1", tooltipBgColor: "#c9d1d9", tooltipTextColor: "#0d1116",
 };
 

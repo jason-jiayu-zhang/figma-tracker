@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
 
@@ -57,8 +58,14 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
   }, [activity, files]);
 
   if (displayItems.length === 0) return (
-    <div className="bg-surface p-6 rounded-4xl shadow-card flex items-center justify-center w-full h-full min-h-40">
-      <p className="text-sm text-body italic">No file activity tracked.</p>
+    <div className="bg-surface p-6 rounded-4xl shadow-card flex flex-col items-center justify-center gap-3 w-full h-full min-h-40">
+      <p className="text-[13px] text-body tracking-[-0.12px] text-balance text-center">No file activity tracked yet.</p>
+      <Link
+        to="/files"
+        className="text-[13px] font-bold text-white bg-accent hover:bg-accent-hover active:bg-accent-active px-4 py-2 rounded-lg transition-colors no-underline"
+      >
+        Add a file
+      </Link>
     </div>
   );
 
@@ -66,7 +73,7 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
     <div className="bg-surface p-6 rounded-4xl shadow-card flex flex-col gap-5 w-full h-full min-h-[300px]">
       <div className="flex gap-3 items-center">
         <div className="size-10 flex items-center justify-center bg-hairline rounded-xl text-ink">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
@@ -109,18 +116,18 @@ function Card({ item, index, total }: { item: any; index: number; total: number 
     >
       <div className="flex items-start justify-between w-full">
         <div className="flex flex-col gap-1 min-w-0">
-          <p className="text-[10px] text-white/75 font-extrabold uppercase tracking-wider truncate">
+          <p className="text-[10px] text-white font-extrabold uppercase tracking-wider truncate max-w-full w-full">
             {item.name}
           </p>
-          <p className="text-[20px] text-white font-extrabold tracking-tight leading-none">
+          <p className="text-[20px] text-white font-extrabold tracking-tight leading-none tabular-nums">
             {item.count} Edits
           </p>
-          <p className="text-[11px] text-white/75 font-medium tracking-tight">
+          <p className="text-[11px] text-white font-medium tracking-tight truncate max-w-full w-full tabular-nums">
             {lastEdit}
           </p>
         </div>
       </div>
-      <p className="text-[11px] text-white font-bold tracking-tight">
+      <p className="text-[11px] text-white font-bold tracking-tight tabular-nums">
         {percent}% of total
       </p>
     </div>
@@ -133,18 +140,18 @@ function OtherCard({ count, fileCount, total }: { count: number; fileCount: numb
     <div className="flex flex-col items-start justify-between p-4 rounded-3xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] transition-transform hover:scale-[1.02] cursor-default bg-[#0acf83]">
       <div className="flex items-start justify-between w-full">
         <div className="flex flex-col gap-1 min-w-0">
-          <p className="text-[10px] text-white/75 font-extrabold uppercase tracking-wider truncate">
+          <p className="text-[10px] text-white font-extrabold uppercase tracking-wider truncate">
             Other Files ({fileCount})
           </p>
-          <p className="text-[20px] text-white font-extrabold tracking-tight leading-none">
+          <p className="text-[20px] text-white font-extrabold tracking-tight leading-none tabular-nums">
             {count} Edits
           </p>
-          <p className="text-[11px] text-white/75 font-medium tracking-tight">
+          <p className="text-[11px] text-white font-medium tracking-tight">
             Various files
           </p>
         </div>
       </div>
-      <p className="text-[11px] text-white font-bold tracking-tight">
+      <p className="text-[11px] text-white font-bold tracking-tight tabular-nums">
         {percent}% of total
       </p>
     </div>

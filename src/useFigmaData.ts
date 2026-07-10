@@ -5,6 +5,7 @@ import {
   ActivityData,
   FigmaFile,
   SyncSession,
+  Insights,
 } from "./types";
 
 // Poll interval for auto-refresh so the dashboard stays live (spec §6).
@@ -22,11 +23,13 @@ function browserTz(): string {
 
 export function useFigmaData() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [insights, setInsights] = useState<Insights | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
   const [files, setFiles] = useState<FigmaFile[]>([]);
   const [syncHistory, setSyncHistory] = useState<SyncSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // filterMine=true  => "My changes"  => mode=individual
   // filterMine=false => "All changes" => mode=all
   const [filterMine, setFilterMine] = useState(true);
@@ -47,6 +50,7 @@ export function useFigmaData() {
     const statsUrl = `/api/stats?scope=mine&mode=${mode}`;
     const activityUrl = `/api/activity?days=${days}&mode=${mode}&tz=${encodeURIComponent(tz)}${fileKeysParam}`;
     const filesUrl = `/api/files?mode=${mode}`;
+    const insightsUrl = `/api/insights?mode=${mode}&tz=${encodeURIComponent(tz)}${fileKeysParam}`;
 
     try {
       const [statsRes, activityRes, filesRes] = await Promise.all([
@@ -61,9 +65,24 @@ export function useFigmaData() {
       setStats(statsRes.data);
       setActivity(activityRes.data);
       setFiles(filesRes.data);
+      setError(null);
+
+      // Insights is non-critical (depends on the comments/dev-resource tables and
+      // newer scopes): fetch it separately so its failure never blanks the dashboard.
+      axios
+        .get(insightsUrl)
+        .then((res) => {
+          if (fetchIdRef.current !== currentFetchId) return;
+          // Guard against the SPA index.html fallback (200 text/html) that the
+          // server returns for an unknown /api route — never feed HTML to state.
+          const d = res.data;
+          if (d && typeof d === "object" && d.streak) setInsights(d as Insights);
+        })
+        .catch((e) => console.error("Failed to fetch insights:", e));
     } catch (err) {
       if (fetchIdRef.current !== currentFetchId) return;
       console.error("Failed to fetch Figma data:", err);
+      setError("Couldn't load your dashboard data. Retrying automatically…");
     } finally {
       if (fetchIdRef.current === currentFetchId) setLoading(false);
     }
@@ -96,6 +115,7 @@ export function useFigmaData() {
       await fetchData();
     } catch (err) {
       console.error("Sync failed:", err);
+      setError("Sync failed. Please try again.");
     } finally {
       setSyncing(false);
     }
@@ -135,11 +155,13 @@ export function useFigmaData() {
 
   return {
     stats,
+    insights,
     activity,
     files,
     syncHistory,
     loading,
     syncing,
+    error,
     filterMine,
     setFilterMine,
     mode,

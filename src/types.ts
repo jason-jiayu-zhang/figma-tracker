@@ -53,6 +53,21 @@ export interface Stats {
   };
 }
 
+export interface Insights {
+  mode: string;
+  tz: string;
+  streak: { current: number; longest: number };
+  named: { named: number; total: number; pct: number };
+  documented: { documented: number; total: number; pct: number };
+  byHour: number[];
+  byWeekday: number[];
+  busiestHour: number | null;
+  busiestWeekday: number | null;
+  velocity: { last7: number; prev7: number; last30: number; prev30: number };
+  comments: { total: number; unresolved: number; resolvedPct: number; last30: number };
+  devResources: { total: number };
+}
+
 export interface SyncSession {
   id: number;
   synced_at: string;
