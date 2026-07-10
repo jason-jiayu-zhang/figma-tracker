@@ -385,13 +385,12 @@ export default function EmbedEditor() {
       </div>
 
       <div className="flex flex-col gap-6 flex-1 min-w-0">
-        <div className="bg-surface flex flex-col items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
+        <div className="bg-surface flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
           <SectionHeader
             color="blue"
             icon={<Monitor size={20} />}
             title="Embed Preview"
             subtitle="View what your embed will appear as."
-            className="mb-6"
           />
 
           {/* Fake Widget Container. When transparent, show a checkerboard so the
