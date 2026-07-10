@@ -1,9 +1,57 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
-import { Plus, X, CheckCircle2, ArrowRight } from "lucide-react";
+import { Plus, X, Check, ArrowRight, Figma, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
+import { Card, Button, SectionHeader } from "../components/ui";
+
+const STEPS = [
+  { n: 1, label: "Connect" },
+  { n: 2, label: "Files" },
+  { n: 3, label: "Done" },
+];
+
+/** Horizontal progress stepper built from the dashboard's chip motif. */
+function Stepper({ step }: { step: number }) {
+  return (
+    <div className="flex items-start w-full">
+      {STEPS.map((s, i) => {
+        const done = step > s.n;
+        const current = step === s.n;
+        return (
+          <React.Fragment key={s.n}>
+            <div className="flex flex-col items-center gap-2 w-14 shrink-0">
+              <div
+                className={`size-10 rounded-xl flex items-center justify-center font-bold text-[14px] transition-colors ${
+                  done
+                    ? "bg-green text-white"
+                    : current
+                      ? "bg-blue text-white shadow-sm"
+                      : "bg-hairline text-muted"
+                }`}
+              >
+                {done ? <Check size={18} /> : s.n}
+              </div>
+              <span
+                className={`text-[11px] tracking-[0.02em] leading-none transition-colors ${
+                  current ? "text-ink font-semibold" : done ? "text-body font-medium" : "text-muted"
+                }`}
+              >
+                {s.label}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div
+                className={`h-[2px] flex-1 rounded-full mt-5 transition-colors ${step > s.n ? "bg-green" : "bg-line"}`}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Onboard() {
   const [searchParams] = useSearchParams();
@@ -13,6 +61,7 @@ export default function Onboard() {
   const [isConnected, setIsConnected] = useState(false);
   const [files, setFiles] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Keep the local "connected" flag in sync with the cookie session.
   useEffect(() => {
@@ -43,15 +92,16 @@ export default function Onboard() {
   }, [searchParams, user, refresh]);
 
   const startOAuth = async () => {
+    setError(null);
     try {
       const res = await axios.post("/api/oauth/start");
       if (res.data?.url) {
         window.location.href = res.data.url;
       } else {
-        alert("Failed to start OAuth");
+        setError("Failed to start OAuth");
       }
     } catch (err) {
-      alert("Failed to start OAuth");
+      setError("Failed to start OAuth");
     }
   };
 
@@ -69,9 +119,10 @@ export default function Onboard() {
   };
 
   const submitFiles = async () => {
+    setError(null);
     const validFiles = files.map(f => f.trim()).filter(Boolean);
     if (validFiles.length === 0) {
-      alert("Please add at least one file key.");
+      setError("Please add at least one file key.");
       return;
     }
 
@@ -89,127 +140,123 @@ export default function Onboard() {
 
       setStep(3);
     } catch (err) {
-      alert("Failed to save files.");
+      setError("Failed to save files.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center p-6">
-      <div className="w-full max-w-[1000px] bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="flex flex-col md:flex-row h-full">
-          {/* Left Side: Steps/Info */}
-          <div className="w-full md:w-[350px] bg-[#181818] text-white p-10 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center mb-10">
-                <img src={imgFimanuLogo} alt="Fimanu" className="h-8 w-auto brightness-0 invert" />
-              </div>
+    <div className="min-h-dvh bg-canvas flex flex-col items-center justify-center p-6 gap-5">
+      <img src={imgFimanuLogo} alt="Fimanu" className="h-7 w-auto" />
 
-              <div className="flex flex-col gap-8">
-                {[
-                  { s: 1, title: "Connect Figma", desc: "Link your account" },
-                  { s: 2, title: "Select Files", desc: "Choose what to track" },
-                  { s: 3, title: "Ready!", desc: "Start monitoring" },
-                ].map((item) => (
-                  <div key={item.s} className={`flex gap-4 items-center ${step === item.s ? "opacity-100" : "opacity-40"}`}>
-                    <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center font-bold ${step >= item.s ? "bg-[#1ABCFE] border-[#1ABCFE]" : "border-white"}`}>
-                      {step > item.s ? <CheckCircle2 size={16} /> : item.s}
-                    </div>
-                    <div>
-                      <h4 className="font-bold leading-tight">{item.title}</h4>
-                      <p className="text-xs text-gray-400">{item.desc}</p>
-                    </div>
+      <Card className="w-full max-w-[540px] p-7 flex flex-col gap-7">
+        <Stepper step={step} />
+
+        <div className="h-px bg-line w-full" />
+
+        <div
+          key={step}
+          className="flex flex-col gap-6 min-h-[236px] animate-in fade-in slide-in-from-bottom-2 duration-300"
+        >
+          {step === 1 && (
+            <>
+              <SectionHeader
+                plain
+                icon={<Figma size={20} />}
+                title="Connect Figma"
+                subtitle="Link your account to generate activity heatmaps and track contributions across your teams."
+              />
+              <div className="bg-canvas rounded-2xl p-4 flex items-start gap-3">
+                <ShieldCheck size={18} className="text-green shrink-0 mt-0.5" />
+                <p className="text-[13px] text-body leading-relaxed">
+                  We request read access to <span className="text-ink font-medium">file metadata, version history, and comments</span> only — never your design content.
+                </p>
+              </div>
+              <Button variant="primary" onClick={startOAuth} className="h-11 w-full">
+                Connect Figma <ArrowRight size={18} />
+              </Button>
+              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <SectionHeader
+                plain
+                icon={<FolderPlus size={20} />}
+                title="Select files"
+                subtitle="Add the file keys you want to monitor — find them in each Figma file's URL."
+              />
+
+              <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                {files.map((file, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      type="text"
+                      value={file}
+                      onChange={(e) => updateFileField(idx, e.target.value)}
+                      aria-label={`Figma file key ${idx + 1}`}
+                      placeholder="Enter file key (e.g. ABC123XYZ)"
+                      className="flex-1 px-4 h-11 bg-canvas border border-line focus:border-accent rounded-xl outline-none transition-colors font-mono text-[13px] text-ink placeholder:text-muted"
+                    />
+                    {files.length > 1 && (
+                      <button
+                        onClick={() => removeFileField(idx)}
+                        aria-label="Remove file"
+                        className="size-11 shrink-0 flex items-center justify-center rounded-xl text-muted hover:text-accent hover:bg-hairline transition-colors"
+                      >
+                        <X size={18} />
+                      </button>
+                    )}
                   </div>
                 ))}
+                <button
+                  onClick={addFileField}
+                  className="flex items-center justify-center gap-2 h-11 border border-dashed border-line rounded-xl text-body hover:border-accent hover:text-accent transition-colors font-semibold text-[13px]"
+                >
+                  <Plus size={16} /> Add another file
+                </button>
               </div>
-            </div>
 
-            <div className="mt-20">
-              <p className="text-xs text-gray-500">
-                Authorized access to file metadata and versions history only. We never read your design content.
+              <p className="text-[13px] text-body leading-relaxed">
+                The key is the string right after <span className="font-mono text-ink">/design/</span> or <span className="font-mono text-ink">/file/</span> in a file's URL. At least one is required — you can add more later.
               </p>
-            </div>
-          </div>
 
-          {/* Right Side: Content */}
-          <div className="flex-1 p-10 md:p-16 flex flex-col justify-center">
-            {step === 1 && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h1 className="text-4xl font-black text-[#181818] mb-4">Visualize your workflow.</h1>
-                <p className="text-lg text-[#6B6B6B] mb-10 leading-relaxed">
-                  Connect your Figma account to start generating activity heatmaps and tracking contributions across all your teams.
+              <Button variant="primary" onClick={submitFiles} disabled={isSubmitting} className="h-11 w-full">
+                {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
+              </Button>
+              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <SectionHeader
+                plain
+                icon={<Sparkles size={20} />}
+                title="You're all set"
+                subtitle="We've started syncing. Full version history can take a few minutes to appear."
+              />
+              <div className="bg-canvas rounded-2xl p-4 flex items-center gap-3">
+                <div className="size-9 shrink-0 rounded-xl bg-green/10 text-green flex items-center justify-center">
+                  <Check size={18} />
+                </div>
+                <p className="text-[13px] text-body">
+                  Your files are queued and syncing in the background.
                 </p>
-                <button
-                  onClick={startOAuth}
-                  className="w-full md:w-auto bg-[#1ABCFE] text-white px-10 py-4 rounded-xl font-black text-lg hover:bg-[#16a6e0] transition-all shadow-lg hover:shadow-[#1ABCFE]/20 active:scale-95 flex items-center justify-center gap-3"
-                >
-                  Connect Figma <ArrowRight size={20} />
-                </button>
               </div>
-            )}
-
-            {step === 2 && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <h2 className="text-3xl font-black text-[#181818] mb-2 text-center md:text-left">Which files?</h2>
-                <p className="text-[#6B6B6B] mb-8 text-center md:text-left">Add the file keys you want to monitor. You can find this in the Figma URL.</p>
-                
-                <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-2 mb-6 custom-scrollbar">
-                  {files.map((file, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={file}
-                        onChange={(e) => updateFileField(idx, e.target.value)}
-                        placeholder="Enter file key (e.g. ABC123XYZ)"
-                        className="flex-1 px-4 py-3 bg-[#f9f9f9] border-2 border-transparent focus:border-[#1ABCFE] rounded-xl outline-none transition-all font-mono text-sm"
-                      />
-                      {files.length > 1 && (
-                        <button onClick={() => removeFileField(idx)} className="p-3 text-gray-400 hover:text-red-500 transition-colors">
-                          <X size={20} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-col gap-6">
-                  <button 
-                    onClick={addFileField}
-                    className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 hover:border-[#1ABCFE] hover:text-[#1ABCFE] transition-all font-bold"
-                  >
-                    <Plus size={18} /> Add another file
-                  </button>
-
-                  <button
-                    onClick={submitFiles}
-                    disabled={isSubmitting}
-                    className="bg-[#1ABCFE] text-white py-4 rounded-xl font-black text-lg hover:bg-[#16a6e0] transition-all shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
-                  >
-                    {isSubmitting ? "Saving..." : "Start Tracking"} <CheckCircle2 size={20} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="text-center animate-in zoom-in duration-500">
-                <div className="w-20 h-20 bg-[#0ACF83]/10 text-[#0ACF83] rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle2 size={40} />
-                </div>
-                <h2 className="text-4xl font-black text-[#181818] mb-4">You're all set!</h2>
-                <p className="text-lg text-[#6B6B6B] mb-10">We've started syncing your files. It may take a few minutes for the full history to appear on your dashboard.</p>
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="bg-[#181818] text-white px-12 py-4 rounded-xl font-black text-lg hover:bg-black transition-all active:scale-95"
-                >
-                  Go to Dashboard
-                </button>
-              </div>
-            )}
-          </div>
+              <Button variant="dark" onClick={() => navigate("/dashboard")} className="h-11 w-full">
+                Go to Dashboard <ArrowRight size={18} />
+              </Button>
+            </>
+          )}
         </div>
-      </div>
+      </Card>
+
+      <p className="text-[12px] text-muted flex items-center gap-1.5">
+        <ShieldCheck size={13} /> Metadata &amp; version history only — never your design content.
+      </p>
     </div>
   );
 }

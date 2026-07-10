@@ -13,6 +13,7 @@ export default function Settings() {
   const [publicEnabled, setPublicEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
@@ -29,12 +30,15 @@ export default function Settings() {
   const saveProfile = async () => {
     setSaving(true);
     setSaveError(null);
+    setSaved(false);
     try {
       await axios.put('/api/user/profile', {
         profile_slug: slug.trim() || null,
         public_enabled: publicEnabled,
       });
       await refresh();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
     } catch (err: any) {
       setSaveError(
         err?.response?.data?.error || 'Failed to save. The slug may already be taken.'
@@ -60,10 +64,10 @@ export default function Settings() {
   };
 
   return (
-    <div className="flex flex-col gap-8 w-full min-h-[768px]">
+    <div className="flex flex-col gap-6 w-full min-h-[768px]">
       {/* Header */}
       <SectionHeader
-        color="accent"
+        plain
         icon={<SettingsIcon size={20} />}
         title="Settings"
         subtitle="Manage your account and public profile."
@@ -85,7 +89,7 @@ export default function Settings() {
           <div className="flex flex-col gap-1.5">
             <h3 className="font-bold text-[18px] tracking-[-0.18px] leading-tight text-black">{displayName}</h3>
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-[#0acf83]" />
+              <span className="w-2 h-2 rounded-full bg-green" />
               <span className="text-[13px] text-body font-medium">Figma account connected</span>
             </div>
           </div>
@@ -93,7 +97,7 @@ export default function Settings() {
         <div className="pt-4 border-t border-hairline">
           <button
             onClick={logout}
-            className="flex items-center gap-2 text-[13px] font-bold text-[#f43f5e] hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 text-[13px] font-bold text-red hover:opacity-80 transition-opacity"
           >
             <LogOut size={15} /> Log out
           </button>
@@ -103,7 +107,7 @@ export default function Settings() {
       {/* Public profile publishing controls */}
       <Card className="flex flex-col gap-5 p-6">
         <SectionHeader
-          color="blue"
+          plain
           icon={<Globe size={20} />}
           title="Public Profile"
           subtitle="Publish a read-only heatmap and share it anywhere."
@@ -112,42 +116,54 @@ export default function Settings() {
         <div className="flex flex-col gap-4 w-full max-w-[560px]">
           {/* Slug */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[13px] font-bold text-muted uppercase tracking-wider">Profile URL</label>
+            <label htmlFor="profile-slug" className="text-[13px] font-bold text-muted uppercase tracking-wider">Profile URL</label>
             <div className="flex items-center gap-1 bg-canvas border border-line rounded-xl px-3 py-2 focus-within:border-accent transition-colors">
               <span className="text-[13px] text-muted font-mono whitespace-nowrap">{APP_ORIGIN}/u/</span>
               <input
+                id="profile-slug"
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase())}
                 placeholder="your-handle"
+                aria-invalid={saveError ? true : undefined}
+                aria-describedby={saveError ? 'slug-hint slug-error' : 'slug-hint'}
                 className="flex-1 bg-transparent outline-none text-[13px] font-mono text-ink min-w-0"
               />
             </div>
+            <p id="slug-hint" className="text-[12px] text-muted leading-relaxed">
+              Lowercase letters, numbers, and dashes only. This becomes your shareable public URL.
+            </p>
           </div>
 
           {/* Public toggle */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
-              <span className="text-[14px] font-semibold text-black">Enable public profile</span>
+              <span id="public-toggle-label" className="text-[14px] font-semibold text-black">Enable public profile</span>
               <span className="text-[12px] text-muted">When off, the public URL and embeds return nothing.</span>
             </div>
             <button
               type="button"
               role="switch"
               aria-checked={publicEnabled}
+              aria-labelledby="public-toggle-label"
               onClick={() => setPublicEnabled((v) => !v)}
-              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${publicEnabled ? 'bg-[#0acf83]' : 'bg-[#d9d9d9]'}`}
+              className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${publicEnabled ? 'bg-green' : 'bg-[#d9d9d9]'}`}
             >
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${publicEnabled ? 'translate-x-5' : ''}`} />
             </button>
           </div>
 
-          {saveError && <p className="text-[12px] text-[#f43f5e] font-medium">{saveError}</p>}
+          {saveError && <p id="slug-error" role="alert" className="text-[12px] text-red font-medium">{saveError}</p>}
 
-          <div>
+          <div className="flex items-center gap-3">
             <Button onClick={saveProfile} disabled={saving} className="rounded-xl">
               {saving ? 'Saving…' : 'Save'}
             </Button>
+            {saved && (
+              <span role="status" className="flex items-center gap-1.5 text-[13px] font-semibold text-green">
+                <Check size={15} /> Saved
+              </span>
+            )}
           </div>
 
           {/* Share links (only meaningful once published) */}
@@ -171,11 +187,12 @@ function ShareRow({ label, value, onCopy, copied }: { label: string; value: stri
         <input
           readOnly
           value={value}
+          aria-label={label}
           className="flex-1 bg-canvas border border-line rounded-lg px-3 py-2 text-[12px] font-mono text-ink outline-none min-w-0"
         />
         <button
           onClick={onCopy}
-          className="shrink-0 flex items-center gap-1.5 bg-[#181818] hover:bg-black text-white px-3 py-2 rounded-lg text-[12px] font-bold transition-colors"
+          className="shrink-0 flex items-center gap-1.5 bg-ink hover:bg-black text-white px-3 py-2 rounded-lg text-[12px] font-bold transition-colors"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? 'Copied' : 'Copy'}

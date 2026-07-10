@@ -90,25 +90,13 @@ export default function EmbedWidget() {
     : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
   const profileUrl = slug ? `${APP_ORIGIN}/u/${slug}` : `${APP_ORIGIN}`;
 
-  if (loading) return null;
-
-  if (!slug) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", width: "100%" }}>
-        <div style={{ fontSize: 12, color: "#A6A6A6", fontFamily: "system-ui, sans-serif" }}>
-          This embed needs a published profile (missing <code>slug</code>).
-        </div>
-      </div>
-    );
-  }
-
   const outerStyle: React.CSSProperties = isEmbedded
     ? { width: "100%", background: "transparent" }
     : {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: "100vh",
+        minHeight: "100dvh",
         width: "100%",
         background: "transparent",
       };
@@ -116,6 +104,36 @@ export default function EmbedWidget() {
   const innerStyle: React.CSSProperties = isEmbedded
     ? { backgroundColor: bgColor, padding: 16, borderRadius: 16, width: "100%", boxSizing: "border-box" }
     : { backgroundColor: bgColor, padding: 16, borderRadius: 16, display: "inline-block" };
+
+  // Skeleton mirrors the rendered widget: same background, padding and radius so
+  // the heatmap settles in place instead of popping against a different surface.
+  if (loading) {
+    return (
+      <div style={outerStyle}>
+        <div style={innerStyle}>
+          <div
+            role="status"
+            aria-busy="true"
+            aria-live="polite"
+            className="animate-pulse motion-reduce:animate-none"
+            style={{ width: isEmbedded ? "100%" : 320, height: 120, borderRadius: 8, background: "rgba(128,128,128,0.2)" }}
+          >
+            <span className="sr-only">Loading activity…</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!slug) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh", width: "100%" }}>
+        <div style={{ fontSize: 12, color: "#A6A6A6", fontFamily: "system-ui, sans-serif" }}>
+          This embed needs a published profile (missing <code>slug</code>).
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={outerStyle}>

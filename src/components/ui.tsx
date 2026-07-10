@@ -16,20 +16,30 @@ const CHIP: Record<ChipColor, { bg: string; fg: string }> = {
   purple: { bg: "rgba(162,89,255,0.10)", fg: "#a259ff" },
   green: { bg: "rgba(10,207,131,0.10)", fg: "#0acf83" },
   orange: { bg: "rgba(242,78,30,0.10)", fg: "#f24e1e" },
-  red: { bg: "rgba(242,59,39,0.10)", fg: "#f23b27" },
+  red: { bg: "rgba(239,68,68,0.10)", fg: "#ef4444" },
   accent: { bg: "rgba(242,59,39,0.10)", fg: "#f23b27" },
 };
 
-/** Tinted, brand-colored square that holds a section/stat icon. */
+/** Tinted, brand-colored square that holds a section/stat icon.
+   With `plain`, drops the tinted box and renders a bare near-black line icon. */
 export function IconChip({
   color = "blue",
+  plain = false,
   className = "",
   children,
 }: {
   color?: ChipColor;
+  plain?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
+  if (plain) {
+    return (
+      <div className={`size-10 shrink-0 flex items-center justify-center text-ink ${className}`}>
+        {children}
+      </div>
+    );
+  }
   const c = CHIP[color];
   return (
     <div
@@ -57,6 +67,7 @@ export function Card({
 /** Standard section header: brand icon chip + title + subtitle + optional action. */
 export function SectionHeader({
   color = "blue",
+  plain = false,
   icon,
   title,
   subtitle,
@@ -64,6 +75,7 @@ export function SectionHeader({
   className = "",
 }: {
   color?: ChipColor;
+  plain?: boolean;
   icon: React.ReactNode;
   title: React.ReactNode;
   subtitle?: React.ReactNode;
@@ -73,7 +85,7 @@ export function SectionHeader({
   return (
     <div className={`flex items-center justify-between gap-4 w-full ${className}`}>
       <div className="flex gap-3 items-center min-w-0">
-        <IconChip color={color}>{icon}</IconChip>
+        <IconChip color={color} plain={plain}>{icon}</IconChip>
         <div className="flex flex-col gap-1 min-w-0">
           <h2 className="font-bold text-[20px] tracking-[-0.2px] leading-none text-ink truncate">
             {title}
@@ -101,7 +113,7 @@ export interface StatItem {
 export function StatInline({ items, className = "" }: { items: StatItem[]; className?: string }) {
   return (
     <div
-      className={`flex items-center gap-2 text-[12px] tracking-[-0.12px] text-body whitespace-nowrap ${className}`}
+      className={`flex items-center gap-2 text-[12px] tracking-[-0.12px] text-body whitespace-nowrap tabular-nums ${className}`}
     >
       {items.map((it, i) => (
         <React.Fragment key={i}>
@@ -153,22 +165,25 @@ export function SegmentedControl<T extends string | number | boolean>({
   onChange,
   size = "md",
   className = "",
+  ariaLabel = "View options",
 }: {
   options: SegOption<T>[];
   value: T;
   onChange: (v: T) => void;
   size?: "sm" | "md";
   className?: string;
+  ariaLabel?: string;
 }) {
   const cell =
     size === "sm" ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-[14px]";
   return (
-    <div className={`bg-canvas flex items-center p-1 rounded-lg shrink-0 ${className}`}>
+    <div role="group" aria-label={ariaLabel} className={`bg-canvas flex items-center p-1 rounded-lg shrink-0 ${className}`}>
       {options.map((opt) => (
         <button
           key={String(opt.value)}
           onClick={() => onChange(opt.value)}
-          className={`flex items-center justify-center rounded-md transition-all font-normal tracking-[-0.14px] ${cell} ${
+          aria-pressed={value === opt.value}
+          className={`flex items-center justify-center rounded-md transition-[color,background-color,box-shadow] font-normal tracking-[-0.14px] ${cell} ${
             value === opt.value
               ? "bg-surface shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-ink"
               : "text-muted hover:text-ink"
@@ -184,6 +199,7 @@ export function SegmentedControl<T extends string | number | boolean>({
 /** KPI tile: brand chip + big value + label. Becomes a button when onClick is set. */
 export function StatTile({
   color = "blue",
+  plain = false,
   icon,
   value,
   label,
@@ -193,6 +209,7 @@ export function StatTile({
   className = "",
 }: {
   color?: ChipColor;
+  plain?: boolean;
   icon: React.ReactNode;
   value: React.ReactNode;
   label: React.ReactNode;
@@ -203,9 +220,9 @@ export function StatTile({
 }) {
   const inner = (
     <>
-      <IconChip color={color}>{icon}</IconChip>
+      <IconChip color={color} plain={plain}>{icon}</IconChip>
       <div className="flex flex-col min-w-0">
-        <p className="font-semibold text-[22px] tracking-[-0.22px] text-ink leading-none truncate">
+        <p className="font-semibold text-[22px] tracking-[-0.22px] text-ink leading-none truncate tabular-nums">
           {value}
         </p>
         <p className="text-[12px] text-body tracking-[-0.12px] mt-1 truncate">{label}</p>
@@ -219,7 +236,7 @@ export function StatTile({
         onClick={onClick}
         disabled={disabled}
         title={title}
-        className={`${base} text-left transition-all hover:shadow-card-hover active:scale-[0.98] disabled:opacity-70 ${className}`}
+        className={`${base} text-left transition-[transform,box-shadow] hover:shadow-card-hover active:scale-[0.98] disabled:opacity-70 ${className}`}
       >
         {inner}
       </button>

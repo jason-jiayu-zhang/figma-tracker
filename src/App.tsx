@@ -19,14 +19,15 @@ const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 
 function Spinner({ label }: { label?: string }) {
   return (
-    <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+    <div role="status" className="min-h-dvh bg-hairline flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]" />
+        <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue" />
         {label && (
-          <span className="text-[12px] text-[#A6A6A6] uppercase tracking-[0.12em] font-semibold">
+          <span className="text-[12px] text-muted uppercase tracking-[0.12em] font-semibold">
             {label}
           </span>
         )}
+        <span className="sr-only">{label ?? "Loading"}</span>
       </div>
     </div>
   );
@@ -55,11 +56,11 @@ function OAuthRedirect() {
 // The authenticated dashboard shell: sidebar + routed content + footer.
 function AppLayout() {
   return (
-    <div className="bg-[#fffaf4] overflow-x-clip">
-      <div className="w-full min-h-screen flex items-center justify-center py-2 px-6 lg:px-8">
-        <div className="flex flex-row gap-8 w-[1080px] max-w-full relative">
-          <Sidebar className="bg-white flex flex-col items-center justify-between min-h-[800px] px-3 py-4 relative rounded-4xl shadow-[0px_2px_5px_0px_rgba(107,97,75,0.25)] shrink-0 w-22 self-stretch" />
-          <div className="flex flex-col justify-center flex-1 min-w-0 shrink-0 min-h-[800px]">
+    <div className="bg-canvas overflow-x-clip">
+      <div className="w-full min-h-dvh flex items-start justify-center py-6 px-6 lg:px-8">
+        <div className="flex flex-row gap-8 w-[1080px] max-w-full relative items-start">
+          <Sidebar className="bg-surface flex flex-col items-center justify-between sticky top-6 h-[calc(100dvh-3rem)] px-3 py-4 rounded-4xl shadow-card shrink-0 w-22" />
+          <div className="flex flex-col flex-1 min-w-0 shrink-0 min-h-[calc(100dvh-3rem)]">
             <Suspense fallback={<DashboardSkeleton />}>
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />

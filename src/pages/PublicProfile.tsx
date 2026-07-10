@@ -4,7 +4,7 @@ import { useParams } from "react-router-dom";
 import Heatmap from "../components/Heatmap";
 import TopFilesCard from "../components/TopFilesCard";
 import { ActivityData, FigmaFile } from "../types";
-import { User as UserIcon, Calendar } from "lucide-react";
+import { User as UserIcon, Calendar, Lock, ArrowRight } from "lucide-react";
 
 function browserTz(): string {
   try {
@@ -59,17 +59,29 @@ export default function PublicProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-canvas flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1ABCFE]" />
+      <div role="status" className="min-h-dvh bg-canvas flex items-center justify-center">
+        <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue" />
+        <span className="sr-only">Loading</span>
       </div>
     );
   }
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-canvas flex flex-col items-center justify-center gap-3 text-center px-6">
-        <h1 className="text-2xl font-black text-ink">Profile not available</h1>
-        <p className="text-body">This profile is private or does not exist.</p>
+      <div className="min-h-dvh bg-canvas flex flex-col items-center justify-center gap-5 text-center px-6">
+        <div className="size-14 flex items-center justify-center rounded-2xl bg-hairline text-muted">
+          <Lock size={24} />
+        </div>
+        <div className="flex flex-col gap-2 max-w-[360px]">
+          <h1 className="text-[24px] font-bold tracking-[-0.24px] text-ink">Profile not available</h1>
+          <p className="text-body leading-relaxed">This profile is private or does not exist. Check the link and try again.</p>
+        </div>
+        <a
+          href="/"
+          className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg font-bold text-white bg-accent hover:bg-accent-hover active:bg-accent-active shadow-sm transition-colors"
+        >
+          Back to home <ArrowRight size={18} />
+        </a>
       </div>
     );
   }
@@ -78,7 +90,7 @@ export default function PublicProfile() {
   const displayName = user?.handle || "Fimanu User";
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col items-center py-10 px-4">
+    <div className="min-h-dvh bg-canvas flex flex-col items-center py-10 px-4">
       <div className="w-full max-w-[1000px] flex flex-col gap-8">
         {/* Header */}
         <div className="bg-surface flex items-center gap-4 p-6 rounded-4xl shadow-card">

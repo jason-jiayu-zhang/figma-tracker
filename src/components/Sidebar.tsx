@@ -25,10 +25,10 @@ function NavIcon({
       to={to}
       title={label}
       aria-label={label}
-      className={`flex h-12 items-center justify-center overflow-clip p-3 relative rounded-4xl shrink-0 w-full transition-all ${
+      className={`flex h-12 items-center justify-center overflow-clip p-3 relative rounded-4xl shrink-0 w-full transition-[background-color,box-shadow] duration-150 ease-out ${
         active
-          ? "bg-[#f5f5f5] shadow-inner border border-transparent"
-          : "bg-[#fffaf4] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] hover:bg-[#f0f0f0]"
+          ? "bg-hairline shadow-inner border border-transparent"
+          : "bg-canvas shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] hover:bg-[#f0f0f0]"
       }`}
     >
       <div className="relative shrink-0 size-6">
@@ -59,23 +59,27 @@ export default function Sidebar({ className }: { className?: string }) {
           to="/profile"
           title="Profile"
           aria-label="Profile"
-          className={`aspect-square bg-[#fffaf4] flex items-center justify-center overflow-hidden relative rounded-4xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 w-full transition-all hover:scale-105 active:scale-95 border-2 ${
+          className={`aspect-square bg-canvas flex items-center justify-center overflow-hidden relative rounded-4xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 w-full transition-[transform,border-color] duration-150 ease-out hover:scale-105 active:scale-95 border-2 ${
             isActive("/profile") ? "border-[#1ABCFE]" : "border-transparent"
           }`}
         >
           {user?.img_url ? (
             <img alt={user.handle || "Profile"} className="block size-full object-cover" src={user.img_url} />
           ) : (
-            <div className="flex items-center justify-center size-full text-[#A6A6A6]">
+            <div className="flex items-center justify-center size-full text-muted">
               <UserIcon size={24} />
             </div>
           )}
         </Link>
 
-        <div className="flex flex-col gap-4 items-start px-2 relative shrink-0 w-16">
-          {navItems.map((item) => (
-            <NavIcon key={item.path} icon={item.icon} to={item.path} active={isActive(item.path)} label={item.label} />
-          ))}
+        <nav aria-label="Primary" className="flex flex-col gap-4 items-start px-2 relative shrink-0 w-16">
+          <ul className="flex flex-col gap-4 items-start w-full">
+            {navItems.map((item) => (
+              <li key={item.path} className="w-full">
+                <NavIcon icon={item.icon} to={item.path} active={isActive(item.path)} label={item.label} />
+              </li>
+            ))}
+          </ul>
 
           {/* Quick-add: an ACTION, not a page — accent-styled so it reads as "create".
               Opens the Add File modal from anywhere via /files?add=1. */}
@@ -83,7 +87,7 @@ export default function Sidebar({ className }: { className?: string }) {
             to="/files?add=1"
             title="Track a new file"
             aria-label="Track a new file"
-            className="flex h-12 items-center justify-center overflow-clip p-3 relative rounded-4xl shrink-0 w-full transition-all bg-[#f23b27] hover:bg-[#d83523] active:scale-95 shadow-[0px_1px_3px_0px_rgba(242,59,39,0.4)]"
+            className="flex h-12 items-center justify-center overflow-clip p-3 relative rounded-4xl shrink-0 w-full transition-[background-color,transform] duration-150 ease-out bg-accent hover:bg-accent-hover active:scale-95 shadow-[0px_1px_3px_0px_rgba(242,59,39,0.4)]"
           >
             <div className="relative shrink-0 size-6">
               <img
@@ -93,7 +97,7 @@ export default function Sidebar({ className }: { className?: string }) {
               />
             </div>
           </Link>
-        </div>
+        </nav>
       </div>
 
       {/* Bottom-pinned: settings */}
