@@ -133,6 +133,9 @@ async function runSync() {
         const inserted = await processNewVersions(fileId, fileKey, versions);
         sessionData.new_versions_found += inserted;
         sessionData.files_synced++;
+
+        await sleep(300);
+        await syncCommentsAndResources(fileId, fileKey, token);
       } catch (fileErr2) {
         console.error(`[sync] ${fileKey}: Failed:`, fileErr2.message);
       }
@@ -261,6 +264,9 @@ async function runPageSync() {
 
       const inserted = await processNewVersions(fileRow.id, fileKey, collected);
       if (inserted > 0) updateFound = true;
+
+      await sleep(300);
+      await syncCommentsAndResources(fileRow.id, fileKey, token);
 
       await supabase
         .from("figma_files")
@@ -447,6 +453,65 @@ async function processNewVersions(fileId, fileKey, versions) {
     return newVersions.length;
   }
   return 0;
+}
+
+/**
+ * Fetch and persist comments + dev resources for one file.
+ * Tier-2 data depends on the file_comments:read / file_dev_resources:read scopes.
+ * Owners authorized before those scopes existed get a 403 — we swallow it so the
+ * core version sync is never blocked by a missing scope.
+ */
+async function syncCommentsAndResources(fileId, fileKey, token) {
+  // --- Comments (upsert-only: keep history even if a thread is later deleted) ---
+  try {
+    const comments = await figma.getFileComments(fileKey, token);
+    if (comments.length > 0) {
+      const rows = comments.map((c) => ({
+        file_id: fileId,
+        comment_id: c.id,
+        parent_comment_id: c.parent_id || null,
+        message: c.message || null,
+        created_at: c.created_at,
+        resolved_at: c.resolved_at || null,
+        author_figma_user_id: c.user ? c.user.id : null,
+        author_handle: c.user ? c.user.handle : null,
+      }));
+      await supabase
+        .from("file_comments")
+        .upsert(rows, { onConflict: "file_id,comment_id" });
+    }
+  } catch (err) {
+    const status = err.response?.status;
+    if (status === 403) {
+      console.warn(`[sync] ${fileKey}: comments scope missing (403), skipping comments`);
+    } else {
+      console.error(`[sync] ${fileKey}: comment sync failed:`, err.response?.data || err.message);
+    }
+  }
+  await sleep(300);
+
+  // --- Dev resources (full refresh: it's a current-state count, deletions matter) ---
+  try {
+    const resources = await figma.getDevResources(fileKey, token);
+    await supabase.from("dev_resources").delete().eq("file_id", fileId);
+    if (resources.length > 0) {
+      const rows = resources.map((r) => ({
+        file_id: fileId,
+        dev_resource_id: r.id,
+        name: r.name || null,
+        url: r.url || null,
+        node_id: r.node_id || null,
+      }));
+      await supabase.from("dev_resources").insert(rows);
+    }
+  } catch (err) {
+    const status = err.response?.status;
+    if (status === 403) {
+      console.warn(`[sync] ${fileKey}: dev_resources scope missing (403), skipping`);
+    } else {
+      console.error(`[sync] ${fileKey}: dev resource sync failed:`, err.response?.data || err.message);
+    }
+  }
 }
 
 async function runSyncAfterDelay(ms = 30000) {

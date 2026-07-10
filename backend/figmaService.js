@@ -174,6 +174,41 @@ async function getFileMeta(fileKey, token = null) {
 }
 
 /**
+ * Get all comments on a file (GET /files/:key/comments).
+ * Requires the file_comments:read scope. Not paginated — returns the full set,
+ * including resolved threads (each carries created_at and resolved_at).
+ */
+async function getFileComments(fileKey, token = null) {
+  const res = await figmaApi
+    .get(`/files/${fileKey}/comments`, { headers: getHeaders(token) })
+    .catch((err) => {
+      console.error(`[figma] getFileComments failed for ${fileKey}:`, {
+        status: err.response?.status,
+        data: err.response?.data,
+      });
+      throw err;
+    });
+  return res.data.comments || [];
+}
+
+/**
+ * Get dev resources linked in a file (GET /files/:key/dev_resources).
+ * Requires the file_dev_resources:read scope.
+ */
+async function getDevResources(fileKey, token = null) {
+  const res = await figmaApi
+    .get(`/files/${fileKey}/dev_resources`, { headers: getHeaders(token) })
+    .catch((err) => {
+      console.error(`[figma] getDevResources failed for ${fileKey}:`, {
+        status: err.response?.status,
+        data: err.response?.data,
+      });
+      throw err;
+    });
+  return res.data.dev_resources || [];
+}
+
+/**
  * Get projects for a team
  */
 async function getTeamProjects(teamId) {
@@ -197,6 +232,8 @@ module.exports = {
   getFileVersions,
   getFileVersionsPage,
   getFileMeta,
+  getFileComments,
+  getDevResources,
   getTeamProjects,
   getProjectFiles,
 };

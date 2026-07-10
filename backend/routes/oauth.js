@@ -44,7 +44,10 @@ router.post("/start", async (req, res) => {
       oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
     }
 
-    const scope = "current_user:read file_metadata:read file_versions:read"; // Request minimal scopes (no file_content:read)
+    // Minimal read scopes (no file_content:read). file_comments:read and
+    // file_dev_resources:read back the Tier-2 comment/dev-resource analytics.
+    const scope =
+      "current_user:read file_metadata:read file_versions:read file_comments:read file_dev_resources:read";
 
     const url = `https://www.figma.com/oauth?client_id=${encodeURIComponent(
       clientId,

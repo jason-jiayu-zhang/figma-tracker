@@ -71,6 +71,32 @@ CREATE TABLE IF NOT EXISTS file_versions (
   UNIQUE(file_id, version_id)
 );
 
+-- Comments from GET /v1/files/:key/comments (needs file_comments:read).
+-- Resolved threads are retained with resolved_at set, so trends survive resolution.
+CREATE TABLE IF NOT EXISTS file_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_id UUID NOT NULL REFERENCES figma_files(id) ON DELETE CASCADE,
+  comment_id TEXT NOT NULL,
+  parent_comment_id TEXT,
+  message TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  resolved_at TIMESTAMPTZ,
+  author_figma_user_id TEXT,
+  author_handle TEXT,
+  UNIQUE(file_id, comment_id)
+);
+
+-- Dev resources from GET /v1/files/:key/dev_resources (needs file_dev_resources:read).
+CREATE TABLE IF NOT EXISTS dev_resources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  file_id UUID NOT NULL REFERENCES figma_files(id) ON DELETE CASCADE,
+  dev_resource_id TEXT NOT NULL,
+  name TEXT,
+  url TEXT,
+  node_id TEXT,
+  UNIQUE(file_id, dev_resource_id)
+);
+
 -- Sync run audit log
 CREATE TABLE IF NOT EXISTS sync_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -97,3 +123,6 @@ CREATE INDEX IF NOT EXISTS idx_daily_activity_date ON daily_activity(activity_da
 CREATE INDEX IF NOT EXISTS idx_daily_activity_file_id ON daily_activity(file_id);
 CREATE INDEX IF NOT EXISTS idx_figma_files_owner ON figma_files(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_users_profile_slug ON users(profile_slug);
+CREATE INDEX IF NOT EXISTS idx_file_comments_file_id ON file_comments(file_id);
+CREATE INDEX IF NOT EXISTS idx_file_comments_created_at ON file_comments(created_at);
+CREATE INDEX IF NOT EXISTS idx_dev_resources_file_id ON dev_resources(file_id);
