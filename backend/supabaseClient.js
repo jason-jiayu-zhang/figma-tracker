@@ -23,12 +23,12 @@ const supabase = createClient(
 // ============================================================
 const SESSION_COOKIE = "ft_session";
 const SESSION_TTL_DAYS = 30;
-const SESSION_SECRET =
-  process.env.SESSION_SECRET || "dev-insecure-session-secret-change-me";
+const SESSION_SECRET = process.env.SESSION_SECRET;
 
-if (!process.env.SESSION_SECRET) {
-  console.warn(
-    "⚠️ SESSION_SECRET not set — using an insecure development fallback. Set SESSION_SECRET in your environment (Railway) for production.",
+if (!SESSION_SECRET || SESSION_SECRET.length < 32) {
+  throw new Error(
+    "SESSION_SECRET must be set to a random string of at least 32 characters. " +
+      "Generate one with: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"",
   );
 }
 
