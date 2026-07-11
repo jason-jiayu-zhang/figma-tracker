@@ -12,6 +12,32 @@ const STEPS = [
   { n: 3, label: "Done" },
 ];
 
+/* Goal-gradient head start: never show 0%. Just landing here earns credit, so
+   the bar reads as already-in-motion rather than an empty starting line. The
+   closer the fill looks to full, the harder it is to abandon. */
+const PROGRESS = { 1: 25, 2: 65, 3: 100 } as const;
+
+/** Slim progress track above the stepper — the numeric head-start cue. */
+function ProgressBar({ step }: { step: number }) {
+  const pct = PROGRESS[step as 1 | 2 | 3] ?? 25;
+  return (
+    <div className="flex flex-col gap-2 w-full">
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold text-body tracking-[-0.12px]">
+          {step === 3 ? "Setup complete" : "You're almost there"}
+        </span>
+        <span className="text-[12px] font-bold text-green tabular-nums tracking-[-0.12px]">{pct}%</span>
+      </div>
+      <div className="h-1.5 w-full rounded-full bg-hairline overflow-hidden">
+        <div
+          className="h-full rounded-full bg-green transition-[width] duration-500 ease-out"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /** Horizontal progress stepper built from the dashboard's chip motif. */
 function Stepper({ step }: { step: number }) {
   return (
@@ -51,6 +77,16 @@ function Stepper({ step }: { step: number }) {
       })}
     </div>
   );
+}
+
+/* Smart default: shift the user's task from "hunt down the file key" to just
+   "paste the URL". Accepts a full Figma link (…/design/KEY/…, /file/, /proto/,
+   /board/) and returns the bare key; anything else passes straight through so a
+   raw key still works. */
+function extractFileKey(input: string): string {
+  const val = input.trim();
+  const m = val.match(/figma\.com\/(?:file|design|proto|board)\/([A-Za-z0-9]+)/i);
+  return m ? m[1] : val;
 }
 
 export default function Onboard() {
@@ -120,7 +156,7 @@ export default function Onboard() {
 
   const submitFiles = async () => {
     setError(null);
-    const validFiles = files.map(f => f.trim()).filter(Boolean);
+    const validFiles = files.map(f => extractFileKey(f)).filter(Boolean);
     if (validFiles.length === 0) {
       setError("Please add at least one file key.");
       return;
@@ -151,6 +187,7 @@ export default function Onboard() {
       <img src={imgFimanuLogo} alt="Fimanu" className="h-7 w-auto" />
 
       <Card className="w-full max-w-[540px] p-7 flex flex-col gap-7">
+        <ProgressBar step={step} />
         <Stepper step={step} />
 
         <div className="h-px bg-line w-full" />
@@ -186,7 +223,7 @@ export default function Onboard() {
                 plain
                 icon={<FolderPlus size={20} />}
                 title="Select files"
-                subtitle="Add the file keys you want to monitor — find them in each Figma file's URL."
+                subtitle="Paste a Figma file link for anything you want to monitor — we'll pull out the key for you."
               />
 
               <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
@@ -196,8 +233,8 @@ export default function Onboard() {
                       type="text"
                       value={file}
                       onChange={(e) => updateFileField(idx, e.target.value)}
-                      aria-label={`Figma file key ${idx + 1}`}
-                      placeholder="Enter file key (e.g. ABC123XYZ)"
+                      aria-label={`Figma file link or key ${idx + 1}`}
+                      placeholder="Paste a Figma file URL or key"
                       className="flex-1 px-4 h-11 bg-canvas border border-line focus:border-accent rounded-xl outline-none transition-colors font-mono text-[13px] text-ink placeholder:text-muted"
                     />
                     {files.length > 1 && (
@@ -220,7 +257,7 @@ export default function Onboard() {
               </div>
 
               <p className="text-[13px] text-body leading-relaxed">
-                The key is the string right after <span className="font-mono text-ink">/design/</span> or <span className="font-mono text-ink">/file/</span> in a file's URL. At least one is required — you can add more later.
+                Just paste the whole file URL — we grab the key automatically. Prefer the raw key? That works too. At least one is required; you can add more later.
               </p>
 
               <Button variant="primary" onClick={submitFiles} disabled={isSubmitting} className="h-11 w-full">

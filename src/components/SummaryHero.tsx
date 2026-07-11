@@ -1,4 +1,4 @@
-import { Flame, TrendingUp, TrendingDown, Minus, Zap, GitCommit } from "lucide-react";
+import { Flame, TrendingUp, TrendingDown, Minus, Zap, GitCommit, AlertTriangle } from "lucide-react";
 
 /* Mobile-style hero: an accent-filled top section whose semicircle gauge
    draws the eye straight to the one number that summarizes the dashboard —
@@ -81,7 +81,14 @@ export default function SummaryHero({
   const atBest = streakCurrent > 0 && streakCurrent >= streakLongest;
   const pct = streakLongest > 0 ? streakCurrent / streakLongest : streakCurrent > 0 ? 1 : 0;
 
-  const caption = atBest
+  // Loss aversion: a live streak with no edit logged today is one day from
+  // resetting to zero. Framing it as something about to be *lost* is a stronger
+  // motivator than the neutral "N to beat your best" gain framing.
+  const streakAtRisk = streakCurrent > 0 && editsToday === 0;
+
+  const caption = streakAtRisk
+    ? `Your ${streakCurrent}-day streak resets at midnight — one edit keeps it alive`
+    : atBest
     ? "Personal best — keep it going"
     : streakCurrent === 0
     ? "Make an edit today to start a streak"
@@ -118,7 +125,14 @@ export default function SummaryHero({
           </div>
         </div>
 
-        <p className="text-[13px] text-white/85 tracking-[-0.13px] text-center -mt-1">{caption}</p>
+        {streakAtRisk ? (
+          <div className="flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1.5 -mt-1">
+            <AlertTriangle size={13} className="text-white shrink-0" />
+            <p className="text-[13px] font-semibold text-white tracking-[-0.13px] text-center">{caption}</p>
+          </div>
+        ) : (
+          <p className="text-[13px] text-white/85 tracking-[-0.13px] text-center -mt-1">{caption}</p>
+        )}
 
         <div className="flex gap-2.5 w-full">
           <Pill
