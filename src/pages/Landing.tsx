@@ -1,12 +1,50 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { ArrowRight, Activity, Users, FileText } from "lucide-react";
+import { format, subDays, startOfToday } from "date-fns";
 import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
+import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import { useSession } from "../session";
 import { APP_DASHBOARD_URL } from "../config";
+
+const demoTheme: HeatmapTheme = {
+  rectSize: 12,
+  rectRadius: 2,
+  gap: 4,
+  emptyColor: "#e8e8e8",
+  levelColors: ["#1bca7c", "#1ab7fa", "#9851f9", "#f23b27"],
+  textColor: "#737373",
+  tooltipBgColor: "#2C2C2C",
+  tooltipTextColor: "white",
+};
+
+/* Reciprocity: give value before asking for the connection. A real, populated
+   heatmap of representative (weekday-heavy) activity lets a visitor see exactly
+   what they'll get, so signing up reads as unlocking *their own* version rather
+   than paying an entry toll. Seeded so it stays stable across renders. */
+function useDemoActivity() {
+  return useMemo(() => {
+    const data: Record<string, number> = {};
+    let seed = 20260710;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    const today = startOfToday();
+    for (let i = 364; i >= 0; i--) {
+      const d = subDays(today, i);
+      const weekend = d.getDay() === 0 || d.getDay() === 6;
+      if (rand() < (weekend ? 0.25 : 0.82)) {
+        data[format(d, "yyyy-MM-dd")] = 1 + Math.floor(rand() * (weekend ? 6 : 14));
+      }
+    }
+    return data;
+  }, []);
+}
 
 export default function Landing() {
   // Marketing page: only a lightweight session check (no authenticated data).
   const { loggedIn } = useSession();
+  const demoActivity = useDemoActivity();
 
   // The dashboard lives on the app subdomain; link there when configured,
   // otherwise fall back to a same-origin path.
@@ -50,6 +88,24 @@ export default function Landing() {
           >
             {loggedIn ? "Go to Dashboard" : "Get Started for Free"} <ArrowRight size={20} />
           </a>
+        </div>
+
+        {/* Live demo — see the product working before being asked to connect. */}
+        <div className="w-full max-w-4xl mt-20 animate-fade-in-up animation-delay-300">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <span className="text-sm font-semibold text-body">A year of design activity, at a glance</span>
+            <span className="text-xs font-medium text-muted uppercase tracking-[0.1em]">Sample data</span>
+          </div>
+          <div className="bg-surface rounded-3xl shadow-card border border-line p-6 overflow-x-auto">
+            <Heatmap data={demoActivity} theme="light" customTheme={demoTheme} />
+          </div>
+          <p className="text-body mt-5 text-base">
+            This is example activity.{" "}
+            <a href={ctaHref} className="text-blue font-semibold hover:underline">
+              Connect your Figma
+            </a>{" "}
+            to see your own — free, no credit card.
+          </p>
         </div>
       </main>
 
