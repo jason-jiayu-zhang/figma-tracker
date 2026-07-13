@@ -16,6 +16,10 @@ const Files = React.lazy(() => import("./pages/Files"));
 const Profile = React.lazy(() => import("./pages/Profile"));
 const Settings = React.lazy(() => import("./pages/Settings"));
 const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
+const Privacy = React.lazy(() => import("./pages/Privacy"));
+const Terms = React.lazy(() => import("./pages/Terms"));
+const About = React.lazy(() => import("./pages/About"));
+const Docs = React.lazy(() => import("./pages/Docs"));
 
 function Spinner({ label }: { label?: string }) {
   return (
@@ -156,7 +160,26 @@ function App() {
     );
   }
 
-  // 2. Public profile — fully public, no auth.
+  // 2. Public content pages — reachable signed-out on any domain.
+  if (
+    path === "/privacy" ||
+    path === "/terms" ||
+    path === "/about" ||
+    path === "/docs"
+  ) {
+    return (
+      <Suspense fallback={<Spinner />}>
+        <Routes>
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/docs" element={<Docs />} />
+        </Routes>
+      </Suspense>
+    );
+  }
+
+  // 3. Public profile — fully public, no auth.
   if (path.startsWith("/u/")) {
     return (
       <Suspense fallback={<Spinner />}>
@@ -167,7 +190,7 @@ function App() {
     );
   }
 
-  // 3. Marketing site (root domain): render the Landing page only.
+  // 4. Marketing site (root domain): render the Landing page only.
   if (!IS_APP_MODE) {
     return (
       <Suspense fallback={<Spinner />}>
@@ -178,7 +201,7 @@ function App() {
     );
   }
 
-  // 4. Dashboard app (app.* subdomain or VITE_IS_APP=1).
+  // 5. Dashboard app (app.* subdomain or VITE_IS_APP=1).
   return <AppRoutes />;
 }
 
