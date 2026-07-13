@@ -74,6 +74,34 @@ router.post("/files", async (req, res) => {
   }
 });
 
+// PATCH /api/user/files/:fileKey -> archive/unarchive one of the session user's files.
+router.patch("/files/:fileKey", async (req, res) => {
+  try {
+    const session = getSessionUser(req);
+    if (!session) return res.status(401).json({ error: "Not authenticated" });
+
+    const { fileKey } = req.params;
+    if (!fileKey) return res.status(400).json({ error: "Missing fileKey" });
+
+    const { archived } = req.body || {};
+    if (typeof archived !== "boolean") {
+      return res.status(400).json({ error: "Missing or invalid 'archived' boolean" });
+    }
+
+    const { error: updateErr } = await supabase
+      .from("figma_files")
+      .update({ archived_at: archived ? new Date().toISOString() : null })
+      .eq("owner_user_id", session.id)
+      .eq("file_key", fileKey);
+
+    if (updateErr) throw updateErr;
+    res.json({ success: true, archived });
+  } catch (err) {
+    console.error("[/api/user/files/:fileKey PATCH] Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/user/files/:fileKey -> remove one of the session user's files.
 router.delete("/files/:fileKey", async (req, res) => {
   try {
