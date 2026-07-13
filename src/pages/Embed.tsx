@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
-import { Copy, Telescope, Check, SlidersHorizontal, Monitor, Layers } from "lucide-react";
+import { Copy, Telescope, Check, SlidersHorizontal, Monitor, Layers, Flame } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { useSession } from "../session";
 import { APP_ORIGIN } from "../config";
@@ -102,6 +102,24 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
   );
 };
 
+const SnippetRow = ({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) => (
+  <div className="flex flex-col gap-1 w-full">
+    <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{label}</span>
+    <div className="flex items-stretch gap-2 w-full">
+      <code className="flex-1 min-w-0 truncate bg-canvas border border-line rounded-lg px-3 py-2 text-[11px] text-body font-mono">{value}</code>
+      <button
+        type="button"
+        onClick={onCopy}
+        aria-label={`Copy ${label}`}
+        className="shrink-0 inline-flex items-center gap-1.5 px-3 rounded-lg bg-canvas border border-line text-[12px] font-bold text-body hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {copied ? <Check size={14} strokeWidth={3} /> : <Copy size={14} />}
+        {copied ? "Copied" : "Copy"}
+      </button>
+    </div>
+  </div>
+);
+
 export default function EmbedEditor() {
   const { activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
   const { user } = useSession();
@@ -121,6 +139,17 @@ export default function EmbedEditor() {
   // How the "Copy" button emits the embed: a bare URL (paste into Notion etc.)
   // or a ready-to-drop <iframe> tag (for websites / READMEs that allow HTML).
   const [copyFormat, setCopyFormat] = useState<"link" | "iframe">("link");
+  const [copiedBadge, setCopiedBadge] = useState<"html" | "md" | null>(null);
+
+  const badgeUrl = slug ? `${APP_ORIGIN}/api/public/${slug}/badge.svg` : "";
+  const badgeHtml = `<img src="${badgeUrl}" alt="Figma streak" height="28" />`;
+  const badgeMd = `![Figma streak](${badgeUrl})`;
+  const copyBadge = (kind: "html" | "md") => {
+    navigator.clipboard.writeText(kind === "html" ? badgeHtml : badgeMd).then(() => {
+      setCopiedBadge(kind);
+      setTimeout(() => setCopiedBadge((k) => (k === kind ? null : k)), 2000);
+    });
+  };
 
   // Settings State
   const [rectSize, setRectSize] = useState<number>(12);
@@ -524,6 +553,39 @@ export default function EmbedEditor() {
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Streak Badge Box */}
+        <div className="bg-surface flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
+          <SectionHeader
+            plain
+            icon={<Flame size={20} />}
+            title="Streak Badge"
+            subtitle="A droppable badge for Notion, READMEs, or your site."
+          />
+
+          {!published ? (
+            <p className="text-[11px] leading-snug text-muted bg-canvas border border-line rounded-lg px-3 py-2 w-full">
+              Publish your profile (set a URL + enable public in <span className="font-bold text-body">Profile</span>) to generate your badge.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-4 w-full">
+              <div className="flex items-center gap-3 flex-wrap">
+                <img src={badgeUrl} alt="Figma streak badge preview" className="h-7" />
+                <img src={`${badgeUrl}?theme=dark`} alt="Figma streak badge dark preview" className="h-7" />
+              </div>
+              <p className="text-[11px] text-muted tracking-[-0.11px] -mt-1">
+                Add <code className="font-mono text-body">?theme=dark</code>, <code className="font-mono text-body">?metric=edits</code>, or <code className="font-mono text-body">?emoji=1</code> to the URL to customize.
+              </p>
+              <div className="flex flex-col gap-3 w-full">
+                <SnippetRow label="HTML" value={badgeHtml} copied={copiedBadge === "html"} onCopy={() => copyBadge("html")} />
+                <SnippetRow label="Markdown" value={badgeMd} copied={copiedBadge === "md"} onCopy={() => copyBadge("md")} />
+              </div>
+              <span className="sr-only" role="status" aria-live="polite">
+                {copiedBadge ? "Copied to clipboard" : ""}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>

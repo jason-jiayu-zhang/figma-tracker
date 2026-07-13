@@ -694,6 +694,79 @@ router.get("/public/:slug/insights", async (req, res) => {
   }
 });
 
+function escapeXml(s) {
+  return String(s).replace(/[<>&'"]/g, (c) =>
+    ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]),
+  );
+}
+
+/** A droppable shields-style streak badge (SVG) for Notion / personal sites. */
+function buildBadgeSvg({ metric, value, theme, emoji }) {
+  const isDark = theme === "dark";
+  const accent = "#f23b27";
+  const leftBg = isDark ? "#1a1a1a" : "#2c2c2c";
+  const text =
+    metric === "edits"
+      ? `${Number(value).toLocaleString()} edits`
+      : `${value}-day streak`;
+
+  const fontSize = 12;
+  const charW = 6.9; // rough advance width for 12px bold sans
+  const textW = Math.ceil(text.length * charW);
+  const leftW = 30;
+  const rightW = textW + 24;
+  const h = 28;
+  const w = leftW + rightW;
+  const r = 6;
+  const g = 15.84; // flame glyph box (24 * 0.66)
+
+  // Emoji rendering inside <img>-embedded SVG is renderer-dependent, so the
+  // drawn flame is the default; emoji is opt-in via ?emoji=1.
+  const flame = emoji
+    ? `<text x="${leftW / 2}" y="${h / 2}" font-size="15" text-anchor="middle" dominant-baseline="central">🔥</text>`
+    : `<g transform="translate(${(leftW - g) / 2}, ${(h - g) / 2}) scale(0.66)" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></g>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeXml(text)}">
+  <title>${escapeXml(text)}</title>
+  <clipPath id="c"><rect width="${w}" height="${h}" rx="${r}"/></clipPath>
+  <g clip-path="url(#c)">
+    <rect width="${leftW}" height="${h}" fill="${leftBg}"/>
+    <rect x="${leftW}" width="${rightW}" height="${h}" fill="${accent}"/>
+  </g>
+  ${flame}
+  <text x="${leftW + rightW / 2}" y="${h / 2 + 1}" fill="#ffffff" font-family="Verdana,'Segoe UI',Helvetica,Arial,sans-serif" font-size="${fontSize}" font-weight="bold" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>
+</svg>`;
+}
+
+// GET /api/public/:slug/badge.svg?theme=light|dark&metric=streak|edits&emoji=1
+router.get("/public/:slug/badge.svg", async (req, res) => {
+  try {
+    const user = await resolvePublicUser(req.params.slug);
+    if (!user) return res.status(404).json({ error: "Profile not found" });
+
+    const insights = await computeInsights(user, {
+      mode: parseMode(req),
+      tz: req.query.tz || DEFAULT_TZ,
+      fileKeys: [],
+    });
+
+    const metric = req.query.metric === "edits" ? "edits" : "streak";
+    const value = metric === "edits" ? insights.named.total : insights.streak.current;
+    const svg = buildBadgeSvg({
+      metric,
+      value,
+      theme: req.query.theme === "dark" ? "dark" : "light",
+      emoji: req.query.emoji === "1" || req.query.emoji === "true",
+    });
+
+    res.set("Content-Type", "image/svg+xml");
+    res.set("Cache-Control", "public, max-age=600");
+    res.send(svg);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ============================================================
 // Misc
 // ============================================================

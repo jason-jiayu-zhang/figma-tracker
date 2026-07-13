@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSession } from '../session';
 import { APP_ORIGIN } from '../config';
-import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, SectionHeader, Button } from '../components/ui';
 
 export default function Settings() {
@@ -15,6 +15,11 @@ export default function Settings() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Account deletion.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -55,6 +60,18 @@ export default function Settings() {
       /* ignore */
     }
     window.location.href = '/';
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await axios.post('/api/user/disconnect');
+      window.location.href = '/';
+    } catch (err: any) {
+      setDeleteError(err?.response?.data?.error || 'Failed to delete account. Please try again.');
+      setDeleting(false);
+    }
   };
 
   const copy = (text: string, which: string) => {
@@ -174,6 +191,57 @@ export default function Settings() {
             </div>
           )}
         </div>
+      </Card>
+
+      {/* Danger zone — delete account + all data */}
+      <Card className="flex flex-col gap-5 p-6 border border-red/30">
+        <SectionHeader
+          plain
+          icon={<AlertTriangle size={20} className="text-red" />}
+          title="Delete account"
+          subtitle="Permanently remove your account, Figma authorization, and all tracked file activity."
+        />
+        <p className="text-[13px] text-muted leading-relaxed max-w-[560px]">
+          This deletes your stored Figma tokens, profile, and every file’s tracked
+          history. It cannot be undone. You can reconnect later by signing in again.
+        </p>
+
+        {!confirmingDelete ? (
+          <div>
+            <button
+              onClick={() => setConfirmingDelete(true)}
+              className="flex items-center gap-2 bg-red/10 hover:bg-red/15 text-red px-4 py-2 rounded-xl text-[13px] font-bold transition-colors"
+            >
+              <Trash2 size={15} /> Delete my account
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 max-w-[560px]">
+            <p className="text-[13px] font-semibold text-black">
+              Are you sure? This permanently deletes your account and all data.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={deleteAccount}
+                disabled={deleting}
+                className="flex items-center gap-2 bg-red hover:bg-red/90 text-white px-4 py-2 rounded-xl text-[13px] font-bold transition-colors disabled:opacity-60"
+              >
+                <Trash2 size={15} /> {deleting ? 'Deleting…' : 'Yes, delete everything'}
+              </button>
+              <button
+                onClick={() => { setConfirmingDelete(false); setDeleteError(null); }}
+                disabled={deleting}
+                className="text-[13px] font-bold text-muted hover:text-ink transition-colors disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {deleteError && (
+          <p role="alert" className="text-[12px] text-red font-medium">{deleteError}</p>
+        )}
       </Card>
     </div>
   );
