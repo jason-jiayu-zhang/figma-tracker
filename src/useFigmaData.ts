@@ -116,7 +116,7 @@ export function useFigmaData() {
   const triggerSync = async () => {
     setSyncing(true);
     try {
-      await axios.post("/api/sync");
+      await axios.post("/api/sync/manual");
       await fetchData();
     } catch (err) {
       console.error("Sync failed:", err);
