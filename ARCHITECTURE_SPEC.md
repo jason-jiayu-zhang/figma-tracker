@@ -17,8 +17,8 @@ note it loudly in your final report.
 ## Sessions (the core new primitive)
 - Cookie-based. On OAuth callback, after the user row is upserted, set an **httpOnly,
   Secure, SameSite=Lax** cookie named `ft_session`.
-- Value = JWT signed with `process.env.SESSION_SECRET` (add to Railway env), payload
-  `{ uid: <users.id UUID>, fu: <figma_user_id> }`, 30-day expiry.
+- Value = JWT signed with `process.env.SESSION_SECRET` (set in the host env — Render),
+  payload `{ uid: <users.id UUID>, fu: <figma_user_id> }`, 30-day expiry.
 - Backend helper `getSessionUser(req)` reads/verifies the cookie and returns
   `{ id, figma_user_id }` or `null`. Replace ALL `.limit(1)` "first row = current user"
   logic (`user.js`, `api.js`) with this.
@@ -26,8 +26,10 @@ note it loudly in your final report.
 - CORS: switch `cors()` to `cors({ origin: <APP_URL(s)>, credentials: true })` — a wildcard
   origin cannot be used with credentialed cookies. Frontend sends `credentials: 'include'`.
 
-## Schema changes (additive migration — do NOT drop columns/data on live DB)
-Write a new file `migration_multiaccount.sql` (additive). Also update `schema.sql`.
+## Schema changes (additive — do NOT drop columns/data on live DB)
+These are now folded into `schema.sql`, the single source of truth (the one-shot
+`migration_multiaccount.sql` was applied and removed). `schema.sql` is idempotent, so
+re-running it on a live DB only adds what's missing.
 - `users`: add `profile_slug TEXT UNIQUE`, `public_enabled BOOLEAN NOT NULL DEFAULT false`.
 - `figma_files`: add `owner_user_id UUID REFERENCES users(id) ON DELETE CASCADE`.
   - Drop the global `file_key UNIQUE`; add `UNIQUE(owner_user_id, file_key)`.
@@ -74,16 +76,22 @@ Write a new file `migration_multiaccount.sql` (additive). Also update `schema.sq
 - Fix `api.js` `/api/stats` implicit-global `user` (declare `let user = null;`).
 
 ## Routing & subdomain
-- Marketing/landing on the ROOT domain; the dashboard app on an `app.` subdomain.
+- Single-origin by default (marketing + dashboard + API on one Render service). An
+  optional SEO split puts marketing/landing on the ROOT domain and the dashboard app on
+  an `app.` subdomain.
 - Frontend decides mode by hostname: if `window.location.hostname` starts with `app.`
   (or `import.meta.env.VITE_IS_APP === '1'`), render the dashboard app; otherwise render
   the landing page. Root-domain visits that are logged in should offer/redirect to the app
   subdomain; app-subdomain visits that are NOT logged in redirect to OAuth start.
 - Logged-in users hitting the app root auto-redirect to `/dashboard`.
-- DNS + Railway custom-domain wiring is a MANUAL user step — document it, don't attempt DNS.
+- DNS + Render custom-domain wiring is a MANUAL user step — document it, don't attempt DNS.
 
 ## Env vars (names are fixed by this contract)
 `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FIGMA_CLIENT_ID`, `FIGMA_CLIENT_SECRET`,
-`FIGMA_OAUTH_REDIRECT_URI` (prod = `https://<railway-domain>/api/oauth/callback`),
-`APP_URL` (root site), `APP_DASHBOARD_URL` (app subdomain), `SESSION_SECRET`.
-Frontend build: `VITE_API_URL`, `VITE_IS_APP`.
+`FIGMA_OAUTH_REDIRECT_URI` (prod = `https://<your-service>.onrender.com/api/oauth/callback`),
+`APP_URL` (root site), `APP_DASHBOARD_URL` (app subdomain; optional single-origin),
+`SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY` (encrypts Figma OAuth tokens at rest; server
+refuses to start without it), `CRON_SECRET` (auth for external-cron sync endpoints),
+`RESIDENT_SYNC` (`off` when an external cron drives sync). Local-only: `DEV_LOGIN=1`
+unlocks the localhost OAuth bypass.
+Frontend build: `VITE_API_URL`, `VITE_APP_DASHBOARD_URL`, `VITE_IS_APP`.

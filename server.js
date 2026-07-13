@@ -48,12 +48,12 @@ app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
 
-// Export the app for Vercel serverless functions
+// Export the app (also usable by the legacy api/index.js wrapper).
 module.exports = app;
 
 /**
- * Local development only: Start the server if running directly with 'node server.js'
- * Vercel will import 'app' and handle its own execution.
+ * Start the server when run directly (`node server.js` / `npm start`) — this is
+ * how Render runs it. Guarded so importing `app` (e.g. tests) doesn't listen.
  */
 if (require.main === module) {
   // Resident background sync. ON by default (local dev). In production set

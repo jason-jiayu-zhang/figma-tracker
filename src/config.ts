@@ -1,6 +1,6 @@
 // Central runtime configuration derived from Vite build-time env + hostname.
 //
-// - VITE_API_URL   : cross-origin API base (e.g. the app subdomain / Railway domain).
+// - VITE_API_URL   : cross-origin API base (e.g. the app subdomain / Render domain).
 //                    When absent, API calls are same-origin (empty base).
 // - VITE_IS_APP    : "1" forces "app" (dashboard) mode regardless of hostname.
 // - VITE_APP_DASHBOARD_URL : absolute URL of the dashboard app (app subdomain),

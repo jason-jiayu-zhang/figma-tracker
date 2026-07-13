@@ -1,17 +1,18 @@
 # Figma Activity Tracker V3
 
-GitHub-style activity tracker for Figma files. This application monitors your Figma version history, syncs edits to a Supabase database, and provides a visual dashboard of your design activity.
+GitHub-style activity tracker for Figma files. Users log in with **Figma OAuth**, track their own files, and get a visual dashboard of their design activity. A continuous background service syncs version history to a Supabase database, and users can publish a public profile + embeddable activity widgets.
 
-[Live Demo](https://figma-tracker-production.up.railway.app/)
+[Live Demo](https://figma-tracker.onrender.com/)
 
 ## Features
 
 - **GitHub-Style Contributions**: Visualize your Figma edits over time with a premium activity heatmap.
+- **Multi-Account**: Log in with Figma OAuth; every user sees and tracks only their own files.
 - **Multi-File Tracking**: Monitor multiple Figma files simultaneously from a unified dashboard.
-- **Specialized Embeds**: Public-facing activity widgets with deep-linking and dynamic styling.
-- **Adaptive Syncing**: Intelligent background service that adjusts polling frequency based on activity.
+- **Public Profiles & Embeds**: Publish a read-only heatmap under a URL-safe slug, with embeddable activity widgets.
+- **Adaptive Syncing**: Background service that adjusts polling frequency based on activity, or runs from an external cron on free hosts.
 - **Detailed History**: Tracks version labels, descriptions, and designer attribution.
-- **Vercel Ready**: Architected for serverless deployment with stateless sync management.
+- **Encrypted Tokens**: Figma OAuth tokens are encrypted at rest (AES-256-GCM).
 
 ## Tech Stack
 
@@ -24,8 +25,8 @@ GitHub-style activity tracker for Figma files. This application monitors your Fi
 
 ### 1. Prerequisites
 
-- A [Supabase](https://supabase.com/) project.
-- A [Figma Personal Access Token](https://www.figma.com/developers/api#access-tokens).
+- A [Supabase](https://supabase.com/) project (run `schema.sql` in the SQL Editor).
+- A [Figma OAuth app](https://www.figma.com/developers/api#oauth2) (client id + secret).
 - Node.js installed locally.
 
 ### 2. Environment Variables
@@ -34,10 +35,26 @@ Create a `.env` file in the root directory:
 
 ```env
 PORT=3001
+
+# Supabase — use the service_role key for server-side writes
 SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-FIGMA_TOKEN=your_figma_personal_access_token
+SUPABASE_SERVICE_KEY=your_supabase_service_role_key
+
+# Figma OAuth app
+FIGMA_CLIENT_ID=your_figma_client_id
+FIGMA_CLIENT_SECRET=your_figma_client_secret
+FIGMA_OAUTH_REDIRECT_URI=http://localhost:5173/api/oauth/callback
+APP_URL=http://localhost:5173
+
+# Secrets (generate with: openssl rand -hex 32)
+SESSION_SECRET=your_session_secret
+TOKEN_ENCRYPTION_KEY=your_token_encryption_key   # >=32 chars; encrypts Figma tokens at rest
+
+# Local dev only: unlocks GET /api/oauth/dev-login to bypass Figma OAuth on localhost
+DEV_LOGIN=1
 ```
+
+See `DEPLOYMENT.md` for the full production variable list (Render).
 
 ### 3. Installation & Development
 
@@ -61,10 +78,10 @@ The application will be available at `http://localhost:5173` (Vite dev server) w
   - `pages/`: Dashboard, Embed, Files, and Profile views.
   - `components/`: Sidebar, Footer, Heatmap, and UI primitives.
   - `useFigmaData.ts`: Custom hook for data fetching and state management.
-- `server.js`: Entry point for local development and Vercel hosting.
+- `server.js`: Express entry point — serves the built frontend + `/api`, and runs the resident sync loop. Deployed on Render (`npm start`).
 
 ## Sync Logic
 
 - **Adaptive Page Sync**: Checks for new versions every 2s when active, slowing down to 10s when idle to optimize API usage.
 - **Full Sync**: Scheduled daily check to ensure data consistency.
-- **Stateless Operation**: Sync state is maintained in Supabase, allowing for reliable serverless execution.
+- **Resident or external cron**: On an always-on host the loop runs in-process; on free hosts set `RESIDENT_SYNC=off` and drive `GET /api/sync/incremental` from an external scheduler. Sync state lives in Supabase, so either mode is safe to restart.
