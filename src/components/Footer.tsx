@@ -39,37 +39,46 @@ const Footer: React.FC = () => {
             <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               RESOURCES
             </p>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            <a
+              href="mailto:jason.jiayu.zhang@gmail.com"
+              className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
+            >
               Email
-            </span>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            </a>
+            <a
+              href="mailto:jason.jiayu.zhang@gmail.com?subject=Fimanu%20Feedback"
+              className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
+            >
               Feedback
-            </span>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            </a>
+            <a
+              href="mailto:jason.jiayu.zhang@gmail.com?subject=Fimanu%20Bug%20Report"
+              className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
+            >
               Report a Bug
-            </span>
+            </a>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               ABOUT
             </p>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            <Link to="/about" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               About
-            </span>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            </Link>
+            <Link to="/docs" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               Documentation
-            </span>
+            </Link>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
             <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               LEGAL
             </p>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            <Link to="/privacy" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               Privacy Policy
-            </span>
-            <span className="text-[16px] text-ink tracking-[-0.16px]">
+            </Link>
+            <Link to="/terms" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               Terms and Conditions
-            </span>
+            </Link>
           </div>
         </div>
 
