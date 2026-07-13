@@ -1,5 +1,6 @@
 const supabase = require("./supabaseClient");
 const figma = require("./figmaService");
+const { encrypt, decrypt } = require("./tokenCrypto");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -30,8 +31,8 @@ async function ensureFreshToken(user) {
       const newExpiry = new Date(
         Date.now() + (refreshed.expires_in || 0) * 1000,
       ).toISOString();
-      const update = { access_token: token, token_expires_at: newExpiry };
-      if (refreshed.refresh_token) update.refresh_token = refreshed.refresh_token;
+      const update = { access_token: encrypt(token), token_expires_at: newExpiry };
+      if (refreshed.refresh_token) update.refresh_token = encrypt(refreshed.refresh_token);
       await supabase.from("users").update(update).eq("id", user.id);
       console.log(`[sync] Refreshed access token for user ${user.id}`);
     } catch (e) {
@@ -57,6 +58,10 @@ async function getOwnerToken(ownerId, cache) {
     .select("id, access_token, refresh_token, token_expires_at")
     .eq("id", ownerId)
     .maybeSingle();
+  if (user) {
+    user.access_token = decrypt(user.access_token);
+    user.refresh_token = decrypt(user.refresh_token);
+  }
   const token = (await ensureFreshToken(user)) || null;
   cache.set(ownerId, token);
   return token;
