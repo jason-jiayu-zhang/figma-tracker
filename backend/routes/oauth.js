@@ -3,6 +3,7 @@ const axios = require("axios");
 const crypto = require("crypto");
 const path = require("path");
 const supabase = require("../supabaseClient");
+const { encrypt } = require("../tokenCrypto");
 
 // Explicitly load .env from project root
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
@@ -216,8 +217,8 @@ router.get("/callback", async (req, res) => {
             display_name: profile?.handle || profile?.name || null,
             email: profile?.email || null,
             img_url: profile?.img_url || null,
-            access_token,
-            refresh_token: refresh_token || null,
+            access_token: encrypt(access_token),
+            refresh_token: encrypt(refresh_token || null),
             scopes: scope || null,
             token_expires_at: expiresAt,
           },

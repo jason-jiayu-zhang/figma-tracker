@@ -1,5 +1,6 @@
 const express = require("express");
 const supabase = require("../supabaseClient");
+const { decrypt } = require("../tokenCrypto");
 const { getSessionUser, clearSessionCookie } = supabase;
 const router = express.Router();
 
@@ -64,7 +65,7 @@ router.post("/files", async (req, res) => {
     const worker = require("../workers/onboardingWorker");
     worker.emit("fetch_file_metadata", {
       fileKey,
-      access_token: user.access_token,
+      access_token: decrypt(user.access_token),
       userId: session.id,
     });
   } catch (err) {

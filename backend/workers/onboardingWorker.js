@@ -3,6 +3,7 @@ const axios = require("axios");
 const supabase = require("../supabaseClient");
 const figma = require("../figmaService");
 const { runSyncAfterDelay } = require("../syncService");
+const { encrypt } = require("../tokenCrypto");
 
 class OnboardingWorker extends EventEmitter {}
 const worker = new OnboardingWorker();
@@ -28,8 +29,8 @@ worker.on("fetch_user_profile", async ({ access_token, refresh_token, scope, exp
           display_name: user?.handle || user?.name || null,
           email: user?.email || null,
           img_url: user?.img_url || null,
-          access_token,
-          refresh_token: refresh_token || null,
+          access_token: encrypt(access_token),
+          refresh_token: encrypt(refresh_token || null),
           scopes: scope || null,
           token_expires_at: expiresAt,
         },
