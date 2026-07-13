@@ -11,6 +11,35 @@ import React from "react";
 
 export type ChipColor = "blue" | "purple" | "green" | "orange" | "red" | "accent";
 
+/* Categorical file palette: vivid, on-brand hues spread around the color wheel
+   (the 5 Figma brand colors plus 7 complements) so distinct files read as
+   distinct. All are saturated enough to carry the white row text. */
+const FILE_COLORS = [
+  "#0acf83", // green (brand)
+  "#06b6a4", // teal
+  "#1abcfe", // blue (brand)
+  "#6366f1", // indigo
+  "#a259ff", // purple (brand)
+  "#d946ef", // fuchsia
+  "#ec4899", // pink
+  "#f43f5e", // rose
+  "#ef4444", // red (brand)
+  "#f24e1e", // orange (brand)
+  "#ea8c00", // amber
+  "#7ca60c", // chartreuse
+];
+
+/** Deterministic color keyed by file identity, so a file keeps the same color
+   everywhere and doesn't change when a list re-sorts. Uses a djb2 hash, which
+   scatters keys evenly across the palette so distinct files rarely collide. */
+export function colorForKey(key: string): string {
+  let hash = 5381;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
+  }
+  return FILE_COLORS[Math.abs(hash) % FILE_COLORS.length];
+}
+
 const CHIP: Record<ChipColor, { bg: string; fg: string }> = {
   blue: { bg: "rgba(26,188,254,0.10)", fg: "#1abcfe" },
   purple: { bg: "rgba(162,89,255,0.10)", fg: "#a259ff" },
@@ -242,5 +271,5 @@ export function StatTile({
       </button>
     );
   }
-  return <div className={`${base} ${className}`}>{inner}</div>;
+  return <div title={title} className={`${base} ${className}`}>{inner}</div>;
 }
