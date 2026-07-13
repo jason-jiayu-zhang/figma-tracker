@@ -4,6 +4,7 @@ const router = express.Router();
 const supabase = require("../supabaseClient");
 const { getSessionUser } = supabase;
 const { runSync, runPageSync, runSyncAfterDelay } = require("../syncService");
+const { computeStreaks } = require("../lib/streaks");
 
 const DEFAULT_TZ = "America/Los_Angeles";
 
@@ -58,13 +59,16 @@ function makeDateFormatter(tz) {
   }
 }
 
+/** Restrict a figma_files query to active (non-archived) files. Routing every
+   aggregation through this keeps "active only" the default and prevents a new
+   query from silently counting archived files. */
+const activeFiles = (q) => q.is("archived_at", null);
+
 /** File ids owned by a user (archived files excluded from all aggregations). */
 async function getOwnerFileIds(ownerId) {
-  const { data } = await supabase
-    .from("figma_files")
-    .select("id")
-    .eq("owner_user_id", ownerId)
-    .is("archived_at", null);
+  const { data } = await activeFiles(
+    supabase.from("figma_files").select("id").eq("owner_user_id", ownerId),
+  );
   return (data || []).map((f) => f.id);
 }
 
@@ -161,7 +165,7 @@ async function computeFiles(user, mode, includeArchived = false) {
     )
     .eq("owner_user_id", user.id)
     .order("last_modified", { ascending: false });
-  if (!includeArchived) filesQ = filesQ.is("archived_at", null);
+  if (!includeArchived) filesQ = activeFiles(filesQ);
   const { data: files, error } = await filesQ;
   if (error) throw error;
 
@@ -198,12 +202,13 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
   // Resolve target file ids (owned by user), optionally narrowed by fileKeys.
   let targetIds = [];
   if (fileKeys && fileKeys.length > 0) {
-    const { data: fileRows, error } = await supabase
-      .from("figma_files")
-      .select("id")
-      .eq("owner_user_id", user.id)
-      .is("archived_at", null)
-      .in("file_key", fileKeys);
+    const { data: fileRows, error } = await activeFiles(
+      supabase
+        .from("figma_files")
+        .select("id")
+        .eq("owner_user_id", user.id)
+        .in("file_key", fileKeys),
+    );
     if (error) throw error;
     targetIds = (fileRows || []).map((r) => r.id);
   } else {
@@ -260,12 +265,13 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
 /** Resolve target file ids for a user, optionally narrowed by file keys. */
 async function resolveTargetFileIds(user, fileKeys) {
   if (fileKeys && fileKeys.length > 0) {
-    const { data, error } = await supabase
-      .from("figma_files")
-      .select("id")
-      .eq("owner_user_id", user.id)
-      .is("archived_at", null)
-      .in("file_key", fileKeys);
+    const { data, error } = await activeFiles(
+      supabase
+        .from("figma_files")
+        .select("id")
+        .eq("owner_user_id", user.id)
+        .in("file_key", fileKeys),
+    );
     if (error) throw error;
     return (data || []).map((r) => r.id);
   }
@@ -273,63 +279,6 @@ async function resolveTargetFileIds(user, fileKeys) {
 }
 
 const WEEKDAY_INDEX = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-
-/** YYYY-MM-DD shifted by `delta` days (UTC-safe). */
-function shiftDay(dateStr, delta) {
-  const d = new Date(dateStr + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + delta);
-  return d.toISOString().slice(0, 10);
-}
-
-/** Sat/Sun for a YYYY-MM-DD string (UTC-safe, like shiftDay). */
-function isWeekend(dateStr) {
-  const day = new Date(dateStr + "T00:00:00Z").getUTCDay();
-  return day === 0 || day === 6;
-}
-
-/** True if `d` follows `prev`, treating a gap made up ONLY of weekend days as
-   still-consecutive (e.g. Fri→Mon doesn't break a streak). */
-function isConsecutive(prev, d) {
-  let cur = shiftDay(prev, 1);
-  while (cur < d) {
-    if (!isWeekend(cur)) return false;
-    cur = shiftDay(cur, 1);
-  }
-  return cur === d;
-}
-
-/* Current + longest streak of active days from a set of YYYY-MM-DD strings.
-   Weekends never break a streak — only a missed weekday resets it. Mirrored by
-   computeContribStats in src/pages/Dashboard.tsx; keep the two in sync. */
-function computeStreaks(activeDates, todayStr) {
-  const sorted = [...activeDates].sort();
-  let longest = 0;
-  let run = 0;
-  let prev = null;
-  for (const d of sorted) {
-    if (prev && isConsecutive(prev, d)) run++;
-    else run = 1;
-    if (run > longest) longest = run;
-    prev = d;
-  }
-
-  // Current streak: walk back from today. Today-if-empty gets a grace day
-  // (GitHub-style) and inactive weekend days are skipped; only an inactive
-  // weekday breaks the count.
-  let current = 0;
-  let day = todayStr;
-  let first = true;
-  while (true) {
-    if (activeDates.has(day)) {
-      current++;
-    } else if (!first && !isWeekend(day)) {
-      break;
-    }
-    first = false;
-    day = shiftDay(day, -1);
-  }
-  return { current, longest };
-}
 
 /**
  * Derived analytics from stored version + comment + dev-resource data.
@@ -738,30 +687,41 @@ function buildBadgeSvg({ metric, value, theme, emoji }) {
 </svg>`;
 }
 
+// Badges get embedded in public READMEs/Notion and hammered by proxies with
+// cache-busting params, so memoize the rendered SVG per slug+param set for a
+// short TTL to avoid recomputing insights (a real DB aggregation) every hit.
+const BADGE_TTL_MS = 60 * 1000;
+const badgeCache = new Map(); // key -> { svg, expires }
+
 // GET /api/public/:slug/badge.svg?theme=light|dark&metric=streak|edits&emoji=1
 router.get("/public/:slug/badge.svg", async (req, res) => {
   try {
+    const mode = parseMode(req);
+    const tz = req.query.tz || DEFAULT_TZ;
+    const metric = req.query.metric === "edits" ? "edits" : "streak";
+    const theme = req.query.theme === "dark" ? "dark" : "light";
+    const emoji = req.query.emoji === "1" || req.query.emoji === "true";
+    const cacheKey = [req.params.slug, mode, tz, metric, theme, emoji].join("|");
+
+    const sendSvg = (svg) => {
+      res.set("Content-Type", "image/svg+xml");
+      res.set("Cache-Control", "public, max-age=600");
+      res.send(svg);
+    };
+
+    const cached = badgeCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) return sendSvg(cached.svg);
+
     const user = await resolvePublicUser(req.params.slug);
+    // Don't cache a not-found so a transient miss can't poison later hits.
     if (!user) return res.status(404).json({ error: "Profile not found" });
 
-    const insights = await computeInsights(user, {
-      mode: parseMode(req),
-      tz: req.query.tz || DEFAULT_TZ,
-      fileKeys: [],
-    });
-
-    const metric = req.query.metric === "edits" ? "edits" : "streak";
+    const insights = await computeInsights(user, { mode, tz, fileKeys: [] });
     const value = metric === "edits" ? insights.named.total : insights.streak.current;
-    const svg = buildBadgeSvg({
-      metric,
-      value,
-      theme: req.query.theme === "dark" ? "dark" : "light",
-      emoji: req.query.emoji === "1" || req.query.emoji === "true",
-    });
+    const svg = buildBadgeSvg({ metric, value, theme, emoji });
 
-    res.set("Content-Type", "image/svg+xml");
-    res.set("Cache-Control", "public, max-age=600");
-    res.send(svg);
+    badgeCache.set(cacheKey, { svg, expires: Date.now() + BADGE_TTL_MS });
+    sendSvg(svg);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
