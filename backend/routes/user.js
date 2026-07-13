@@ -88,13 +88,17 @@ router.patch("/files/:fileKey", async (req, res) => {
       return res.status(400).json({ error: "Missing or invalid 'archived' boolean" });
     }
 
-    const { error: updateErr } = await supabase
+    const { data: updated, error: updateErr } = await supabase
       .from("figma_files")
       .update({ archived_at: archived ? new Date().toISOString() : null })
       .eq("owner_user_id", session.id)
-      .eq("file_key", fileKey);
+      .eq("file_key", fileKey)
+      .select("id");
 
     if (updateErr) throw updateErr;
+    if (!updated || updated.length === 0) {
+      return res.status(404).json({ error: "File not found" });
+    }
     res.json({ success: true, archived });
   } catch (err) {
     console.error("[/api/user/files/:fileKey PATCH] Error:", err.message);
