@@ -82,6 +82,36 @@ function hourLabel(h: number | null): string {
   return `${hr}${ampm}`;
 }
 
+const nudge = (text: string) => <span className="text-muted">{text}</span>;
+
+/* Empty cards nudge only when the emptiness is actionable (something the user
+   can do), and reassure when empty-is-good — never a bare "0" with no meaning.
+   The underlying data already distinguishes empty-with-history from no-data. */
+function nudgeSub(
+  kind: "documented" | "named" | "comments" | "dev",
+  insights: Insights
+): React.ReactNode {
+  const { documented, named, comments, devResources } = insights;
+  switch (kind) {
+    case "documented":
+      if (documented.pct === 0 && documented.total > 0)
+        return nudge("Add a note on your next save to document changes.");
+      return `${documented.documented.toLocaleString()} with notes`;
+    case "named":
+      if (named.pct === 0 && named.total > 0)
+        return nudge("Name your next save to make history scannable.");
+      return `${named.named.toLocaleString()} of ${named.total.toLocaleString()}`;
+    case "comments":
+      if (comments.unresolved === 0)
+        return nudge(comments.total > 0 ? "All caught up" : "No comments yet.");
+      return `${comments.resolvedPct}% resolved · ${comments.total} total`;
+    case "dev":
+      if (devResources.total === 0)
+        return nudge("Link a dev resource in Figma to see it here.");
+      return `${comments.last30} comments · 30d`;
+  }
+}
+
 export default function InsightsPanel({ insights }: { insights: Insights | null }) {
   if (!insights || !Array.isArray(insights.byHour) || !Array.isArray(insights.byWeekday)) return null;
   const { streak, named, documented, velocity, comments, devResources, byHour, byWeekday, busiestHour, busiestWeekday } =
@@ -115,25 +145,25 @@ export default function InsightsPanel({ insights }: { insights: Insights | null 
           icon={<Tag size={13} />}
           value={`${named.pct}%`}
           label="Named versions"
-          sub={`${named.named.toLocaleString()} of ${named.total.toLocaleString()}`}
+          sub={nudgeSub("named", insights)}
         />
         <Metric
           icon={<FileText size={13} />}
           value={`${documented.pct}%`}
           label="Documented"
-          sub={`${documented.documented.toLocaleString()} with notes`}
+          sub={nudgeSub("documented", insights)}
         />
         <Metric
           icon={<MessageSquare size={13} />}
           value={comments.unresolved}
           label="Open comments"
-          sub={`${comments.resolvedPct}% resolved · ${comments.total} total`}
+          sub={nudgeSub("comments", insights)}
         />
         <Metric
           icon={<Link2 size={13} />}
           value={devResources.total}
           label="Dev links"
-          sub={`${comments.last30} comments · 30d`}
+          sub={nudgeSub("dev", insights)}
         />
       </div>
 

@@ -260,9 +260,18 @@ export default function Onboard() {
                 Just paste the whole file URL — we grab the key automatically. Prefer the raw key? That works too. At least one is required; you can add more later.
               </p>
 
-              <Button variant="primary" onClick={submitFiles} disabled={isSubmitting} className="h-11 w-full">
-                {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
-              </Button>
+              <div className="flex flex-col gap-2.5">
+                <Button variant="primary" onClick={submitFiles} disabled={isSubmitting} className="h-11 w-full">
+                  {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
+                </Button>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  disabled={isSubmitting}
+                  className="h-11 w-full flex items-center justify-center rounded-xl text-body hover:text-ink hover:bg-hairline transition-colors font-semibold text-[13px] disabled:opacity-50"
+                >
+                  Skip for now
+                </button>
+              </div>
               {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
             </>
           )}

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { colorForKey } from './ui';
 
 interface FileVolumeBreakdownProps {
   activity: ActivityData | null;
@@ -63,13 +64,13 @@ export default function FileVolumeBreakdown({ activity, files }: FileVolumeBreak
   return (
     <div className="flex-[1_0_0] gap-x-2 gap-y-2 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.70fr)] grid-rows-[minmax(0,1fr)_minmax(0,0.70fr)] min-h-px min-w-px relative w-full rounded-2xl overflow-hidden">
       {displayItems.length === 1 && (
-        <Card item={displayItems[0]} index={0} total={total} style={{ gridColumn: "1 / span 3", gridRow: "1 / span 2" }} />
+        <Card item={displayItems[0]} total={total} style={{ gridColumn: "1 / span 3", gridRow: "1 / span 2" }} />
       )}
 
       {displayItems.length === 2 && (
         <>
-          <Card item={displayItems[0]} index={0} total={total} style={{ gridColumn: "1 / span 2", gridRow: "1 / span 2" }} />
-          <Card item={displayItems[1]} index={1} total={total} style={{ gridColumn: "3", gridRow: "1 / span 2" }} />
+          <Card item={displayItems[0]} total={total} style={{ gridColumn: "1 / span 2", gridRow: "1 / span 2" }} />
+          <Card item={displayItems[1]} total={total} style={{ gridColumn: "3", gridRow: "1 / span 2" }} />
         </>
       )}
 
@@ -77,26 +78,22 @@ export default function FileVolumeBreakdown({ activity, files }: FileVolumeBreak
         <>
           <Card
             item={displayItems[0]}
-            index={0}
             total={total}
             style={{ gridColumn: "1", gridRow: "1 / span 2" }}
           />
           <Card
             item={displayItems[1]}
-            index={1}
             total={total}
             style={{ gridColumn: "2 / span 2", gridRow: "1" }}
           />
           <Card
             item={displayItems[2]}
-            index={2}
             total={total}
             style={{ gridColumn: displayItems.length === 3 ? "2 / span 2" : "2", gridRow: "2" }}
           />
           {displayItems[3] && (
             <Card
               item={displayItems[3]}
-              index={3}
               total={total}
               isOther={displayItems[3].fileKey === 'other'}
               style={{ gridColumn: "3", gridRow: "2" }}
@@ -108,10 +105,10 @@ export default function FileVolumeBreakdown({ activity, files }: FileVolumeBreak
   );
 }
 
-function Card({ item, index, total, style, isOther = false }: { item: any; index: number; total: number; style?: React.CSSProperties; isOther?: boolean }) {
+function Card({ item, total, style, isOther = false }: { item: any; total: number; style?: React.CSSProperties; isOther?: boolean }) {
   const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
-  const config = getCardConfig(index);
-  const bgStyle = isOther ? { backgroundColor: '#0acf83' } : config.style;
+  const bgStyle = isOther ? { backgroundColor: '#0acf83' } : { backgroundColor: colorForKey(item.fileKey) };
+  const labelClass = isOther ? 'text-white/75' : 'text-white';
   const lastEdit = item.lastModified
     ? formatDistanceToNowStrict(new Date(item.lastModified), { addSuffix: true })
     : (isOther ? null : 'No recent edits');
@@ -123,54 +120,20 @@ function Card({ item, index, total, style, isOther = false }: { item: any; index
     >
       <div className="content-stretch flex items-start justify-between relative shrink-0 w-full min-w-0">
         <div className="content-stretch flex flex-col gap-1 items-start leading-[normal] relative min-w-0 w-full">
-          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] uppercase ${config.labelClass}`}>
+          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] uppercase ${labelClass}`}>
             {item.name}
           </p>
-          <p className={`font-extrabold relative shrink-0 text-[18px] tracking-[-0.18px] tabular-nums ${config.textClass}`}>
+          <p className="font-extrabold relative shrink-0 text-[18px] tracking-[-0.18px] tabular-nums text-white">
             {item.count} Edits
           </p>
-          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] tabular-nums ${config.labelClass}`}>
+          <p className={`font-medium truncate max-w-full w-full text-[12px] tracking-[-0.12px] tabular-nums ${labelClass}`}>
             Last edit: {lastEdit || '—'}
           </p>
         </div>
       </div>
-      <p className={`font-normal leading-[normal] relative shrink-0 text-[12px] tracking-[-0.12px] whitespace-nowrap tabular-nums ${config.textClass}`}>
-        {percent}{config.percentSuffix}
+      <p className="font-normal leading-[normal] relative shrink-0 text-[12px] tracking-[-0.12px] whitespace-nowrap tabular-nums text-white">
+        {percent}% of total volume
       </p>
     </div>
   );
-}
-
-function getCardConfig(index: number) {
-  if (index === 0) {
-    return {
-      style: { backgroundColor: '#f24e1e' },
-      labelClass: 'text-white',
-      textClass: 'text-white',
-      percentSuffix: '% of total volume'
-    };
-  }
-  if (index === 1) {
-    return {
-      style: { backgroundColor: '#a259ff' },
-      labelClass: 'text-white',
-      textClass: 'text-white',
-      percentSuffix: '% of total volume'
-    };
-  }
-  if (index === 2) {
-    return {
-      style: { backgroundColor: '#1abcfe' },
-      labelClass: 'text-white',
-      textClass: 'text-white',
-      percentSuffix: '% of total volume'
-    };
-  }
-
-  return {
-    style: { backgroundColor: '#0acf83' },
-    labelClass: 'text-white/75',
-    textClass: 'text-white',
-    percentSuffix: '% of total volume'
-  };
 }

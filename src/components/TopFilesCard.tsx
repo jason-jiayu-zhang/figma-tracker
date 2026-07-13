@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { colorForKey } from './ui';
 
 interface TopFilesCardProps {
   activity: ActivityData | null;
@@ -98,21 +99,14 @@ export default function TopFilesCard({ activity, files }: TopFilesCardProps) {
 
 function Card({ item, index, total }: { item: any; index: number; total: number }) {
   const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
-  const colors = [
-    { bg: '#f24e1e' },
-    { bg: '#a259ff' },
-    { bg: '#1abcfe' },
-  ];
-  
-  const color = colors[index % colors.length];
   const lastEdit = item.lastModified
     ? formatDistanceToNowStrict(new Date(item.lastModified), { addSuffix: true })
     : 'No edits';
 
   return (
-    <div 
+    <div
       className="flex flex-col items-start justify-between p-4 rounded-3xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1)] transition-transform hover:scale-[1.02] cursor-default"
-      style={{ backgroundColor: color.bg }}
+      style={{ backgroundColor: colorForKey(item.fileKey) }}
     >
       <div className="flex items-start justify-between w-full">
         <div className="flex flex-col gap-1 min-w-0">

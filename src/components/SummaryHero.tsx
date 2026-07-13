@@ -49,14 +49,16 @@ function Pill({
   value,
   label,
   trend,
+  title,
 }: {
   icon: React.ReactNode;
   value: React.ReactNode;
   label: string;
   trend?: React.ReactNode;
+  title?: string;
 }) {
   return (
-    <div className="flex-1 min-w-0 bg-white/15 rounded-2xl px-3 py-2.5 flex flex-col gap-0.5">
+    <div title={title} className="flex-1 min-w-0 bg-white/15 rounded-2xl px-3 py-2.5 flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5 text-white/70">
         {icon}
         <span className="text-[10px] uppercase tracking-[0.08em] font-semibold truncate">{label}</span>
@@ -81,13 +83,20 @@ export default function SummaryHero({
   const atBest = streakCurrent > 0 && streakCurrent >= streakLongest;
   const pct = streakLongest > 0 ? streakCurrent / streakLongest : streakCurrent > 0 ? 1 : 0;
 
+  // Weekends never break a streak, so a quiet Sat/Sun is safe — don't sound the
+  // alarm and don't frame it as "resets at midnight".
+  const dow = new Date().getDay(); // 0 = Sun, 6 = Sat
+  const isWeekendToday = dow === 0 || dow === 6;
+
   // Loss aversion: a live streak with no edit logged today is one day from
   // resetting to zero. Framing it as something about to be *lost* is a stronger
   // motivator than the neutral "N to beat your best" gain framing.
-  const streakAtRisk = streakCurrent > 0 && editsToday === 0;
+  const streakAtRisk = streakCurrent > 0 && editsToday === 0 && !isWeekendToday;
 
   const caption = streakAtRisk
     ? `Your ${streakCurrent}-day streak resets at midnight — one edit keeps it alive`
+    : isWeekendToday && streakCurrent > 0
+    ? "Weekends don't count against your streak — enjoy the break"
     : atBest
     ? "Personal best — keep it going"
     : streakCurrent === 0
@@ -150,6 +159,7 @@ export default function SummaryHero({
             icon={<GitCommit size={12} />}
             label="Total edits"
             value={<span className="tabular-nums">{totalEdits.toLocaleString()}</span>}
+            title="Version saves within the selected date range."
           />
         </div>
       </div>
