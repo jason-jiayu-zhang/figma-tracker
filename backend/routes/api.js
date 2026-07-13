@@ -478,6 +478,20 @@ router.get("/sync/incremental", protectCron, async (req, res) => {
   }
 });
 
+// POST /api/sync/manual — user-triggered "Sync now" from the dashboard.
+// Session-authenticated (a logged-in browser), NOT cron-protected: the client
+// can't hold CRON_SECRET, so it must never hit /api/sync (which returns 401).
+router.post("/sync/manual", async (req, res) => {
+  const session = getSessionUser(req);
+  if (!session) return res.status(401).json({ error: "Not authenticated" });
+  try {
+    const result = await runSync();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ============================================================
 // Session-scoped data routes
 // ============================================================
