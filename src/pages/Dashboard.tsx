@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { RefreshCw, FileText, Activity, Layers, GitCommit, Zap, Flame } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
-import { format, subDays, startOfToday, formatDistanceToNowStrict } from "date-fns";
+import { format, subDays, addDays, getDay, isSameDay, startOfToday, formatDistanceToNowStrict } from "date-fns";
 import { FigmaFile, FigmaVersion } from "../types";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
@@ -10,8 +10,26 @@ import SummaryHero from "../components/SummaryHero";
 import DashboardSkeleton from "../components/DashboardSkeleton";
 import { Card, SectionHeader, StatInline, StatTile, SegmentedControl } from "../components/ui";
 
+const isWeekendDate = (date: Date) => {
+  const d = getDay(date); // 0 = Sun, 6 = Sat
+  return d === 0 || d === 6;
+};
+
+/* True if `d` follows `prev`, treating a gap of only weekend days as still
+   consecutive (Fri→Mon doesn't break a streak). */
+const isConsecutiveDate = (prev: Date, d: Date) => {
+  let cur = addDays(prev, 1);
+  while (cur < d) {
+    if (!isWeekendDate(cur)) return false;
+    cur = addDays(cur, 1);
+  }
+  return isSameDay(cur, d);
+};
+
 /* Contribution stats derived entirely from the heatmap's dailyTotals — no
-   backend call needed. Streaks walk the 365-day window ending today. */
+   backend call needed. Streaks walk the 365-day window ending today. Weekends
+   never break a streak; only a missed weekday resets it. Mirrors the backend
+   computeStreaks in backend/routes/api.js — keep the two in sync. */
 function computeContribStats(dailyTotals: Record<string, number>) {
   const total = Object.values(dailyTotals).reduce((a, b) => a + b, 0);
 
@@ -27,27 +45,33 @@ function computeContribStats(dailyTotals: Record<string, number>) {
   );
 
   const today = startOfToday();
-  const todayKey = format(today, "yyyy-MM-dd");
 
-  // Current streak: count back from today. If today is empty, still allow the
-  // streak to run through yesterday (GitHub-style) so it doesn't reset midday.
+  // Current streak: walk back from today. Today-if-empty gets a grace day
+  // (GitHub-style) and inactive weekend days are skipped; only an inactive
+  // weekday breaks the count.
   let current = 0;
-  const startOffset = active.has(todayKey) ? 0 : 1;
-  for (let i = startOffset; i < 366; i++) {
-    if (active.has(format(subDays(today, i), "yyyy-MM-dd"))) current++;
-    else break;
+  let first = true;
+  for (let i = 0; i < 400; i++) {
+    const date = subDays(today, i);
+    if (active.has(format(date, "yyyy-MM-dd"))) {
+      current++;
+    } else if (!first && !isWeekendDate(date)) {
+      break;
+    }
+    first = false;
   }
 
-  // Longest streak inside the visible 365-day window.
+  // Longest streak inside the visible 365-day window, treating weekend-only
+  // gaps as consecutive.
   let longest = 0;
   let run = 0;
+  let prevDate: Date | null = null;
   for (let i = 364; i >= 0; i--) {
-    if (active.has(format(subDays(today, i), "yyyy-MM-dd"))) {
-      run++;
-      if (run > longest) longest = run;
-    } else {
-      run = 0;
-    }
+    const date = subDays(today, i);
+    if (!active.has(format(date, "yyyy-MM-dd"))) continue;
+    run = prevDate && isConsecutiveDate(prevDate, date) ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prevDate = date;
   }
 
   return { total, best, current, longest };
@@ -163,7 +187,7 @@ export default function Dashboard() {
       {/* KPI ROW */}
       <div className="flex gap-4 items-stretch w-full shrink-0">
         <StatTile plain icon={<FileText size={20} />} value={<span className="tabular-nums">{(stats?.filesTracked ?? files.length).toLocaleString()}</span>} label="Files tracked" />
-        <StatTile plain icon={<GitCommit size={20} />} value={<span className="tabular-nums">{(stats?.totalVersions ?? 0).toLocaleString()}</span>} label="Total versions" />
+        <StatTile plain icon={<GitCommit size={20} />} value={<span className="tabular-nums">{(stats?.totalVersions ?? 0).toLocaleString()}</span>} label="Total versions" title="Every saved version across all your files, all time." />
         <StatTile plain icon={<Zap size={20} />} value={<span className="tabular-nums">{(stats?.editsToday ?? 0).toLocaleString()}</span>} label="Edits today" />
         {/* Sync tile — clickable, wired to the existing manual-sync action */}
         <StatTile
