@@ -25,7 +25,10 @@ export function useFigmaData() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [insights, setInsights] = useState<Insights | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
+  // `files` = active (non-archived) files, used by the dashboard/embed.
+  // `allFiles` also carries archived rows for the Files page's archived section.
   const [files, setFiles] = useState<FigmaFile[]>([]);
+  const [allFiles, setAllFiles] = useState<FigmaFile[]>([]);
   const [syncHistory, setSyncHistory] = useState<SyncSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -49,7 +52,7 @@ export function useFigmaData() {
 
     const statsUrl = `/api/stats?scope=mine&mode=${mode}`;
     const activityUrl = `/api/activity?days=${days}&mode=${mode}&tz=${encodeURIComponent(tz)}${fileKeysParam}`;
-    const filesUrl = `/api/files?mode=${mode}`;
+    const filesUrl = `/api/files?mode=${mode}&includeArchived=1`;
     const insightsUrl = `/api/insights?mode=${mode}&tz=${encodeURIComponent(tz)}${fileKeysParam}`;
 
     try {
@@ -64,7 +67,9 @@ export function useFigmaData() {
 
       setStats(statsRes.data);
       setActivity(activityRes.data);
-      setFiles(filesRes.data);
+      const all: FigmaFile[] = filesRes.data;
+      setAllFiles(all);
+      setFiles(all.filter((f) => !f.archived_at));
       setError(null);
 
       // Insights is non-critical (depends on the comments/dev-resource tables and
@@ -153,11 +158,23 @@ export function useFigmaData() {
     }
   };
 
+  const archiveFile = async (fileKey: string, archived: boolean) => {
+    try {
+      await axios.patch(`/api/user/files/${fileKey}`, { archived });
+      await fetchData();
+      return { success: true };
+    } catch (err) {
+      console.error("Failed to archive file:", err);
+      return { success: false, error: err };
+    }
+  };
+
   return {
     stats,
     insights,
     activity,
     files,
+    allFiles,
     syncHistory,
     loading,
     syncing,
@@ -169,6 +186,7 @@ export function useFigmaData() {
     fetchVersions,
     addFile,
     removeFile,
+    archiveFile,
     refresh: fetchData,
     days,
     setDays,

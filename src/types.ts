@@ -8,6 +8,7 @@ export interface FigmaFile {
   project_name: string;
   teamName: string | null;
   versionCount: number;
+  archived_at?: string | null;
 }
 
 export interface FigmaVersion {

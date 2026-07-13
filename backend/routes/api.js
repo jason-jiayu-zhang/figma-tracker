@@ -58,12 +58,13 @@ function makeDateFormatter(tz) {
   }
 }
 
-/** File ids owned by a user. */
+/** File ids owned by a user (archived files excluded from all aggregations). */
 async function getOwnerFileIds(ownerId) {
   const { data } = await supabase
     .from("figma_files")
     .select("id")
-    .eq("owner_user_id", ownerId);
+    .eq("owner_user_id", ownerId)
+    .is("archived_at", null);
   return (data || []).map((f) => f.id);
 }
 
@@ -146,18 +147,22 @@ async function computeStats(user, mode) {
 
 /**
  * Files list for a user's owned files with version counts.
+ * Archived files are excluded unless `includeArchived` (the Files page needs
+ * them to render its "Archived" section with an un-archive action).
  */
-async function computeFiles(user, mode) {
+async function computeFiles(user, mode, includeArchived = false) {
   const individual = mode === "individual";
 
-  const { data: files, error } = await supabase
+  let filesQ = supabase
     .from("figma_files")
     .select(
-      `id, file_key, name, thumbnail_url, last_modified, updated_at, project_name,
+      `id, file_key, name, thumbnail_url, last_modified, updated_at, project_name, archived_at,
        teams ( name )`,
     )
     .eq("owner_user_id", user.id)
     .order("last_modified", { ascending: false });
+  if (!includeArchived) filesQ = filesQ.is("archived_at", null);
+  const { data: files, error } = await filesQ;
   if (error) throw error;
 
   const fileIds = (files || []).map((f) => f.id);
@@ -197,6 +202,7 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
       .from("figma_files")
       .select("id")
       .eq("owner_user_id", user.id)
+      .is("archived_at", null)
       .in("file_key", fileKeys);
     if (error) throw error;
     targetIds = (fileRows || []).map((r) => r.id);
@@ -258,6 +264,7 @@ async function resolveTargetFileIds(user, fileKeys) {
       .from("figma_files")
       .select("id")
       .eq("owner_user_id", user.id)
+      .is("archived_at", null)
       .in("file_key", fileKeys);
     if (error) throw error;
     return (data || []).map((r) => r.id);
@@ -515,12 +522,14 @@ router.get("/stats", async (req, res) => {
   }
 });
 
-// GET /api/files?mode=all|individual
+// GET /api/files?mode=all|individual&includeArchived=1
 router.get("/files", async (req, res) => {
   try {
     const session = getSessionUser(req);
     if (!session) return res.status(401).json({ error: "Not authenticated" });
-    const files = await computeFiles(session, parseMode(req));
+    const includeArchived =
+      req.query.includeArchived === "1" || req.query.includeArchived === "true";
+    const files = await computeFiles(session, parseMode(req), includeArchived);
     res.json(files);
   } catch (err) {
     res.status(500).json({ error: err.message });
