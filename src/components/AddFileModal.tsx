@@ -45,7 +45,7 @@ export default function AddFileModal({ isOpen, onClose, onSuccess }: { isOpen: b
       setNewFileUrl("");
       (onSuccess || onClose)();
     } else {
-      setAddError("Failed to track file. Make sure the URL or key is valid.");
+      setAddError(res.error || "Failed to track file. Make sure the URL or key is valid.");
     }
   };
 
