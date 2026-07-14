@@ -429,12 +429,17 @@ async function computeInsights(user, { mode, tz, fileKeys }) {
 async function resolvePublicUser(slug) {
   const { data, error } = await supabase
     .from("users")
-    .select("id, figma_user_id, public_enabled")
+    .select("id, figma_user_id, public_enabled, handle, display_name, img_url")
     .eq("profile_slug", slug)
     .maybeSingle();
   if (error) throw error;
   if (!data || !data.public_enabled) return null;
-  return { id: data.id, figma_user_id: data.figma_user_id };
+  return {
+    id: data.id,
+    figma_user_id: data.figma_user_id,
+    handle: data.handle || data.display_name || null,
+    img_url: data.img_url || null,
+  };
 }
 
 function parseMode(req) {
@@ -607,7 +612,7 @@ router.get("/public/:slug/stats", async (req, res) => {
     const user = await resolvePublicUser(req.params.slug);
     if (!user) return res.status(404).json({ error: "Profile not found" });
     const stats = await computeStats(user, parseMode(req));
-    res.json(stats);
+    res.json({ ...stats, handle: user.handle, img_url: user.img_url });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
