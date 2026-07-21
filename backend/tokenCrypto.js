@@ -2,9 +2,6 @@ const crypto = require("crypto");
 
 // Encrypt Figma OAuth tokens at rest (AES-256-GCM). The stored format is
 //   enc:v1:<iv>:<authTag>:<ciphertext>   (each part base64)
-// Values without the enc:v1: prefix are treated as legacy plaintext and passed
-// through unchanged, so existing rows keep working and get re-encrypted on the
-// next token write (refresh or re-auth).
 
 const PREFIX = "enc:v1:";
 
@@ -28,8 +25,12 @@ function encrypt(plaintext) {
 }
 
 function decrypt(value) {
-  if (value == null || typeof value !== "string" || !value.startsWith(PREFIX)) {
-    return value; // legacy plaintext or empty — return as-is
+  if (value == null) return value;
+  // Anything not in the enc:v1: format is unusable, not plaintext to pass along:
+  // every stored token was migrated, so a bare string here means corruption.
+  if (typeof value !== "string" || !value.startsWith(PREFIX)) {
+    console.error("[tokenCrypto] Refusing to use a token that is not enc:v1-encrypted");
+    return null;
   }
   try {
     const [ivB64, tagB64, ctB64] = value.slice(PREFIX.length).split(":");

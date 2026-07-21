@@ -5,6 +5,7 @@ const supabase = require("../supabaseClient");
 const { getSessionUser } = supabase;
 const { runSync, runPageSync, runSyncAfterDelay } = require("../syncService");
 const { computeStreaks } = require("../lib/streaks");
+const { URBANIST_700_WOFF2_B64, URBANIST_500_WOFF2_B64 } = require("../badgeFont");
 
 const DEFAULT_TZ = "America/Los_Angeles";
 
@@ -16,32 +17,22 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(ab, bb);
 }
 
-// Protect the cron-triggered sync endpoints. Works on any host:
-//   - If CRON_SECRET is set, require `Authorization: Bearer <secret>` (or ?key=).
-//     This is what an external scheduler (cron-job.org, GitHub Actions) uses.
-//   - Else, on Vercel, fall back to the injected `x-vercel-cron` header.
-//   - Else (local dev, no secret), allow — but warn, since it's unprotected.
+// Protect the cron-triggered sync endpoints. Requires CRON_SECRET via
+// `Authorization: Bearer <secret>` (or ?key=), which is what an external
+// scheduler sends. With no secret configured there is nothing to check, and
+// /api/sync burns the app's Figma quota, so an unset secret rejects rather
+// than opening the endpoint.
 function protectCron(req, res, next) {
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = req.headers["authorization"] || "";
-    const provided = auth.startsWith("Bearer ")
-      ? auth.slice(7)
-      : req.query.key || "";
-    if (provided && safeEqual(provided, secret)) return next();
-    console.warn("[auth] Unauthorized cron attempt (bad/missing secret)");
+  if (!secret) {
+    console.warn("[auth] Cron endpoint rejected — CRON_SECRET is not set");
     return res.status(401).json({ error: "Unauthorized" });
   }
-  if (process.env.VERCEL) {
-    const cronHeader = req.headers["x-vercel-cron"];
-    if (!cronHeader) {
-      console.warn("[auth] Unauthorized cron attempt (missing header)");
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    return next();
-  }
-  console.warn("[auth] Cron endpoint hit with no CRON_SECRET set — UNPROTECTED");
-  next();
+  const auth = req.headers["authorization"] || "";
+  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : req.query.key || "";
+  if (provided && safeEqual(provided, secret)) return next();
+  console.warn("[auth] Unauthorized cron attempt (bad/missing secret)");
+  return res.status(401).json({ error: "Unauthorized" });
 }
 
 // ============================================================
@@ -216,7 +207,7 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
   }
 
   if (targetIds.length === 0) {
-    return { rows: [], dailyTotals: {}, totalEdits: 0, days, mode, tz };
+    return { rows: [], files: [], dailyTotals: {}, totalEdits: 0, days, mode, tz };
   }
 
   const since = new Date();
@@ -226,30 +217,40 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
   const versions = await paginateVersions(() => {
     let q = supabase
       .from("file_versions")
-      .select("created_at, file_id, figma_files!inner( file_key, name )")
+      .select("created_at, file_id, figma_files!inner( file_key, name, last_modified )")
       .in("file_id", targetIds)
       .gte("created_at", sinceStr + "T00:00:00.000Z");
     if (individual) q = q.eq("created_by_figma_user_id", user.figma_user_id);
     return q;
   });
 
-  // Group by (tz date, file)
+  // Group by (tz date, file); rows carry {file_key, name} for the breakdown.
   const grouped = {};
+  const filesMap = {};
   for (const v of versions) {
+    const ff = v.figma_files;
     const date = fmt.format(new Date(v.created_at)); // YYYY-MM-DD in tz
     const key = `${date}__${v.file_id}`;
     if (!grouped[key]) {
       grouped[key] = {
         activity_date: date,
         version_count: 0,
-        figma_files: v.figma_files,
+        figma_files: ff ? { file_key: ff.file_key, name: ff.name } : null,
       };
     }
     grouped[key].version_count++;
+    if (ff && !filesMap[ff.file_key]) {
+      filesMap[ff.file_key] = {
+        file_key: ff.file_key,
+        name: ff.name,
+        last_modified: ff.last_modified,
+      };
+    }
   }
   const rows = Object.values(grouped).sort((a, b) =>
     b.activity_date.localeCompare(a.activity_date),
   );
+  const files = Object.values(filesMap);
 
   const dailyTotals = {};
   let totalEdits = 0;
@@ -259,7 +260,7 @@ async function computeActivity(user, { days, mode, tz, fileKeys }) {
     totalEdits += r.version_count;
   }
 
-  return { rows, dailyTotals, totalEdits, days, mode, tz };
+  return { rows, files, dailyTotals, totalEdits, days, mode, tz };
 }
 
 /** Resolve target file ids for a user, optionally narrowed by file keys. */
@@ -456,10 +457,29 @@ function parseFileKeys(req) {
 // Sync trigger routes
 // ============================================================
 
-// POST /api/webhook — triggered by Figma
-router.post("/webhook", async (req, res) => {
-  console.log("[webhook] Received Figma notification");
-  runSyncAfterDelay(30000);
+const WEBHOOK_SYNC_DELAY_MS = 30000;
+let webhookSyncScheduledUntil = 0;
+
+// POST /api/webhook — triggered by Figma.
+// Webhooks v2 echoes back the passcode chosen at subscription time; it's the
+// only credential the delivery carries, so it must match FIGMA_WEBHOOK_PASSCODE.
+router.post("/webhook", (req, res) => {
+  const expected = process.env.FIGMA_WEBHOOK_PASSCODE;
+  const provided = req.body && req.body.passcode;
+  if (!expected || typeof provided !== "string" || !safeEqual(provided, expected)) {
+    console.warn("[webhook] Rejected delivery (bad/missing passcode)");
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  // runSyncAfterDelay schedules an independent full sync per call, so a burst
+  // of deliveries (Figma fans out one per file event) would stack syncs.
+  // Collapse anything arriving before the pending sync fires into that sync.
+  const now = Date.now();
+  if (now >= webhookSyncScheduledUntil) {
+    webhookSyncScheduledUntil = now + WEBHOOK_SYNC_DELAY_MS;
+    runSyncAfterDelay(WEBHOOK_SYNC_DELAY_MS);
+    console.log("[webhook] Notification accepted — sync scheduled");
+  }
   res.status(200).send("OK");
 });
 
@@ -668,41 +688,68 @@ function escapeXml(s) {
   );
 }
 
-/** A droppable shields-style streak badge (SVG) for Notion / personal sites. */
-function buildBadgeSvg({ metric, value, theme, emoji }) {
+/** Validate a bare hex color param (no `#`, e.g. `bg=fffaf4`) and re-add `#`.
+ *  Returns null for anything invalid so callers fall back to the theme preset.
+ *  Regex-gated so only `#[0-9a-fA-F]{3,8}` ever reaches the SVG. */
+function parseHexParam(v) {
+  return typeof v === "string" && /^[0-9a-fA-F]{3,8}$/.test(v) ? "#" + v : null;
+}
+
+/** A droppable streak badge (SVG) styled to match the dashboard's light,
+ *  soft-card look: cream/ink surface, hairline border, accent flame. */
+function buildBadgeSvg({ metric, value, theme, emoji, colors = {}, radius }) {
   const isDark = theme === "dark";
-  const accent = "#f23b27";
-  const leftBg = isDark ? "#1a1a1a" : "#2c2c2c";
-  const text =
-    metric === "edits"
-      ? `${Number(value).toLocaleString()} edits`
-      : `${value}-day streak`;
+  // Dashboard design tokens (src/index.css @theme) as the base preset;
+  // explicit color params (already validated + `#`-prefixed) override per token.
+  const preset = isDark
+    ? { accent: "#f23b27", surface: "#1f1f1f", border: "rgba(255,255,255,0.10)", ink: "#f5f5f5", muted: "#a6a6a6" }
+    : { accent: "#f23b27", surface: "#fffaf4", border: "#ebebeb", ink: "#1a1a1a", muted: "#737373" };
+  const accent = colors.accent || preset.accent;
+  const surface = colors.bg || preset.surface; // canvas cream / dark ink
+  const border = colors.border || preset.border; // line
+  const ink = colors.ink || preset.ink;
+  const muted = colors.muted || preset.muted; // body
+
+  const num =
+    metric === "edits" ? Number(value).toLocaleString() : String(value);
+  const label = metric === "edits" ? "edits" : "day streak";
 
   const fontSize = 12;
-  const charW = 6.9; // rough advance width for 12px bold sans
-  const textW = Math.ceil(text.length * charW);
-  const leftW = 30;
-  const rightW = textW + 24;
+  const numW = Math.ceil(num.length * 7.4); // 12px bold tabular digits
+  const labelW = Math.ceil(label.length * 6.2); // 12px medium sans
+  const iconBox = 16;
+  const padX = 11;
+  const gap = 7; // icon → number, number → label
   const h = 28;
-  const w = leftW + rightW;
-  const r = 6;
-  const g = 15.84; // flame glyph box (24 * 0.66)
+  const w = padX + iconBox + gap + numW + gap + labelW + padX;
+  const r = radius != null ? radius : 8; // card-like rounding
 
-  // Emoji rendering inside <img>-embedded SVG is renderer-dependent, so the
-  // drawn flame is the default; emoji is opt-in via ?emoji=1.
+  const iconY = (h - iconBox) / 2;
   const flame = emoji
-    ? `<text x="${leftW / 2}" y="${h / 2}" font-size="15" text-anchor="middle" dominant-baseline="central">🔥</text>`
-    : `<g transform="translate(${(leftW - g) / 2}, ${(h - g) / 2}) scale(0.66)" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></g>`;
+    ? `<text x="${padX + iconBox / 2}" y="${h / 2}" font-size="15" text-anchor="middle" dominant-baseline="central">🔥</text>`
+    : `<g transform="translate(${padX}, ${iconY}) scale(0.667)" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></g>`;
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeXml(text)}">
-  <title>${escapeXml(text)}</title>
-  <clipPath id="c"><rect width="${w}" height="${h}" rx="${r}"/></clipPath>
-  <g clip-path="url(#c)">
-    <rect width="${leftW}" height="${h}" fill="${leftBg}"/>
-    <rect x="${leftW}" width="${rightW}" height="${h}" fill="${accent}"/>
-  </g>
+  const numX = padX + iconBox + gap;
+  const labelX = numX + numW + gap;
+  const ariaLabel = `${num} ${label}`;
+  // Match the dashboard's Urbanist. An <img>-embedded SVG can't reach the page's
+  // web fonts, so the font is inlined as an @font-face (a tiny subset pinned to
+  // the two weights the badge uses). `sans-serif` closes the stack so renderers
+  // without embedded-font support still get sans, never serif. Never lead with
+  // an unquoted hyphenated token like `-apple-system` — some renderers drop the
+  // whole declaration and fall back to serif.
+  const font = "'Urbanist','Segoe UI',system-ui,Helvetica,Arial,sans-serif";
+  const fontFaces =
+    `@font-face{font-family:'Urbanist';font-style:normal;font-weight:700;src:url(data:font/woff2;base64,${URBANIST_700_WOFF2_B64}) format('woff2');}` +
+    `@font-face{font-family:'Urbanist';font-style:normal;font-weight:500;src:url(data:font/woff2;base64,${URBANIST_500_WOFF2_B64}) format('woff2');}`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" role="img" aria-label="${escapeXml(ariaLabel)}">
+  <title>${escapeXml(ariaLabel)}</title>
+  <defs><style>${fontFaces}</style></defs>
+  <rect x="0.5" y="0.5" width="${w - 1}" height="${h - 1}" rx="${r}" fill="${surface}" stroke="${border}"/>
   ${flame}
-  <text x="${leftW + rightW / 2}" y="${h / 2 + 1}" fill="#ffffff" font-family="Verdana,'Segoe UI',Helvetica,Arial,sans-serif" font-size="${fontSize}" font-weight="bold" text-anchor="middle" dominant-baseline="central">${escapeXml(text)}</text>
+  <text x="${numX}" y="${h / 2 + 1}" fill="${ink}" font-family="${font}" font-size="${fontSize}" font-weight="700" text-anchor="start" dominant-baseline="central" style="font-variant-numeric:tabular-nums">${escapeXml(num)}</text>
+  <text x="${labelX}" y="${h / 2 + 1}" fill="${muted}" font-family="${font}" font-size="${fontSize}" font-weight="500" text-anchor="start" dominant-baseline="central">${escapeXml(label)}</text>
 </svg>`;
 }
 
@@ -713,6 +760,7 @@ const BADGE_TTL_MS = 60 * 1000;
 const badgeCache = new Map(); // key -> { svg, expires }
 
 // GET /api/public/:slug/badge.svg?theme=light|dark&metric=streak|edits&emoji=1
+//   Style overrides (bare hex, no `#`): bg, text|ink, muted, accent, border, radius
 router.get("/public/:slug/badge.svg", async (req, res) => {
   try {
     const mode = parseMode(req);
@@ -720,7 +768,27 @@ router.get("/public/:slug/badge.svg", async (req, res) => {
     const metric = req.query.metric === "edits" ? "edits" : "streak";
     const theme = req.query.theme === "dark" ? "dark" : "light";
     const emoji = req.query.emoji === "1" || req.query.emoji === "true";
-    const cacheKey = [req.params.slug, mode, tz, metric, theme, emoji].join("|");
+
+    // Optional style overrides (bare hex, no `#`); invalid values fall back to
+    // the theme preset inside buildBadgeSvg.
+    const colors = {
+      bg: parseHexParam(req.query.bg),
+      ink: parseHexParam(req.query.text || req.query.ink),
+      muted: parseHexParam(req.query.muted),
+      accent: parseHexParam(req.query.accent),
+      border: parseHexParam(req.query.border),
+    };
+    let radius;
+    if (req.query.radius != null) {
+      const n = parseInt(req.query.radius, 10);
+      if (!Number.isNaN(n)) radius = Math.max(0, Math.min(24, n));
+    }
+
+    // Every style param must vary the cache key so different looks don't collide.
+    const cacheKey = [
+      req.params.slug, mode, tz, metric, theme, emoji,
+      colors.bg, colors.ink, colors.muted, colors.accent, colors.border, radius,
+    ].join("|");
 
     const sendSvg = (svg) => {
       res.set("Content-Type", "image/svg+xml");
@@ -737,7 +805,7 @@ router.get("/public/:slug/badge.svg", async (req, res) => {
 
     const insights = await computeInsights(user, { mode, tz, fileKeys: [] });
     const value = metric === "edits" ? insights.named.total : insights.streak.current;
-    const svg = buildBadgeSvg({ metric, value, theme, emoji });
+    const svg = buildBadgeSvg({ metric, value, theme, emoji, colors, radius });
 
     badgeCache.set(cacheKey, { svg, expires: Date.now() + BADGE_TTL_MS });
     sendSvg(svg);
@@ -755,9 +823,11 @@ router.get("/sync-history", async (req, res) => {
   try {
     const session = getSessionUser(req);
     if (!session) return res.status(401).json({ error: "Not authenticated" });
+    // sync_sessions is global (no owner column), so any logged-in user sees
+    // every row — keep `error_message` out of it, it can carry internal detail.
     const { data, error } = await supabase
       .from("sync_sessions")
-      .select("*")
+      .select("id, synced_at, files_synced, new_versions_found, status")
       .order("synced_at", { ascending: false })
       .limit(20);
     if (error) return res.status(500).json({ error: error.message });

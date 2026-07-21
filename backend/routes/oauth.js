@@ -9,8 +9,14 @@ const { encrypt } = require("../tokenCrypto");
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
 
 const router = express.Router();
-// In-memory fallback store for oauth states when DB is unavailable
+// In-memory fallback store for oauth states when DB is unavailable. Dev only —
+// see stateCacheAllowed(); in production a DB failure must fail closed rather
+// than move CSRF-state validation into a process-local Map.
 const oauthStateCache = new Map();
+
+function stateCacheAllowed() {
+  return process.env.NODE_ENV !== "production";
+}
 
 // POST /api/oauth/start -> returns an authorization URL to redirect the user to
 router.post("/start", async (req, res) => {
@@ -32,15 +38,18 @@ router.post("/start", async (req, res) => {
     const state = crypto.randomBytes(16).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 minutes
 
-    console.log(`[/api/oauth/start] Creating state: ${state}`);
     try {
-      const { error: stateError } = await supabase.from("oauth_states").insert({ 
-        state, 
+      const { error: stateError } = await supabase.from("oauth_states").insert({
+        state,
         expires_at: expiresAt,
-        metadata: { fileKeys: fileKeys || "" } 
+        metadata: { fileKeys: fileKeys || "" }
       });
       if (stateError) throw stateError;
     } catch (err) {
+      if (!stateCacheAllowed()) {
+        console.error("[/api/oauth/start] Failed to persist OAuth state:", err?.message || err);
+        return res.status(500).json({ error: "Failed to start OAuth" });
+      }
       console.warn("[/api/oauth/start] Supabase insert failed — using in-memory cache for state (dev fallback)", err?.message || err);
       oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
     }
@@ -121,7 +130,7 @@ router.get("/dev-login", async (req, res) => {
 
 // GET /api/oauth/callback
 router.get("/callback", async (req, res) => {
-  console.log("[/api/oauth/callback] Callback received", req.query);
+  console.log("[/api/oauth/callback] Callback received");
   try {
     const { code, state } = req.query;
     if (!code || !state) {
@@ -129,38 +138,34 @@ router.get("/callback", async (req, res) => {
       return res.status(400).send("Missing code or state");
     }
 
-    // Validate state
-    console.log("[/api/oauth/callback] Validating state:", state);
+    // Deleting is the validation: the row comes back only if it still existed,
+    // which makes the state single-use and a replayed callback a no-match.
     let states = null;
     try {
       const { data, error: stateError } = await supabase
         .from("oauth_states")
-        .select("state, expires_at, metadata")
+        .delete()
         .eq("state", state)
-        .limit(1)
+        .select("state, expires_at, metadata")
         .maybeSingle();
       if (stateError) throw stateError;
       states = data;
     } catch (dbErr) {
-      console.error("[/api/oauth/callback] Supabase error fetching state:", dbErr.message || dbErr);
-      // try in-memory cache fallback
-      if (oauthStateCache.has(state)) {
-        console.warn("[/api/oauth/callback] Using in-memory oauth state cache");
-        states = oauthStateCache.get(state);
-      } else {
+      console.error("[/api/oauth/callback] Supabase error consuming state:", dbErr.message || dbErr);
+      if (!stateCacheAllowed()) {
         return res.status(500).send("Database error validating state");
       }
     }
 
-    if (!states) {
-      // final check: maybe in-memory cache
-      if (oauthStateCache.has(state)) {
-        states = oauthStateCache.get(state);
-      }
+    if (!states && stateCacheAllowed() && oauthStateCache.has(state)) {
+      console.warn("[/api/oauth/callback] Using in-memory oauth state cache");
+      states = oauthStateCache.get(state);
+      oauthStateCache.delete(state);
     }
 
-    if (!states) {
-      console.error("[/api/oauth/callback] Invalid or expired state:", state);
+    // Negated comparison so an unparseable expires_at (NaN) also fails closed.
+    if (!states || !(new Date(states.expires_at).getTime() > Date.now())) {
+      console.error("[/api/oauth/callback] Invalid, expired, or already-used state");
       return res.status(400).send("Invalid or expired state");
     }
 
@@ -175,11 +180,6 @@ router.get("/callback", async (req, res) => {
         code: String(code),
       };
 
-      console.log("[/api/oauth/callback] Requesting Figma Token with payload:", {
-        ...payload,
-        client_secret: "[REDACTED]",
-      });
-
       const tokenRes = await axios.post(
         "https://api.figma.com/v1/oauth/token",
         new URLSearchParams(payload),
@@ -190,8 +190,6 @@ router.get("/callback", async (req, res) => {
           },
         },
       );
-      
-      console.log("[/api/oauth/callback] Response status:", tokenRes.status);
 
       const { access_token, refresh_token, expires_in, scope } = tokenRes.data;
       console.log("[/api/oauth/callback] Token exchange successful");
@@ -206,7 +204,7 @@ router.get("/callback", async (req, res) => {
         headers: { Authorization: `Bearer ${access_token}` },
       });
       const profile = meRes.data;
-      console.log("[/api/oauth/callback] Profile fetched:", profile?.id);
+      console.log("[/api/oauth/callback] Profile fetched");
 
       const { data: userRow, error: upsertError } = await supabase
         .from("users")
@@ -246,7 +244,7 @@ router.get("/callback", async (req, res) => {
           .map((k) => k.trim())
           .filter(Boolean);
         if (fileKeys.length > 0) {
-          console.log("[/api/oauth/callback] Seeding files:", fileKeys);
+          console.log("[/api/oauth/callback] Seeding files:", fileKeys.length);
           const worker = require("../workers/onboardingWorker");
           for (const fileKey of fileKeys) {
             worker.emit("fetch_file_metadata", {
@@ -264,10 +262,11 @@ router.get("/callback", async (req, res) => {
       console.log("[/api/oauth/callback] Session set, redirecting to dashboard...");
       res.redirect(`${dashboardBase}/dashboard`);
     } catch (tokenErr) {
-      console.error("[/api/oauth/callback] Token exchange error status:", tokenErr.response?.status);
-      console.error("[/api/oauth/callback] Token exchange error data:", JSON.stringify(tokenErr.response?.data, null, 2));
-      console.error("[/api/oauth/callback] Token exchange error config URL:", tokenErr.config?.url);
-      console.error("[/api/oauth/callback] Token exchange full error message:", tokenErr.message);
+      console.error(
+        "[/api/oauth/callback] Token exchange failed:",
+        tokenErr.response?.status || "",
+        tokenErr.response?.data?.error || tokenErr.message,
+      );
       return res.status(500).send("Failed to exchange code for token");
     }
   } catch (err) {
