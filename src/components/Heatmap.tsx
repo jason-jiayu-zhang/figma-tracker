@@ -60,10 +60,13 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const tGap = customTheme?.gap ?? 4; // default 4px (gap-1)
   const tRadius = customTheme?.rectRadius ?? 2; // default 2px (rounded-sm)
   const tTextColor = customTheme?.textColor ?? (isLight ? "#737373" : "var(--text-muted)");
-  const tEmptyColor = customTheme?.emptyColor ?? (isLight ? "#ebebeb" : "rgba(255,255,255,0.07)");
+  const tEmptyColor = customTheme?.emptyColor ?? (isLight ? "#f3ebe4" : "rgba(255,255,255,0.07)");
+  // Edit count is magnitude, so the ramp is a single brand-orange hue, light→dark
+  // (monotonic luminance) — never a rainbow. Dark mode steps the same orange
+  // dim→bright against its dark surface.
   const tLevelColors = customTheme?.levelColors ?? (isLight
-    ? ["#0acf83", "#1abcfe", "#a259ff", "#ef4444"]
-    : ["var(--green)", "var(--blue)", "var(--purple)", "var(--red)"]);
+    ? ["#ffe0cc", "#fdaf7a", "#f8722f", "#d1330f"]
+    : ["#5c2410", "#9c3d14", "#e0651c", "#ff9a52"]);
   const tTooltipBg = customTheme?.tooltipBgColor ?? "#2C2C2C";
   const tTooltipText = customTheme?.tooltipTextColor ?? "white";
 

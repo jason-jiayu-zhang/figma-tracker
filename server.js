@@ -13,10 +13,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Credentialed CORS — a wildcard origin cannot be used with cookies.
-// Allowed origins come from APP_URL / APP_DASHBOARD_URL (plus local dev).
+// Allowed origins come from APP_URL (plus local dev).
 const allowedOrigins = [
   process.env.APP_URL,
-  process.env.APP_DASHBOARD_URL,
   "http://localhost:5173",
   "http://localhost:3001",
 ].filter(Boolean);

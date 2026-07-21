@@ -3,8 +3,8 @@
 import type { HeatmapTheme } from "./components/Heatmap";
 
 export const fimanuTheme: HeatmapTheme = {
-  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#d9d9d9",
-  levelColors: ["#1bca7c", "#1ab7fa", "#9851f9", "#f23b27"],
+  rectSize: 12, rectRadius: 2, gap: 4, emptyColor: "#f3ebe4",
+  levelColors: ["#ffe0cc", "#fdaf7a", "#f8722f", "#d1330f"],
   textColor: "#1A1A1A", tooltipBgColor: "#2C2C2C", tooltipTextColor: "white",
 };
 

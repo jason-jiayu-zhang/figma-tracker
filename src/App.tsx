@@ -2,20 +2,17 @@ import React, { Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import Footer from "./components/Footer";
-import Sidebar from "./components/Sidebar";
-import DashboardSkeleton from "./components/DashboardSkeleton";
+import TopNav from "./components/TopNav";
+import { SHELL, SHELL_TOP_PAD } from "./components/ui";
 import { useSession } from "./session";
 import { IS_APP_MODE } from "./config";
 
-const Dashboard = React.lazy(() => import("./pages/Dashboard"));
-const Embed = React.lazy(() => import("./pages/Embed"));
+const Studio = React.lazy(() => import("./pages/Studio"));
 const EmbedWidget = React.lazy(() => import("./pages/EmbedWidget"));
 const Onboard = React.lazy(() => import("./pages/Onboard"));
 const Landing = React.lazy(() => import("./pages/Landing"));
 const Files = React.lazy(() => import("./pages/Files"));
-const Profile = React.lazy(() => import("./pages/Profile"));
 const Settings = React.lazy(() => import("./pages/Settings"));
-const PublicProfile = React.lazy(() => import("./pages/PublicProfile"));
 const Privacy = React.lazy(() => import("./pages/Privacy"));
 const Terms = React.lazy(() => import("./pages/Terms"));
 const About = React.lazy(() => import("./pages/About"));
@@ -57,28 +54,21 @@ function OAuthRedirect() {
   return <Spinner label="Redirecting to Figma…" />;
 }
 
-// The authenticated dashboard shell: sidebar + routed content + footer.
+// The authenticated dashboard shell: floating top nav + routed content + footer.
 function AppLayout() {
   return (
     <div className="bg-canvas overflow-x-clip">
-      <div className="w-full min-h-dvh flex items-start justify-center py-6 px-6 lg:px-8">
-        <div className="flex flex-row gap-8 w-[1080px] max-w-full relative items-start">
-          <Sidebar className="bg-surface flex flex-col items-center justify-between sticky top-6 h-[calc(100dvh-3rem)] px-3 py-4 rounded-4xl shadow-card shrink-0 w-22" />
-          <div className="flex flex-col flex-1 min-w-0 shrink-0 min-h-[calc(100dvh-3rem)]">
-            <Suspense fallback={<DashboardSkeleton />}>
-              <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/files" element={<Files />} />
-                <Route path="/embed" element={<Embed />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/settings" element={<Settings />} />
-                {/* Legacy alias */}
-                <Route path="/home" element={<Navigate to="/dashboard" replace />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Suspense>
-          </div>
-        </div>
+      <TopNav />
+      <div className={`flex flex-col min-h-dvh pb-6 ${SHELL} ${SHELL_TOP_PAD}`}>
+        <Suspense fallback={<Spinner label="Loading" />}>
+          <Routes>
+            <Route path="/files" element={<Files />} />
+            <Route path="/settings" element={<Settings />} />
+            {/* Legacy alias */}
+            <Route path="/home" element={<Navigate to="/studio" replace />} />
+            <Route path="*" element={<Navigate to="/studio" replace />} />
+          </Routes>
+        </Suspense>
       </div>
       <div className="w-full flex justify-center pb-8">
         <Footer />
@@ -90,10 +80,8 @@ function AppLayout() {
 // App-subdomain (dashboard) routing, gated on the cookie session.
 function AppRoutes() {
   const { loggedIn, loading, refresh } = useSession();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const justConnected = searchParams.get("connected") === "1";
-  const path = location.pathname;
 
   // Right after OAuth (?connected=1) the session cookie is set synchronously by
   // the backend, but the SPA may have loaded /me before the redirect landed.
@@ -112,29 +100,31 @@ function AppRoutes() {
   if (loading) return <Spinner label="Loading" />;
 
   if (!loggedIn) {
-    // Let the self-serve onboarding flow render (it drives its own connect),
-    // and keep showing it while we poll for the freshly-set session.
-    if (path === "/onboard" || justConnected) {
+    // Just back from OAuth: keep onboarding on screen while we poll for the
+    // freshly-set session cookie instead of bouncing into OAuth again.
+    if (justConnected) {
       return (
         <Suspense fallback={<Spinner />}>
           <Routes>
-            <Route path="/onboard" element={<Onboard />} />
             <Route path="*" element={<Onboard />} />
           </Routes>
         </Suspense>
       );
     }
-    // Any other app route with no session → straight to OAuth.
+    // Onboarding now starts at the add-files step, so a session is required —
+    // any app route with no session goes straight to OAuth.
     return <OAuthRedirect />;
   }
 
   // Logged in: onboarding is still reachable (add-files step), everything else
-  // renders in the dashboard shell. Root auto-redirects to /dashboard.
+  // renders in the dashboard shell. Root auto-redirects to /studio.
   return (
     <Suspense fallback={<Spinner label="Loading" />}>
       <Routes>
         <Route path="/onboard" element={<Onboard />} />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Studio is a full-screen canvas — no sidebar/AppLayout shell. */}
+        <Route path="/studio" element={<Studio />} />
+        <Route path="/" element={<Navigate to="/studio" replace />} />
         <Route path="*" element={<AppLayout />} />
       </Routes>
     </Suspense>
@@ -148,8 +138,7 @@ function App() {
   const standalone = searchParams.get("standalone") === "1";
 
   // 1. Embed widget — fully public, no auth/session gating.
-  const isWidget =
-    path === "/embed-widget" || path === "/cattlelog-embed" || standalone;
+  const isWidget = path === "/embed-widget" || standalone;
   if (isWidget) {
     return (
       <Suspense fallback={null}>
@@ -179,18 +168,7 @@ function App() {
     );
   }
 
-  // 3. Public profile — fully public, no auth.
-  if (path.startsWith("/u/")) {
-    return (
-      <Suspense fallback={<Spinner />}>
-        <Routes>
-          <Route path="/u/:slug" element={<PublicProfile />} />
-        </Routes>
-      </Suspense>
-    );
-  }
-
-  // 4. Marketing site (root domain): render the Landing page only.
+  // 3. Marketing site (root domain): render the Landing page only.
   if (!IS_APP_MODE) {
     return (
       <Suspense fallback={<Spinner />}>
@@ -201,7 +179,7 @@ function App() {
     );
   }
 
-  // 5. Dashboard app (app.* subdomain or VITE_IS_APP=1).
+  // 4. Dashboard app (app.* subdomain or VITE_IS_APP=1).
   return <AppRoutes />;
 }
 

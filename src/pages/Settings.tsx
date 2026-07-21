@@ -8,7 +8,7 @@ import { Card, SectionHeader, Button } from '../components/ui';
 export default function Settings() {
   const { user, refresh } = useSession();
 
-  // Public profile controls.
+  // Embed publishing controls.
   const [slug, setSlug] = useState('');
   const [publicEnabled, setPublicEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -28,7 +28,6 @@ export default function Settings() {
     }
   }, [user]);
 
-  const publicUrl = slug ? `${APP_ORIGIN}/u/${slug}` : '';
   const embedUrl = slug ? `${APP_ORIGIN}/embed-widget?slug=${slug}` : '';
   const displayName = user?.handle || 'Your account';
 
@@ -87,7 +86,7 @@ export default function Settings() {
         plain
         icon={<SettingsIcon size={20} />}
         title="Settings"
-        subtitle="Manage your account and public profile."
+        subtitle="Manage your account and embed publishing."
       />
 
       {/* Account */}
@@ -121,21 +120,20 @@ export default function Settings() {
         </div>
       </Card>
 
-      {/* Public profile publishing controls */}
+      {/* Embed publishing controls */}
       <Card className="flex flex-col gap-5 p-6">
         <SectionHeader
           plain
           icon={<Globe size={20} />}
-          title="Public Profile"
-          subtitle="Publish a read-only heatmap and share it anywhere."
+          title="Embed Publishing"
+          subtitle="Your handle addresses your embeds, and publishing is what lets them render."
         />
 
         <div className="flex flex-col gap-4 w-full max-w-[560px]">
           {/* Slug */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="profile-slug" className="text-[13px] font-bold text-muted uppercase tracking-wider">Profile URL</label>
+            <label htmlFor="profile-slug" className="text-[13px] font-bold text-muted uppercase tracking-wider">Public handle</label>
             <div className="flex items-center gap-1 bg-canvas border border-line rounded-xl px-3 py-2 focus-within:border-accent transition-colors">
-              <span className="text-[13px] text-muted font-mono whitespace-nowrap">{APP_ORIGIN}/u/</span>
               <input
                 id="profile-slug"
                 type="text"
@@ -148,15 +146,15 @@ export default function Settings() {
               />
             </div>
             <p id="slug-hint" className="text-[12px] text-muted leading-relaxed">
-              Lowercase letters, numbers, and dashes only. This becomes your shareable public URL.
+              Lowercase letters, numbers, and dashes only. Every embed you publish is addressed by this handle.
             </p>
           </div>
 
           {/* Public toggle */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
-              <span id="public-toggle-label" className="text-[14px] font-semibold text-black">Enable public profile</span>
-              <span className="text-[12px] text-muted">When off, the public URL and embeds return nothing.</span>
+              <span id="public-toggle-label" className="text-[14px] font-semibold text-black">Publish my embeds</span>
+              <span className="text-[12px] text-muted">When off, your embeds and public stats return nothing.</span>
             </div>
             <button
               type="button"
@@ -186,7 +184,6 @@ export default function Settings() {
           {/* Share links (only meaningful once published) */}
           {slug && publicEnabled && (
             <div className="flex flex-col gap-3 pt-2 border-t border-hairline">
-              <ShareRow label="Public link" value={publicUrl} onCopy={() => copy(publicUrl, 'public')} copied={copied === 'public'} />
               <ShareRow label="Embed link" value={embedUrl} onCopy={() => copy(embedUrl, 'embed')} copied={copied === 'embed'} />
             </div>
           )}
@@ -202,8 +199,9 @@ export default function Settings() {
           subtitle="Permanently remove your account, Figma authorization, and all tracked file activity."
         />
         <p className="text-[13px] text-muted leading-relaxed max-w-[560px]">
-          This deletes your stored Figma tokens, profile, and every file’s tracked
-          history. It cannot be undone. You can reconnect later by signing in again.
+          This deletes your stored Figma tokens, your published handle, and every file’s
+          tracked history — any embed you’ve placed elsewhere stops rendering. It cannot
+          be undone. You can reconnect later by signing in again.
         </p>
 
         {!confirmingDelete ? (

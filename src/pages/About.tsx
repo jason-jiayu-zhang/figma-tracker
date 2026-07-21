@@ -6,10 +6,11 @@ export default function About() {
   return (
     <LegalLayout title="About Fimanu" updated="July 13, 2026">
       <P>
-        Fimanu turns your Figma activity into insights. Connect your Figma
-        account and Fimanu tracks the files you care about — surfacing version
-        history, comments, dev resources, and the story of how your designs
-        evolve over time.
+        Fimanu turns your Figma activity into embeddable widgets. Connect your
+        Figma account and Fimanu tracks the files you care about — version
+        history, comments, and dev resources — then hands you an activity
+        heatmap, streak badge, or file breakdown you can drop into a README,
+        Notion page, or portfolio.
       </P>
 
       <H>What Fimanu does</H>
@@ -20,12 +21,13 @@ export default function About() {
           automatically.
         </li>
         <li>
-          <strong>Visualizes your work</strong> — dashboards and insights that
-          make design activity easy to understand at a glance.
+          <strong>Visualizes your work</strong> — a Studio editor for styling
+          heatmaps, streak badges, and file breakdowns until they match wherever
+          they're going.
         </li>
         <li>
-          <strong>Shares on your terms</strong> — optional public profiles and
-          embeddable widgets you control from Settings.
+          <strong>Shares on your terms</strong> — embeds publish only when you
+          turn publishing on, and you can turn it back off from Settings.
         </li>
       </UL>
 
@@ -33,7 +35,7 @@ export default function About() {
       <P>
         Fimanu is an independently operated product, not affiliated with or
         endorsed by Figma. It connects to Figma through the official OAuth API
-        and only reads the data needed to power your dashboards.
+        and only reads the data needed to power your embeds.
       </P>
 
       <H>Get in touch</H>

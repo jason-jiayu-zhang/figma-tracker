@@ -87,7 +87,7 @@ export function useFigmaData() {
     } catch (err) {
       if (fetchIdRef.current !== currentFetchId) return;
       console.error("Failed to fetch Figma data:", err);
-      setError("Couldn't load your dashboard data. Retrying automatically…");
+      setError("Couldn't load your activity data. Retrying automatically…");
     } finally {
       if (fetchIdRef.current === currentFetchId) setLoading(false);
     }

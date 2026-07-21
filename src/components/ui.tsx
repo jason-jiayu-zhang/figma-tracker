@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 /* ────────────────────────────────────────────────────────────
    Fimanu design-system primitives. One source of truth for the
@@ -116,7 +116,7 @@ export function SectionHeader({
       <div className="flex gap-3 items-center min-w-0">
         <IconChip color={color} plain={plain}>{icon}</IconChip>
         <div className="flex flex-col gap-1 min-w-0">
-          <h2 className="font-bold text-[20px] tracking-[-0.2px] leading-none text-ink truncate">
+          <h2 className="font-bold text-[20px] tracking-[-0.2px] leading-tight text-ink truncate">
             {title}
           </h2>
           {subtitle != null &&
@@ -221,6 +221,77 @@ export function SegmentedControl<T extends string | number | boolean>({
           {opt.label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/** The app shell column. Every page — full-bleed canvas or list — aligns its
+   chrome to this exact box so the top nav and sub-nav never shift between
+   routes. Paired with SHELL_TOP_PAD, which clears the fixed nav.
+   Never combine with another width utility: `w-full` is emitted after
+   `w-[1080px]` in the utilities layer, so it silently wins and the column
+   stretches to the viewport. */
+export const SHELL = "w-[1080px] max-w-[calc(100%-3rem)] mx-auto";
+export const SHELL_TOP_PAD = "pt-[88px]";
+
+/** Vertical hairline separating groups of controls inside a dock. */
+export function Divider() {
+  return <div className="w-px self-stretch bg-line shrink-0" aria-hidden="true" />;
+}
+
+const POPOVER_ALIGN = {
+  left: "left-0",
+  center: "left-1/2 -translate-x-1/2",
+  right: "right-0",
+} as const;
+
+/** Disclosure panel anchored above its trigger; closes on outside click and
+   Escape. The trigger is a render prop so callers keep their own button markup
+   (and its aria-expanded/aria-haspopup wiring). */
+export function Popover({
+  trigger,
+  align = "right",
+  panelClassName = "",
+  className = "",
+  children,
+}: {
+  trigger: (state: { isOpen: boolean; toggle: () => void }) => React.ReactNode;
+  align?: keyof typeof POPOVER_ALIGN;
+  panelClassName?: string;
+  className?: string;
+  children: React.ReactNode | ((state: { close: () => void }) => React.ReactNode);
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setIsOpen(false), []);
+  const toggle = useCallback(() => setIsOpen((v) => !v), []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onOutsideClick = (e: MouseEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) close();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("mousedown", onOutsideClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onOutsideClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen, close]);
+
+  return (
+    <div className={`relative shrink-0 ${className}`} ref={root}>
+      {trigger({ isOpen, toggle })}
+      {isOpen && (
+        <div
+          className={`absolute bottom-[calc(100%+8px)] ${POPOVER_ALIGN[align]} z-50 bg-surface rounded-2xl shadow-card-hover border border-line animate-in fade-in zoom-in duration-200 motion-reduce:animate-none ${panelClassName}`}
+        >
+          {typeof children === "function" ? children({ close }) : children}
+        </div>
+      )}
     </div>
   );
 }

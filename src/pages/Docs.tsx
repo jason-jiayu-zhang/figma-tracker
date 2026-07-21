@@ -25,8 +25,9 @@ export default function Docs() {
           history, comments, and dev resources for your selected files.
         </li>
         <li>
-          <strong>Explore your dashboard</strong> — activity, insights, and file
-          breakdowns update as your designs change.
+          <strong>Design your embeds</strong> — open Studio to style an activity
+          heatmap, streak badge, or file breakdown, then copy the embed code into
+          a README, Notion page, or portfolio.
         </li>
       </UL>
 
@@ -37,12 +38,12 @@ export default function Docs() {
         stays current. Manage which files are tracked from the Files tab.
       </P>
 
-      <H>Public profiles and embeds</H>
+      <H>Embeds</H>
       <P>
-        You can optionally publish a public profile or embed a widget on another
-        site to share selected stats. These are off by default — enable or
-        disable them any time in Settings. Anything you make public becomes
-        accessible to anyone with the link.
+        Embeds are addressed by the public handle you set in Settings, and they
+        only render while publishing is enabled. Publishing is off by default —
+        turn it on or off any time in Settings. Anything you publish becomes
+        accessible to anyone with the link, without signing in.
       </P>
 
       <H>Managing your account</H>

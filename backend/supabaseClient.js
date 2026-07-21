@@ -36,8 +36,7 @@ function isSecureRequest() {
   // Cookies must be Secure over HTTPS. In production (Render) we serve https.
   return (
     process.env.NODE_ENV === "production" ||
-    (process.env.APP_URL || "").startsWith("https://") ||
-    (process.env.APP_DASHBOARD_URL || "").startsWith("https://")
+    (process.env.APP_URL || "").startsWith("https://")
   );
 }
 

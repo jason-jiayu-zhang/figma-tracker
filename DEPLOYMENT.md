@@ -47,8 +47,7 @@ dashboard, never commit them.
 | `FIGMA_CLIENT_ID` | Figma OAuth app client id |
 | `FIGMA_CLIENT_SECRET` | Figma OAuth app client secret |
 | `FIGMA_OAUTH_REDIRECT_URI` | `https://<your-service>.onrender.com/api/oauth/callback` (must match the Figma app) |
-| `APP_URL` | Root/marketing site origin, e.g. `https://example.com` (or the Render URL if you use a single domain) |
-| `APP_DASHBOARD_URL` | Dashboard app subdomain origin, e.g. `https://app.example.com` (optional; omit if you serve everything from one origin) |
+| `APP_URL` | Public origin the app is served from, e.g. `https://example.com` (or the Render URL). Used for CORS, cookie `Secure` detection, and the post-OAuth redirect. |
 | `SESSION_SECRET` | Long random string used to sign the `ft_session` JWT. Generate with `openssl rand -hex 32`. **Never reuse the dev placeholder.** |
 | `TOKEN_ENCRYPTION_KEY` | Random string (≥32 chars) used to encrypt Figma OAuth tokens at rest (AES-256-GCM). The server **refuses to start** without it. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Use a **different** value than dev, and **do not rotate it casually** — changing it makes already-encrypted tokens undecryptable (affected users must re-auth). |
 | `CRON_SECRET` | Shared secret that authorizes the cron-triggered sync endpoints. Generate with `openssl rand -hex 32`. Required whenever sync is driven by an external scheduler (see §6). |
@@ -64,9 +63,6 @@ Frontend build-time variables (must be present at build time — set them in Ren
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_URL` | API origin the browser calls. If frontend and backend share the Render origin (the default single-service setup), leave this empty (relative `/api`); set it only if the frontend is served from a different origin. |
-| `VITE_APP_DASHBOARD_URL` | Absolute URL of the dashboard app (the `app.` subdomain), used to build marketing-site CTAs and shareable profile/embed links. Omit for a single-origin setup. |
-| `VITE_IS_APP` | `1` on the dashboard-app deploy so it renders the dashboard; unset/`0` on the marketing deploy. Only needed if you split marketing and app into two deploys. |
-| `VITE_PROOF_SLUG` | Public profile slug powering the landing page's live specimen. Leave unset to keep the seeded demo data. |
 | `VITE_CONTACT_EMAIL` | Contact address rendered on the legal pages and in the footer. Unset leaves those links empty. |
 
 > `VITE_*` values are compiled into the public JS bundle — treat every one of them as
@@ -120,44 +116,34 @@ sync via external cron (§6) — the periodic ping doubles as a keep-warm.
 
 ---
 
-## 4. Optional: custom domains (root = marketing, `app.` = dashboard)
+## 4. Optional: custom domain
 
-The default single-service setup serves everything from one Render origin and needs no
-custom domain. If you want the SEO split — **root domain serves marketing/landing** and
-the **`app.` subdomain serves the dashboard app** — wire the domains manually (the app
-does not touch DNS). The frontend picks marketing vs dashboard by hostname (`app.` prefix)
-or `VITE_IS_APP`.
+Everything is served from one origin, so this is a single custom domain and needs no
+DNS split. The Render URL works as-is if you don't want one.
 
 ### In Render
 1. Service → **Settings → Custom Domains → Add Custom Domain**.
-2. Add the root domain (`example.com`) and the `app.example.com` subdomain; note the
-   CNAME / A-record targets Render shows for each.
+2. Add your domain (`example.com`); note the CNAME / A-record target Render shows.
 
 ### In your DNS provider
 3. **Apex / root** (`example.com`): apex records can't be a plain CNAME. Use your
    provider's ALIAS/ANAME/flattened-CNAME to the Render target, or the A record Render
-   provides. This host serves the **marketing** site.
-4. **`app` subdomain**: add a `CNAME` record `app` → the Render target for the app domain.
-   This host serves the **dashboard**.
-5. Wait for DNS propagation; Render provisions TLS certificates automatically once the
+   provides. (For a `www.` or other subdomain, a plain `CNAME` is fine.)
+4. Wait for DNS propagation; Render provisions TLS certificates automatically once the
    records resolve.
 
 ### After DNS resolves
-6. Set `APP_URL=https://example.com` and `APP_DASHBOARD_URL=https://app.example.com` in Render.
-7. Update `FIGMA_OAUTH_REDIRECT_URI` to the domain that hosts the backend/OAuth routes,
-   and re-verify it matches the Figma app registration.
-8. If you split marketing and app into two deploys, ensure the dashboard-app deploy has
-   `VITE_IS_APP=1` and the marketing deploy does not.
+5. Set `APP_URL=https://example.com` in Render.
+6. Update `FIGMA_OAUTH_REDIRECT_URI` to the same origin and re-verify it matches the
+   Figma app registration.
 
 ---
 
 ## 5. Post-deploy smoke test
 
-- Visit the app origin logged out → should redirect to Figma OAuth (on the `app.`
-  subdomain, or immediately in a single-origin setup).
-- Complete OAuth → lands on `/dashboard`, `ft_session` cookie set (httpOnly, Secure, SameSite=Lax).
+- Visit the origin logged out → the sign-in page renders with a Connect Figma button.
+- Complete OAuth → lands on `/studio`, `ft_session` cookie set (httpOnly, Secure, SameSite=Lax).
 - `GET /api/user/me` returns the logged-in user (not 401).
-- If you use the domain split, the root domain shows the marketing page.
 - Confirm sync is running: on a paid instance, the Render logs show the resident loop
   (`[service-v3] Starting adaptive page sync`); on a free instance, confirm the external
   cron (§6) is hitting `/api/sync/incremental` with `200`s.

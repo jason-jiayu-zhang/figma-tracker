@@ -85,7 +85,7 @@ router.post("/start", async (req, res) => {
 function devLoginAllowed() {
   if (process.env.NODE_ENV === "production") return false;
   if (process.env.DEV_LOGIN !== "1") return false;
-  const appUrl = process.env.APP_URL || process.env.APP_DASHBOARD_URL || "";
+  const appUrl = process.env.APP_URL || "";
   return appUrl.startsWith("http://localhost") || appUrl.startsWith("http://127.0.0.1");
 }
 
@@ -119,9 +119,8 @@ router.get("/dev-login", async (req, res) => {
       `[dev-login] ⚠️  Minted a DEV session for ${user.handle || user.email || user.figma_user_id}`,
     );
 
-    const dashboardBase =
-      process.env.APP_DASHBOARD_URL || process.env.APP_URL || "http://localhost:5173";
-    res.redirect(`${dashboardBase}/dashboard`);
+    const appBase = process.env.APP_URL || "http://localhost:5173";
+    res.redirect(`${appBase}/studio`);
   } catch (err) {
     console.error("[dev-login] error:", err.message);
     res.status(500).send("dev-login failed");
@@ -256,11 +255,11 @@ router.get("/callback", async (req, res) => {
         }
       }
 
-      // Redirect to the dashboard app (fallback to root site).
-      const dashboardBase =
-        process.env.APP_DASHBOARD_URL || process.env.APP_URL || "http://localhost:5173";
-      console.log("[/api/oauth/callback] Session set, redirecting to dashboard...");
-      res.redirect(`${dashboardBase}/dashboard`);
+      // ?connected=1 lets the SPA poll /me instead of re-triggering OAuth if it
+      // loads before the session cookie is visible.
+      const appBase = process.env.APP_URL || "http://localhost:5173";
+      console.log("[/api/oauth/callback] Session set, redirecting to studio...");
+      res.redirect(`${appBase}/studio?connected=1`);
     } catch (tokenErr) {
       console.error(
         "[/api/oauth/callback] Token exchange failed:",

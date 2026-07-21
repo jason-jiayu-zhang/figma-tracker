@@ -1,30 +1,29 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
-import { Plus, X, Check, ArrowRight, Figma, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
+import { Plus, X, Check, ArrowRight, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
 import { Card, Button, SectionHeader } from "../components/ui";
 
 const STEPS = [
-  { n: 1, label: "Connect" },
-  { n: 2, label: "Files" },
-  { n: 3, label: "Done" },
+  { n: 1, label: "Files" },
+  { n: 2, label: "Done" },
 ];
 
-/* Goal-gradient head start: never show 0%. Just landing here earns credit, so
-   the bar reads as already-in-motion rather than an empty starting line. The
-   closer the fill looks to full, the harder it is to abandon. */
-const PROGRESS = { 1: 25, 2: 65, 3: 100 } as const;
+/* Goal-gradient head start: never show 0%. Connecting Figma already happened on
+   the landing page, so the bar opens well past the starting line — the closer
+   the fill looks to full, the harder it is to abandon. */
+const PROGRESS = { 1: 60, 2: 100 } as const;
 
 /** Slim progress track above the stepper — the numeric head-start cue. */
 function ProgressBar({ step }: { step: number }) {
-  const pct = PROGRESS[step as 1 | 2 | 3] ?? 25;
+  const pct = PROGRESS[step as 1 | 2] ?? 60;
   return (
     <div className="flex flex-col gap-2 w-full">
       <div className="flex items-center justify-between">
         <span className="text-[12px] font-semibold text-body tracking-[-0.12px]">
-          {step === 3 ? "Setup complete" : "You're almost there"}
+          {step === 2 ? "Setup complete" : "You're almost there"}
         </span>
         <span className="text-[12px] font-bold text-green tabular-nums tracking-[-0.12px]">{pct}%</span>
       </div>
@@ -93,27 +92,12 @@ export default function Onboard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, refresh } = useSession();
-  const [step, setStep] = useState(1); // 1: Connect, 2: Files, 3: Success
-  const [isConnected, setIsConnected] = useState(false);
+  const [step, setStep] = useState(1); // 1: Files, 2: Success
   const [files, setFiles] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep the local "connected" flag in sync with the cookie session.
   useEffect(() => {
-    if (user) {
-      setIsConnected(true);
-      setStep((s) => (s < 2 ? 2 : s));
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const forcedStep = searchParams.get("step");
-    if (forcedStep) {
-      setStep(parseInt(forcedStep));
-      return;
-    }
-
     // Returning from OAuth: the session cookie is already set. Rely on it —
     // poll /api/user/me until it resolves instead of re-triggering OAuth.
     if (searchParams.get("connected") === "1" && !user) {
@@ -126,20 +110,6 @@ export default function Onboard() {
       return () => clearInterval(id);
     }
   }, [searchParams, user, refresh]);
-
-  const startOAuth = async () => {
-    setError(null);
-    try {
-      const res = await axios.post("/api/oauth/start");
-      if (res.data?.url) {
-        window.location.href = res.data.url;
-      } else {
-        setError("Failed to start OAuth");
-      }
-    } catch (err) {
-      setError("Failed to start OAuth");
-    }
-  };
 
   const addFileField = () => setFiles([...files, ""]);
   const removeFileField = (index: number) => {
@@ -162,19 +132,12 @@ export default function Onboard() {
       return;
     }
 
-    // The session is guaranteed by the time we reach the files step, so just add.
-    if (!isConnected && !user) {
-      // Session not established yet — send the user back to connect.
-      setStep(1);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       // Submit all files concurrently for faster optimistic UI response
       await Promise.all(validFiles.map(fileKey => axios.post("/api/user/files", { fileKey })));
 
-      setStep(3);
+      setStep(2);
     } catch (err) {
       setError("Failed to save files.");
     } finally {
@@ -197,27 +160,6 @@ export default function Onboard() {
           className="flex flex-col gap-6 min-h-[236px] animate-in fade-in slide-in-from-bottom-2 duration-300"
         >
           {step === 1 && (
-            <>
-              <SectionHeader
-                plain
-                icon={<Figma size={20} />}
-                title="Connect Figma"
-                subtitle="Link your account to generate activity heatmaps and track contributions across your teams."
-              />
-              <div className="bg-canvas rounded-2xl p-4 flex items-start gap-3">
-                <ShieldCheck size={18} className="text-green shrink-0 mt-0.5" />
-                <p className="text-[13px] text-body leading-relaxed">
-                  We request read access to <span className="text-ink font-medium">file metadata, version history, and comments</span> only — never your design content.
-                </p>
-              </div>
-              <Button variant="primary" onClick={startOAuth} className="h-11 w-full">
-                Connect Figma <ArrowRight size={18} />
-              </Button>
-              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
-            </>
-          )}
-
-          {step === 2 && (
             <>
               <SectionHeader
                 plain
@@ -265,7 +207,7 @@ export default function Onboard() {
                   {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
                 </Button>
                 <button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate("/studio")}
                   disabled={isSubmitting}
                   className="h-11 w-full flex items-center justify-center rounded-xl text-body hover:text-ink hover:bg-hairline transition-colors font-semibold text-[13px] disabled:opacity-50"
                 >
@@ -276,7 +218,7 @@ export default function Onboard() {
             </>
           )}
 
-          {step === 3 && (
+          {step === 2 && (
             <>
               <SectionHeader
                 plain
@@ -292,8 +234,8 @@ export default function Onboard() {
                   Your files are queued and syncing in the background.
                 </p>
               </div>
-              <Button variant="dark" onClick={() => navigate("/dashboard")} className="h-11 w-full">
-                Go to Dashboard <ArrowRight size={18} />
+              <Button variant="dark" onClick={() => navigate("/studio")} className="h-11 w-full">
+                Go to Studio <ArrowRight size={18} />
               </Button>
             </>
           )}

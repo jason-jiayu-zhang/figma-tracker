@@ -8,7 +8,7 @@ import { API_BASE } from "./config";
 import "./index.css";
 
 // Always send the ft_session cookie with API calls; use the configured API base
-// (cross-origin app subdomain) when present, otherwise same-origin.
+// when the API is hosted separately from the SPA, otherwise same-origin.
 axios.defaults.withCredentials = true;
 if (API_BASE) axios.defaults.baseURL = API_BASE;
 

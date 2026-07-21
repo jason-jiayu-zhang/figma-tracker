@@ -42,8 +42,9 @@ export default function Privacy() {
           authored them), and dev resource links.
         </li>
         <li>
-          <strong>Profile settings</strong> — including whether you have enabled
-          a public profile and its public URL slug.
+          <strong>Publishing settings</strong> — including whether you have
+          enabled public sharing and the public URL slug (handle) your embeds are
+          addressed by.
         </li>
         <li>
           <strong>Usage and diagnostic data</strong> — we plan to use PostHog for
@@ -81,8 +82,7 @@ export default function Privacy() {
         </li>
         <li>To operate, maintain, secure, and improve the Service.</li>
         <li>
-          To power public profiles and embeds that you explicitly choose to
-          enable.
+          To power the public embeds that you explicitly choose to enable.
         </li>
         <li>To respond to your requests and communicate with you.</li>
       </UL>
@@ -128,13 +128,14 @@ export default function Privacy() {
         or in connection with a merger, acquisition, or sale of assets.
       </P>
 
-      <H>Public profiles and embeds</H>
+      <H>Public embeds</H>
       <P>
-        Fimanu lets you optionally publish a public profile or embeddable widget.
-        When you enable this, the activity and statistics you choose to share
-        become publicly accessible to anyone with the link — they are no longer
-        private. You can disable your public profile at any time in Settings,
-        which removes public access going forward.
+        Fimanu lets you optionally publish embeddable widgets, addressed by the
+        public handle you choose. When you enable this, the activity and
+        statistics you choose to share become publicly accessible to anyone with
+        the link, without signing in — they are no longer private. You can
+        disable publishing at any time in Settings, which removes public access
+        going forward.
       </P>
 
       <H>Data retention and deletion</H>

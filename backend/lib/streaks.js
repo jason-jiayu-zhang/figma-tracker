@@ -23,8 +23,8 @@ function isConsecutive(prev, d) {
 }
 
 /* Current + longest streak of active days from a set of YYYY-MM-DD strings.
-   Weekends never break a streak — only a missed weekday resets it. Mirrored by
-   computeContribStats in src/pages/Dashboard.tsx; keep the two in sync. */
+   Weekends never break a streak — only a missed weekday resets it. This is the
+   only implementation; the streak badge and embeds all read it from here. */
 function computeStreaks(activeDates, todayStr) {
   const sorted = [...activeDates].sort();
   let longest = 0;

@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import imgFooterSVG from "../assets/FooterSVG.svg";
 import imgFimanuLogoFull from "../assets/FimanuLogoFull.svg";
+import { CONTACT_EMAIL } from "../config";
 
 const Footer: React.FC = () => {
   return (
@@ -22,17 +23,14 @@ const Footer: React.FC = () => {
             <p className="text-body text-[14px] tracking-[-0.14px] mb-1">
               NAVIGATION
             </p>
-            <Link to="/dashboard" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
-              Dashboard
-            </Link>
             <Link to="/files" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               Files
             </Link>
+            <Link to="/studio" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
+              Studio
+            </Link>
             <Link to="/settings" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
               Settings
-            </Link>
-            <Link to="/embed" className="text-[16px] text-ink tracking-[-0.16px] hover:underline">
-              Embed
             </Link>
           </div>
           <div className="flex flex-col font-sans font-normal gap-3 items-start">
@@ -40,19 +38,19 @@ const Footer: React.FC = () => {
               RESOURCES
             </p>
             <a
-              href="mailto:jason.jiayu.zhang@gmail.com"
+              href={`mailto:${CONTACT_EMAIL}`}
               className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
             >
               Email
             </a>
             <a
-              href="mailto:jason.jiayu.zhang@gmail.com?subject=Fimanu%20Feedback"
+              href={`mailto:${CONTACT_EMAIL}?subject=Fimanu%20Feedback`}
               className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
             >
               Feedback
             </a>
             <a
-              href="mailto:jason.jiayu.zhang@gmail.com?subject=Fimanu%20Bug%20Report"
+              href={`mailto:${CONTACT_EMAIL}?subject=Fimanu%20Bug%20Report`}
               className="text-[16px] text-ink tracking-[-0.16px] hover:underline"
             >
               Report a Bug

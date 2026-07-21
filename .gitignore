@@ -6,6 +6,7 @@ node_modules/
 pagination_state.json
 tmp_find_node.js
 .claude/settings.local.json
+.playwright-mcp/
 .DS_Store
 dist/
 build/

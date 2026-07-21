@@ -28,6 +28,30 @@
   /* Card elevation */
   --shadow-card: 0px 2px 5px 0px rgba(107, 97, 75, 0.25);
   --shadow-card-hover: 0px 4px 10px 0px rgba(107, 97, 75, 0.3);
+
+  /* ── Editorial landing scale ───────────────────────────────
+     Fluid display steps. Every one is paired with line-height 1
+     below (.display), which is what makes stacked headlines read
+     as a solid block rather than loose lines. */
+  --text-display-xl: clamp(3.25rem, 10.9vw, 8.75rem);
+  --text-display-lg: clamp(2.75rem, 8.2vw, 6.5rem);
+  --text-display-md: clamp(2rem, 5.3vw, 4.1875rem);
+  --text-display-sm: clamp(1.625rem, 3.25vw, 2.5625rem);
+  --text-lede: clamp(1.0625rem, 1.77vw, 1.4rem);
+
+  /* Fluid rhythm: vertical section spacing, page gutter, grid gap. */
+  --spacing-section: clamp(4rem, 11.3vw, 11.25rem);
+  --spacing-block: clamp(2.5rem, 6.6vw, 7.5rem);
+  --spacing-gutter: clamp(1rem, 3.36vw, 3.75rem);
+  --spacing-gap: clamp(0.25rem, 1.53vw, 1.5rem);
+
+  --radius-card: clamp(0.75rem, 1.6vw, 1.5rem);
+  --radius-panel: 20px;
+
+  /* Easing curves that carry the whole page. */
+  --ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
+  --ease-out-quint: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-swift: cubic-bezier(0.2, 0, 0, 1);
 }
 
 :root {
@@ -44,6 +68,16 @@
 
 * {
   box-sizing: border-box;
+}
+
+@layer base {
+  /* Always reserve the scrollbar gutter. Without it, a long page (Files) and a
+     canvas page (Studio) get different usable widths, so the centered shell —
+     and the fixed TopNav pinned to it — shifts sideways on every navigation. */
+  html {
+    scrollbar-gutter: stable;
+    scroll-behavior: smooth;
+  }
 }
 
 body {
@@ -71,8 +105,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-spin,
   .animate-fade-in-up,
+  .hero-aurora,
+  .marquee-track,
   [class*="animate-"] {
     animation: none !important;
+  }
+  /* Reveals must not be left stuck in their hidden start state. */
+  .reveal,
+  .line-mask > span {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html {
+    scroll-behavior: auto !important;
   }
   *,
   ::before,
@@ -142,6 +187,135 @@ h3 {
   }
   .animation-delay-300 {
     animation-delay: 0.3s;
+  }
+  .animation-delay-500 {
+    animation-delay: 0.5s;
+  }
+  .animation-delay-700 {
+    animation-delay: 0.7s;
+  }
+
+  /* ── Landing hero: warm coral "noisy gradient" aurora ─────
+     A soft, cloud-like coral field on the cream canvas. Built
+     from layered radial gradients so it needs no image asset,
+     with a slow drift so the atmosphere feels alive. */
+  .hero-aurora {
+    background-color: var(--color-canvas);
+    background-image:
+      radial-gradient(55% 50% at 50% 42%, rgba(255, 250, 244, 0.5) 0%, rgba(255, 250, 244, 0) 58%),
+      radial-gradient(70% 60% at 74% 20%, rgba(255, 140, 102, 0.6) 0%, rgba(255, 140, 102, 0) 60%),
+      radial-gradient(80% 70% at 22% 70%, rgba(240, 80, 45, 0.6) 0%, rgba(240, 80, 45, 0) 64%),
+      radial-gradient(95% 90% at 50% 52%, rgba(242, 59, 39, 0.72) 0%, rgba(242, 59, 39, 0.18) 55%, rgba(242, 59, 39, 0) 80%);
+    background-size: 160% 160%;
+    background-position: 50% 50%;
+    animation: aurora-drift 26s ease-in-out infinite alternate;
+  }
+  @keyframes aurora-drift {
+    from { background-position: 42% 46%; }
+    to { background-position: 58% 56%; }
+  }
+
+  /* Fine grain overlay — the "noisy" in noisy-gradient. */
+  .hero-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: soft-light;
+    opacity: 0.4;
+  }
+
+  /* Manifesto fragments drift gently in place. */
+  @keyframes fragment-drift {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+  }
+  .animate-fragment-drift {
+    animation: fragment-drift 7s ease-in-out infinite alternate;
+  }
+
+  /* Wordmark rises and settles as the page loads. */
+  @keyframes hero-reveal {
+    from { opacity: 0; transform: translateY(24px); filter: blur(6px); }
+    to { opacity: 1; transform: translateY(0); filter: blur(0); }
+  }
+  .animate-hero-reveal {
+    animation: hero-reveal 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ── Editorial landing primitives ──────────────────────────
+     Display headings sit at line-height 1 with slight negative
+     tracking, at weight 500 — never bold. The weight restraint is
+     what keeps very large type from turning shouty. */
+  .display {
+    font-family: var(--font-display);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+  /* Small UI text runs the other way: positive tracking so 14px
+     labels stay legible against the huge display sizes. */
+  .ui-text {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
+  }
+
+  /* 16-column page grid, matching the fluid gutter/gap rhythm. */
+  .grid-16 {
+    display: grid;
+    grid-template-columns: repeat(16, minmax(0, 1fr));
+    gap: var(--spacing-gap);
+    padding-inline: var(--spacing-gutter);
+  }
+
+  /* Scroll reveal: elements start displaced and settle when the
+     observer adds .is-in. Transform+opacity only, so it composites. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 0.6s var(--ease-out-cubic),
+      transform 0.6s var(--ease-out-cubic);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+  .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Headline lines clip upward from behind a mask. */
+  .line-mask {
+    display: block;
+    overflow: hidden;
+  }
+  .line-mask > span {
+    display: block;
+    transform: translateY(105%);
+    transition: transform 0.85s var(--ease-out-quint);
+    transition-delay: var(--reveal-delay, 0s);
+  }
+  .is-in .line-mask > span,
+  .line-mask.is-in > span {
+    transform: none;
+  }
+
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 46s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* Edge fade for horizontally scrolling strips. */
+  .edge-fade {
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   }
 
   /* ── Color Picker (react-colorful) ────────────────────── */
