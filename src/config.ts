@@ -22,6 +22,10 @@ export const IS_APP_MODE: boolean =
 export const APP_ORIGIN: string =
   APP_DASHBOARD_URL || (typeof window !== "undefined" ? window.location.origin : "");
 
+// Public contact address for the legal pages and footer links.
+export const CONTACT_EMAIL: string =
+  (import.meta.env.VITE_CONTACT_EMAIL as string | undefined) || "";
+
 // Prefix a relative API path with the configured base (for non-axios URLs).
 export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;

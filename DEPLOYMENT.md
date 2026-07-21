@@ -15,20 +15,19 @@ Two ways to run the sync on Render:
   a **free external scheduler** (cron-job.org) that pings `GET /api/sync/incremental`
   every few minutes (§6). The ping also keeps the free instance warm.
 
-> **Vercel note:** Vercel cannot host the dynamic backend or the continuous sync
-> (serverless functions are short-lived/stateless). `vercel.json` and `api/index.js`
-> are legacy artifacts from an earlier Vercel attempt and are **not** used by the
-> Render deployment. If you ever host only the static frontend on Vercel, point
-> `VITE_API_URL` at the Render origin — but the default, supported setup is the single
-> Render service above.
+> **Serverless note:** the backend cannot run on a serverless host — the sync loop is
+> long-running and stateful, and serverless functions are short-lived. If you ever host
+> the static frontend separately, point `VITE_API_URL` at the Render origin; the
+> supported setup is the single Render service above.
 
-Live deployment: `https://<your-service>.onrender.com/` (e.g. `https://figma-tracker.onrender.com/`)
+Throughout this guide, `https://<your-service>.onrender.com/` stands in for the URL Render
+assigns your web service.
 
 ---
 
 ## 1. Render setup
 
-Render Dashboard → **New → Web Service** → connect this repo (`jason-jiayu-zhang/figma-tracker`).
+Render Dashboard → **New → Web Service** → connect your fork of this repo.
 
 - **Runtime:** Node
 - **Build command:** `npm run build` (produces `dist/`, which the server serves statically)
@@ -53,6 +52,7 @@ dashboard, never commit them.
 | `SESSION_SECRET` | Long random string used to sign the `ft_session` JWT. Generate with `openssl rand -hex 32`. **Never reuse the dev placeholder.** |
 | `TOKEN_ENCRYPTION_KEY` | Random string (≥32 chars) used to encrypt Figma OAuth tokens at rest (AES-256-GCM). The server **refuses to start** without it. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Use a **different** value than dev, and **do not rotate it casually** — changing it makes already-encrypted tokens undecryptable (affected users must re-auth). |
 | `CRON_SECRET` | Shared secret that authorizes the cron-triggered sync endpoints. Generate with `openssl rand -hex 32`. Required whenever sync is driven by an external scheduler (see §6). |
+| `FIGMA_WEBHOOK_PASSCODE` | Shared secret echoed back by Figma Webhooks v2 on every delivery to `POST /api/webhook` — the only credential the delivery carries. Generate with `openssl rand -hex 32` and use the same value when creating the webhook subscription. Unset ⇒ all webhook deliveries are rejected with `401`. |
 | `RESIDENT_SYNC` | Set to `off` on a free instance driven by an external cron (§6) so the always-on in-process loop does **not** run. Leave unset on a paid/always-on instance to keep the resident adaptive loop. |
 
 Do **not** set `DEV_LOGIN` in production. It unlocks `GET /api/oauth/dev-login`, a
@@ -66,9 +66,15 @@ Frontend build-time variables (must be present at build time — set them in Ren
 | `VITE_API_URL` | API origin the browser calls. If frontend and backend share the Render origin (the default single-service setup), leave this empty (relative `/api`); set it only if the frontend is served from a different origin. |
 | `VITE_APP_DASHBOARD_URL` | Absolute URL of the dashboard app (the `app.` subdomain), used to build marketing-site CTAs and shareable profile/embed links. Omit for a single-origin setup. |
 | `VITE_IS_APP` | `1` on the dashboard-app deploy so it renders the dashboard; unset/`0` on the marketing deploy. Only needed if you split marketing and app into two deploys. |
+| `VITE_PROOF_SLUG` | Public profile slug powering the landing page's live specimen. Leave unset to keep the seeded demo data. |
+| `VITE_CONTACT_EMAIL` | Contact address rendered on the legal pages and in the footer. Unset leaves those links empty. |
 
-> Reminder: the dev `.env` in the repo is local-only and git-ignored. Production secrets
-> live exclusively in Render (and Supabase). Do not paste real secret values into this file.
+> `VITE_*` values are compiled into the public JS bundle — treat every one of them as
+> world-readable and never put a secret behind that prefix.
+
+> Reminder: `.env` is git-ignored and local-only — `.env.example` lists the variable names
+> with placeholder values. Production secrets live exclusively in Render (and Supabase).
+> Do not paste real secret values into this file.
 
 ### Free-instance note
 
@@ -98,8 +104,7 @@ sync via external cron (§6) — the periodic ping doubles as a keep-warm.
 
 ## 3. Supabase schema
 
-`schema.sql` is the single source of truth for the database (the earlier one-shot
-`migration_multiaccount.sql` has been applied and removed). It is idempotent
+`schema.sql` is the single source of truth for the database. It is idempotent
 (`CREATE TABLE IF NOT EXISTS`, etc.).
 
 1. Open the Supabase project → **SQL Editor**.
@@ -175,7 +180,7 @@ On the Render service from §1, additionally set:
 - `RESIDENT_SYNC=off`
 - `CRON_SECRET=<output of `openssl rand -hex 32`>`
 
-Note the service URL, e.g. `https://figma-tracker.onrender.com`. The free instance sleeps
+Note the service URL (`https://<your-service>.onrender.com`). The free instance sleeps
 after ~15 min idle; the cron ping below keeps it warm (a ≤14 min interval means it
 effectively never sleeps).
 
@@ -195,6 +200,6 @@ delayed under load — cron-job.org is more punctual for this.
   → `{"ok":true,"updateFound":...}`. Without the header → `401 Unauthorized`.
 - Confirm the cron-job.org execution history shows `200` responses.
 
-> Security note: `protectCron` allows the request **unauthenticated** only when
-> `CRON_SECRET` is unset and the host is not Vercel (i.e. local dev). Always set
-> `CRON_SECRET` on any internet-facing deployment, or the sync endpoints are open.
+> Security note: `protectCron` fails closed. With no `CRON_SECRET` set, the sync
+> endpoints return `401` rather than running — so `CRON_SECRET` must be set on any
+> deploy where an external scheduler drives sync, otherwise sync silently stops.

@@ -2,6 +2,7 @@
   "name": "figma-tracker",
   "version": "1.0.0",
   "description": "GitHub-style Figma usage tracker with Supabase",
+  "license": "MIT",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

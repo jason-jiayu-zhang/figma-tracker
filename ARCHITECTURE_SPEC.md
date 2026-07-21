@@ -1,8 +1,8 @@
-# Figma Tracker — Multi-Account Rearchitecture Contract
+# Figma Tracker — Multi-Account Architecture
 
-This is the shared contract for the backend, frontend, and deploy workstreams. All three
-must conform to the names and shapes below so the pieces fit together. If you must deviate,
-note it loudly in your final report.
+This document describes the multi-account architecture: the session primitive, the database
+shape, the API surface, and the routing model. The names and shapes below are the contract
+between the backend, the frontend, and the deployment configuration.
 
 ## Product model
 - Primary login is **Figma OAuth**. After login the user lands on their **own** dashboard.
@@ -20,22 +20,20 @@ note it loudly in your final report.
 - Value = JWT signed with `process.env.SESSION_SECRET` (set in the host env — Render),
   payload `{ uid: <users.id UUID>, fu: <figma_user_id> }`, 30-day expiry.
 - Backend helper `getSessionUser(req)` reads/verifies the cookie and returns
-  `{ id, figma_user_id }` or `null`. Replace ALL `.limit(1)` "first row = current user"
-  logic (`user.js`, `api.js`) with this.
-- Deps: add `jsonwebtoken` and `cookie-parser`. Wire `cookie-parser` in `server.js`.
-- CORS: switch `cors()` to `cors({ origin: <APP_URL(s)>, credentials: true })` — a wildcard
+  `{ id, figma_user_id }` or `null`. Every route that needs the current user resolves it
+  this way — never by reading the first row of `users`.
+- Deps: `jsonwebtoken` and `cookie-parser`; `cookie-parser` is wired in `server.js`.
+- CORS: `cors({ origin: <APP_URL(s)>, credentials: true })` — a wildcard
   origin cannot be used with credentialed cookies. Frontend sends `credentials: 'include'`.
 
-## Schema changes (additive — do NOT drop columns/data on live DB)
-These are now folded into `schema.sql`, the single source of truth (the one-shot
-`migration_multiaccount.sql` was applied and removed). `schema.sql` is idempotent, so
-re-running it on a live DB only adds what's missing.
-- `users`: add `profile_slug TEXT UNIQUE`, `public_enabled BOOLEAN NOT NULL DEFAULT false`.
-- `figma_files`: add `owner_user_id UUID REFERENCES users(id) ON DELETE CASCADE`.
-  - Drop the global `file_key UNIQUE`; add `UNIQUE(owner_user_id, file_key)`.
-  - Backfill existing rows' `owner_user_id` to the single current user id.
-- `file_versions` / `daily_activity` unchanged in shape (keyed by file_id). Attribution
-  stays via `created_by_figma_user_id`.
+## Schema
+`schema.sql` is the single source of truth and is idempotent, so re-running it on a live
+database only adds what is missing — it never drops columns or data.
+- `users`: `profile_slug TEXT UNIQUE`, `public_enabled BOOLEAN NOT NULL DEFAULT false`.
+- `figma_files`: `owner_user_id UUID REFERENCES users(id) ON DELETE CASCADE`. Uniqueness is
+  per owner — `UNIQUE(owner_user_id, file_key)`, not a global `file_key UNIQUE`.
+- `file_versions` / `daily_activity` are keyed by `file_id`. Attribution is carried by
+  `created_by_figma_user_id`.
 
 ## API contract (all under `/api`; cookie-authed unless marked PUBLIC)
 - `GET  /api/oauth/start` → `{ url }` (Figma authorize URL; CSRF state stored).
@@ -66,14 +64,14 @@ re-running it on a live DB only adds what's missing.
 - The Heatmap must key/render cells using the SAME tz (frontend sends its own
   `Intl.DateTimeFormat().resolvedOptions().timeZone`).
 
-## Sync accuracy fixes (backend)
-- `runSync`/`runPageSync`: select each file WITH its `owner_user_id` → resolve that owner's
-  `access_token` (refreshing if expired). Use per-file token, not `users[0]`.
-- Forward sync (`getFileVersionsPage(fileKey, null, token)`) must **page backward** until it
+## Sync accuracy (backend)
+- `runSync`/`runPageSync` select each file together with its `owner_user_id` and resolve
+  that owner's `access_token` (refreshing if expired). Tokens are per file owner, never a
+  single shared account.
+- Forward sync (`getFileVersionsPage(fileKey, null, token)`) **pages backward** until it
   hits an already-known `version_id` (or a safety cap), so bursts >30 versions aren't lost.
-- Token refresh: add a helper in `figmaService.js` that POSTs `grant_type=refresh_token` to
-  Figma's token endpoint when `token_expires_at` is near/past; persist new token + expiry.
-- Fix `api.js` `/api/stats` implicit-global `user` (declare `let user = null;`).
+- Token refresh: `figmaService.js` POSTs `grant_type=refresh_token` to Figma's token
+  endpoint when `token_expires_at` is near/past, then persists the new token + expiry.
 
 ## Routing & subdomain
 - Single-origin by default (marketing + dashboard + API on one Render service). An
@@ -84,7 +82,7 @@ re-running it on a live DB only adds what's missing.
   the landing page. Root-domain visits that are logged in should offer/redirect to the app
   subdomain; app-subdomain visits that are NOT logged in redirect to OAuth start.
 - Logged-in users hitting the app root auto-redirect to `/dashboard`.
-- DNS + Render custom-domain wiring is a MANUAL user step — document it, don't attempt DNS.
+- DNS + Render custom-domain wiring is a manual operator step; see `DEPLOYMENT.md` §4.
 
 ## Env vars (names are fixed by this contract)
 `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `FIGMA_CLIENT_ID`, `FIGMA_CLIENT_SECRET`,
@@ -92,6 +90,8 @@ re-running it on a live DB only adds what's missing.
 `APP_URL` (root site), `APP_DASHBOARD_URL` (app subdomain; optional single-origin),
 `SESSION_SECRET`, `TOKEN_ENCRYPTION_KEY` (encrypts Figma OAuth tokens at rest; server
 refuses to start without it), `CRON_SECRET` (auth for external-cron sync endpoints),
+`FIGMA_WEBHOOK_PASSCODE` (auth for `POST /api/webhook` deliveries),
 `RESIDENT_SYNC` (`off` when an external cron drives sync). Local-only: `DEV_LOGIN=1`
 unlocks the localhost OAuth bypass.
 Frontend build: `VITE_API_URL`, `VITE_APP_DASHBOARD_URL`, `VITE_IS_APP`.
+See `.env.example` for the full list with placeholder values.

@@ -1,7 +1,6 @@
 import React from "react";
 import LegalLayout, { H, P, UL } from "../components/LegalLayout";
-
-const CONTACT = "jason.jiayu.zhang@gmail.com";
+import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function About() {
   return (

@@ -2,8 +2,6 @@
 
 GitHub-style activity tracker for Figma files. Users log in with **Figma OAuth**, track their own files, and get a visual dashboard of their design activity. A continuous background service syncs version history to a Supabase database, and users can publish a public profile + embeddable activity widgets.
 
-[Live Demo](https://figma-tracker.onrender.com/)
-
 ## Features
 
 - **GitHub-Style Contributions**: Visualize your Figma edits over time with a premium activity heatmap.
@@ -31,7 +29,7 @@ GitHub-style activity tracker for Figma files. Users log in with **Figma OAuth**
 
 ### 2. Environment Variables
 
-Create a `.env` file in the root directory:
+Copy `.env.example` to `.env` in the root directory and fill in your own values:
 
 ```env
 PORT=3001
@@ -85,3 +83,7 @@ The application will be available at `http://localhost:5173` (Vite dev server) w
 - **Adaptive Page Sync**: Checks for new versions every 2s when active, slowing down to 10s when idle to optimize API usage.
 - **Full Sync**: Scheduled daily check to ensure data consistency.
 - **Resident or external cron**: On an always-on host the loop runs in-process; on free hosts set `RESIDENT_SYNC=off` and drive `GET /api/sync/incremental` from an external scheduler. Sync state lives in Supabase, so either mode is safe to restart.
+
+## License
+
+Released under the MIT License. See `LICENSE` for the full text.
