@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import Footer from "./components/Footer";
@@ -81,8 +81,15 @@ function AppLayout() {
 function AppRoutes() {
   const { loggedIn, loading, refresh } = useSession();
   const [searchParams] = useSearchParams();
-  const justConnected = searchParams.get("connected") === "1";
+  const justConnectedParam = searchParams.get("connected") === "1";
   const loggedOut = searchParams.get("loggedout") === "1";
+
+  // Sticky flag: once we see ?connected=1, remember it for this mount so that
+  // in-app navigations (e.g. Onboard → navigate("/studio")) that drop the
+  // query param don't lose the signal and re-trigger OAuth.
+  const connectedRef = useRef(false);
+  if (justConnectedParam) connectedRef.current = true;
+  const justConnected = connectedRef.current;
 
   // Right after OAuth (?connected=1) the session cookie is set synchronously by
   // the backend, but the SPA may have loaded /me before the redirect landed.
@@ -123,9 +130,19 @@ function AppRoutes() {
         </Suspense>
       );
     }
-    // Onboarding now starts at the add-files step, so a session is required —
-    // any app route with no session goes straight to OAuth.
-    return <OAuthRedirect />;
+    // On the dedicated app subdomain, auto-redirect to OAuth.
+    // On the root domain, fall back to the landing page so the user isn't
+    // trapped in an OAuth loop.
+    if (IS_APP_MODE) {
+      return <OAuthRedirect />;
+    }
+    return (
+      <Suspense fallback={<Spinner />}>
+        <Routes>
+          <Route path="*" element={<Landing />} />
+        </Routes>
+      </Suspense>
+    );
   }
 
   // Logged in: onboarding is still reachable (add-files step), everything else
