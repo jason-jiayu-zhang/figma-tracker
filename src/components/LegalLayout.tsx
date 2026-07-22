@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import imgFimanuLogoFull from "../assets/FimanuLogoFull.svg";
+import imgFimanuLogoFull from "../assets/fimanu-logo-full.svg";
 
 function slugify(s: string) {
   return s

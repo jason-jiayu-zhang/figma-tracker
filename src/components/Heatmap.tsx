@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo } from "react";
 import { Zap } from "lucide-react";
-import imgFimanuLogo from "../assets/Fimanu Logo.svg";
+import imgFimanuLogo from "../assets/fimanu-logo.svg";
 import {
   format,
   subDays,
@@ -36,11 +36,15 @@ interface HeatmapProps {
   theme?: "light" | "dark";
   customTheme?: HeatmapTheme;
   profileUrl?: string;
+  /** How many trailing days to render. Defaults to a full year (365). Lower
+      values render a narrower grid — used by the marketing previews so the
+      widget fits compact surfaces without clipping. */
+  days?: number;
 }
 
 /* ── Component ─────────────────────────────────────── */
 
-export default function Heatmap({ data, theme = "light", customTheme, profileUrl }: HeatmapProps) {
+export default function Heatmap({ data, theme = "light", customTheme, profileUrl, days = 365 }: HeatmapProps) {
   const componentRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState>({
@@ -77,7 +81,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const weeks = useMemo(() => {
     const today = startOfToday();
     const end = today;
-    const start = subDays(end, 364);
+    const start = subDays(end, Math.max(0, days - 1));
 
     const daysArr = eachDayOfInterval({ start, end });
     const result: (Date | null)[][] = [];
@@ -103,7 +107,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
     }
 
     return result;
-  }, []);
+  }, [days]);
 
   const monthLabels = useMemo(() => {
     const labels: { label: string; x: number }[] = [];

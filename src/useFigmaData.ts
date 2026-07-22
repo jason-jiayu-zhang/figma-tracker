@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import posthog from "posthog-js";
 import axios from "axios";
 import {
   Stats,
@@ -118,9 +119,11 @@ export function useFigmaData() {
     try {
       await axios.post("/api/sync/manual");
       await fetchData();
+      posthog.capture('sync_completed');
     } catch (err) {
       console.error("Sync failed:", err);
       setError("Sync failed. Please try again.");
+      posthog.capture('sync_failed', { error: String(err) });
     } finally {
       setSyncing(false);
     }
@@ -140,6 +143,7 @@ export function useFigmaData() {
     try {
       await axios.post("/api/user/files", { fileKey });
       await fetchData();
+      posthog.capture('dashboard_add_file', { fileKey });
       return { success: true };
     } catch (err) {
       console.error("Failed to add file:", err);
@@ -154,6 +158,7 @@ export function useFigmaData() {
     try {
       await axios.delete(`/api/user/files/${fileKey}`);
       await fetchData();
+      posthog.capture('dashboard_remove_file', { fileKey });
       return { success: true };
     } catch (err) {
       console.error("Failed to remove file:", err);
@@ -165,6 +170,7 @@ export function useFigmaData() {
     try {
       await axios.patch(`/api/user/files/${fileKey}`, { archived });
       await fetchData();
+      posthog.capture('dashboard_archive_file', { fileKey, archived });
       return { success: true };
     } catch (err) {
       console.error("Failed to archive file:", err);

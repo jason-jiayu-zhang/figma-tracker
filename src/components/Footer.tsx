@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import imgFooterSVG from "../assets/FooterSVG.svg";
-import imgFimanuLogoFull from "../assets/FimanuLogoFull.svg";
+import imgFooterSVG from "../assets/footer.svg";
+import imgFimanuLogoFull from "../assets/fimanu-logo-full.svg";
 import { CONTACT_EMAIL } from "../config";
 
 const Footer: React.FC = () => {

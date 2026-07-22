@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import posthog from "posthog-js";
 import axios from 'axios';
 import { useSession } from '../session';
 import { APP_ORIGIN } from '../config';
@@ -41,6 +42,7 @@ export default function Settings() {
         public_enabled: publicEnabled,
       });
       await refresh();
+      posthog.capture('settings_update_profile');
       setSaved(true);
       setTimeout(() => setSaved(false), 1800);
     } catch (err: any) {
@@ -58,7 +60,10 @@ export default function Settings() {
     } catch {
       /* ignore */
     }
-    window.location.href = '/';
+    posthog.capture('nav_logout');
+    // ?loggedout=1 tells the app shell to show the marketing landing page
+    // instead of bouncing a session-less visit straight back into OAuth.
+    window.location.href = '/?loggedout=1';
   };
 
   const deleteAccount = async () => {
@@ -66,7 +71,8 @@ export default function Settings() {
     setDeleteError(null);
     try {
       await axios.post('/api/user/disconnect');
-      window.location.href = '/';
+      posthog.capture('settings_delete_account');
+      window.location.href = '/?loggedout=1';
     } catch (err: any) {
       setDeleteError(err?.response?.data?.error || 'Failed to delete account. Please try again.');
       setDeleting(false);
@@ -91,7 +97,7 @@ export default function Settings() {
 
       {/* Account */}
       <Card className="flex flex-col gap-5 p-6">
-        <h2 className="font-bold text-[18px] tracking-[-0.18px] text-ink">Account</h2>
+        <h2 className="display text-[18px] text-ink">Account</h2>
         <div className="flex items-center gap-4">
           <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-16 overflow-hidden bg-hairline">
             {user?.img_url ? (
@@ -103,7 +109,7 @@ export default function Settings() {
             )}
           </div>
           <div className="flex flex-col gap-1.5">
-            <h3 className="font-bold text-[18px] tracking-[-0.18px] leading-tight text-black">{displayName}</h3>
+            <h3 className="display text-[18px] leading-tight text-black">{displayName}</h3>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-green" />
               <span className="text-[13px] text-body font-medium">Figma account connected</span>
@@ -191,7 +197,7 @@ export default function Settings() {
       </Card>
 
       {/* Danger zone — delete account + all data */}
-      <Card className="flex flex-col gap-5 p-6 border border-red/30">
+      <Card className="flex flex-col gap-5 p-6 border-red/30!">
         <SectionHeader
           plain
           icon={<AlertTriangle size={20} className="text-red" />}

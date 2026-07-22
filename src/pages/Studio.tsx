@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import posthog from "posthog-js";
 import Heatmap from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import TopNav from "../components/TopNav";
@@ -172,7 +173,10 @@ function DockTabs({ tabs, actions }: { tabs: DockTab[]; actions: React.ReactNode
   const tabIds = tabs.map((t) => t.id).join(",");
   useEffect(() => {
     const ids = tabIds.split(",");
-    setOpenId((cur) => (cur && !ids.includes(cur) ? ids[0] ?? null : cur));
+    setOpenId((cur) => {
+      const next = cur && !ids.includes(cur) ? ids[0] ?? null : cur;
+      return next;
+    });
   }, [tabIds]);
 
   useEffect(() => {
@@ -190,6 +194,7 @@ function DockTabs({ tabs, actions }: { tabs: DockTab[]; actions: React.ReactNode
     e.preventDefault();
     const i = tabs.findIndex((t) => t.id === openId);
     const next = tabs[(i + (e.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length];
+    posthog.capture('studio_select_dock_tab', { tab: next.id });
     setOpenId(next.id);
     railRef.current?.querySelector<HTMLButtonElement>(`[data-tab="${next.id}"]`)?.focus();
   };
@@ -207,13 +212,13 @@ function DockTabs({ tabs, actions }: { tabs: DockTab[]; actions: React.ReactNode
         </div>
       )}
 
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex items-center justify-center gap-4 px-3 py-2 w-full">
         <div
           ref={railRef}
           role="tablist"
           aria-label="Editor sections"
           onKeyDown={onRailKeyDown}
-          className="flex items-center gap-1"
+          className="flex items-center justify-center gap-1 shrink-0"
         >
           {tabs.map((t) => {
             const isOpen = openId === t.id;
@@ -227,7 +232,11 @@ function DockTabs({ tabs, actions }: { tabs: DockTab[]; actions: React.ReactNode
                 aria-selected={isOpen}
                 aria-controls={isOpen ? `dock-panel-${t.id}` : undefined}
                 tabIndex={isOpen ? 0 : -1}
-                onClick={() => setOpenId(isOpen ? null : t.id)}
+                onClick={() => {
+                  const next = isOpen ? null : t.id;
+                  posthog.capture('studio_select_dock_tab', { tab: next });
+                  setOpenId(next);
+                }}
                 className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isOpen ? "bg-canvas text-ink ring-1 ring-accent/30" : "text-muted hover:text-ink"}`}
               >
                 {t.icon}
@@ -237,9 +246,11 @@ function DockTabs({ tabs, actions }: { tabs: DockTab[]; actions: React.ReactNode
           })}
         </div>
 
-        <Divider />
+        <div className="w-px h-4 bg-line" aria-hidden="true" />
 
-        <div className="flex items-center gap-2">{actions}</div>
+        <div className="flex items-center gap-2">
+          {actions}
+        </div>
       </div>
     </div>
   );
@@ -483,8 +494,36 @@ function BreakdownDock({ breakdown }: { breakdown: ReturnType<typeof useBreakdow
           icon: <Palette size={15} />,
           content: (
             <>
-              <ColorPicker title="Background" color={breakdown.bg} onChange={breakdown.setBg} />
-              <ColorPicker title="Text / label" color={breakdown.text} onChange={breakdown.setText} contrastAgainst={breakdown.bg} />
+              <div role="radiogroup" aria-label="Embed style" className="flex items-center gap-1">
+                {STYLES.map((s) => (
+                  <StyleOption
+                    key={s.value}
+                    compact
+                    active={breakdown.embedStyle === s.value}
+                    label={s.label}
+                    previewTheme={s.previewTheme}
+                    onClick={() => breakdown.setEmbedStyle(s.value)}
+                  />
+                ))}
+              </div>
+              <Divider />
+              <div className="flex items-center gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <ColorPicker
+                    key={i}
+                    title={i === 3 ? "Other Files color" : `Card ${i + 1} color`}
+                    color={breakdown.activeCards[i] ?? "#6b7280"}
+                    onChange={(c) => breakdown.setCardColor(i, c)}
+                  />
+                ))}
+              </div>
+              <Divider />
+              <div className="flex items-center gap-2">
+                <ColorPicker title="Background" color={breakdown.bgColor} onChange={breakdown.setBgColor} />
+                <ColorPicker title="Text / label" color={breakdown.activeText} onChange={breakdown.setTextColor} contrastAgainst={breakdown.activeBg === "transparent" ? undefined : breakdown.activeBg} />
+              </div>
+              <Divider />
+              <DockToggle label="Transparent" checked={breakdown.transparentBg} onChange={() => breakdown.setTransparentBg((v) => !v)} />
               <Divider />
               <DockSlider label="Radius" value={breakdown.radius} min={0} max={24} step={1} onChange={breakdown.setRadius} format={(v) => `${v}px`} />
             </>
@@ -563,7 +602,7 @@ export default function Studio() {
     return (
       <div aria-busy="true" className="bg-canvas flex flex-col items-center justify-center min-h-dvh w-full">
         <TopNav />
-        <div className={`bg-surface rounded-4xl shadow-card h-[220px] animate-pulse motion-reduce:animate-none ${SHELL}`} />
+        <div className={`bg-surface rounded-card border border-line shadow-card h-[220px] animate-pulse motion-reduce:animate-none ${SHELL}`} />
         <span className="sr-only" role="status" aria-live="polite">Loading studio…</span>
       </div>
     );
@@ -584,7 +623,10 @@ export default function Studio() {
               type="button"
               role="radio"
               aria-checked={widgetMode === w.id}
-              onClick={() => setWidgetMode(w.id)}
+              onClick={() => {
+                posthog.capture('studio_select_widget', { widget: w.id });
+                setWidgetMode(w.id);
+              }}
               className={`flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${widgetMode === w.id ? "bg-canvas text-ink ring-1 ring-accent/30" : "text-muted hover:text-ink"}`}
             >
               {w.icon}
@@ -599,7 +641,10 @@ export default function Studio() {
           min={25}
           max={100}
           step={1}
-          onChange={setPreviewWidth}
+          onChange={(v) => {
+            posthog.capture('studio_change_preview_scale', { value: v });
+            setPreviewWidth(v);
+          }}
           format={(v) => `${v}%`}
         />
       </div>
@@ -624,14 +669,15 @@ export default function Studio() {
             ) : widgetMode === "breakdown" ? (
               <div
                 className="w-full rounded-2xl border border-transparent shadow-card p-4 flex flex-col transition-colors"
-                style={{ backgroundColor: breakdown.bg, height: 320 }}
+                style={{ backgroundColor: breakdown.activeBg, height: 320 }}
               >
                 <FileVolumeBreakdown
                   activity={previewActivity}
                   files={files}
                   embedded
                   cardRadius={breakdown.radius}
-                  textColor={breakdown.text}
+                  textColor={breakdown.activeText}
+                  cardColors={breakdown.activeCards}
                 />
               </div>
             ) : (

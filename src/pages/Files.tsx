@@ -277,7 +277,7 @@ export default function Files() {
               <FileText size={20} />
             </IconChip>
             <div className="flex flex-col gap-1.5 max-w-[320px]">
-              <h3 className="font-bold text-[18px] tracking-[-0.18px] text-ink">No files tracked yet</h3>
+              <h3 className="display text-[18px] text-ink">No files tracked yet</h3>
               <p className="text-[14px] text-body leading-relaxed">
                 Add a Figma file to start tracking its version history and activity.
               </p>

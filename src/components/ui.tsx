@@ -87,7 +87,7 @@ export function Card({
   ...rest
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`bg-surface rounded-4xl shadow-card ${className}`} {...rest}>
+    <div className={`bg-surface rounded-card border border-line shadow-card ${className}`} {...rest}>
       {children}
     </div>
   );
@@ -116,7 +116,7 @@ export function SectionHeader({
       <div className="flex gap-3 items-center min-w-0">
         <IconChip color={color} plain={plain}>{icon}</IconChip>
         <div className="flex flex-col gap-1 min-w-0">
-          <h2 className="font-bold text-[20px] tracking-[-0.2px] leading-tight text-ink truncate">
+          <h2 className="display text-[20px] leading-tight text-ink truncate">
             {title}
           </h2>
           {subtitle != null &&
@@ -322,14 +322,14 @@ export function StatTile({
     <>
       <IconChip color={color} plain={plain}>{icon}</IconChip>
       <div className="flex flex-col min-w-0">
-        <p className="font-semibold text-[22px] tracking-[-0.22px] text-ink leading-none truncate tabular-nums">
+        <p className="display text-[22px] text-ink leading-none truncate tabular-nums">
           {value}
         </p>
         <p className="text-[12px] text-body tracking-[-0.12px] mt-1 truncate">{label}</p>
       </div>
     </>
   );
-  const base = "bg-surface flex items-center gap-3 p-4 rounded-3xl shadow-card flex-1 min-w-0";
+  const base = "bg-surface flex items-center gap-3 p-4 rounded-card border border-line shadow-card flex-1 min-w-0";
   if (onClick) {
     return (
       <button

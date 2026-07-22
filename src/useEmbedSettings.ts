@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import posthog from "posthog-js";
 import { useSearchParams } from "react-router-dom";
 import { useSession } from "./session";
 import { APP_ORIGIN } from "./config";
@@ -211,15 +212,20 @@ export function useEmbedSettings({
     });
   };
 
+  const copyWrapped = (key: string, text: string) => {
+    posthog.capture('studio_copy_snippet', { widget: 'heatmap', type: key });
+    copy(key, text);
+  };
+
   return {
     slug,
     published,
     embedStyle,
-    setEmbedStyle,
+    setEmbedStyle: (v: string) => { posthog.capture('studio_change_heatmap_style', { value: v }); setEmbedStyle(v); },
     rectSize,
     rectRadius,
     transparentBg,
-    setTransparentBg,
+    setTransparentBg: (v: boolean | ((prev: boolean) => boolean)) => { posthog.capture('studio_toggle_heatmap_transparent'); setTransparentBg(v); },
     activeLevels,
     activeEmpty,
     activeBg,
@@ -227,18 +233,18 @@ export function useEmbedSettings({
     activeTheme,
     accentColor,
     bgColor,
-    setAccent,
-    setLevelColor,
-    setEmptyColor,
-    setBgColor,
-    setTextColor,
-    setSize,
-    setRadius,
-    handleToggleFile,
-    handleSelectAllFiles,
+    setAccent: (v: string) => { posthog.capture('studio_change_heatmap_accent', { value: v }); setAccent(v); },
+    setLevelColor: (i: number, v: string) => { posthog.capture('studio_change_heatmap_level_color', { index: i, value: v }); setLevelColor(i, v); },
+    setEmptyColor: (v: string) => { posthog.capture('studio_change_heatmap_empty_color', { value: v }); setEmptyColor(v); },
+    setBgColor: (v: string) => { posthog.capture('studio_change_heatmap_bg_color', { value: v }); setBgColor(v); },
+    setTextColor: (v: string) => { posthog.capture('studio_change_heatmap_text_color', { value: v }); setTextColor(v); },
+    setSize: (v: number) => { posthog.capture('studio_change_heatmap_size', { value: v }); setSize(v); },
+    setRadius: (v: number) => { posthog.capture('studio_change_heatmap_radius', { value: v }); setRadius(v); },
+    handleToggleFile: (fileKey: string) => { posthog.capture('studio_toggle_heatmap_file'); handleToggleFile(fileKey); },
+    handleSelectAllFiles: () => { posthog.capture('studio_select_all_heatmap_files'); handleSelectAllFiles(); },
     widgetUrl,
     iframeCode,
     copiedKey,
-    copy,
+    copy: copyWrapped,
   };
 }

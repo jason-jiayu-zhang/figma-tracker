@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useId, useRef, useCallback } from "react";
+import posthog from "posthog-js";
 import axios from "axios";
 import { Copy, Check, Pipette, Globe } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
@@ -273,6 +274,7 @@ export function PublishForm({ onPublished }: { onPublished?: () => void }) {
   useEffect(() => setSlug(user?.profile_slug ?? ""), [user?.profile_slug]);
 
   const submit = async () => {
+    posthog.capture('studio_publish_profile');
     setSaving(true);
     setError(null);
     try {

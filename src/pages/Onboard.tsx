@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
+import posthog from "posthog-js";
 import axios from "axios";
-import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
+import imgFimanuLogo from "../assets/fimanu-logo-full.svg";
 import { Plus, X, Check, ArrowRight, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
@@ -98,6 +99,10 @@ export default function Onboard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    posthog.capture('onboarding_view_step', { step });
+  }, [step]);
+
+  useEffect(() => {
     // Returning from OAuth: the session cookie is already set. Rely on it —
     // poll /api/user/me until it resolves instead of re-triggering OAuth.
     if (searchParams.get("connected") === "1" && !user) {
@@ -111,7 +116,10 @@ export default function Onboard() {
     }
   }, [searchParams, user, refresh]);
 
-  const addFileField = () => setFiles([...files, ""]);
+  const addFileField = () => {
+    posthog.capture('onboarding_add_file_field');
+    setFiles([...files, ""]);
+  };
   const removeFileField = (index: number) => {
     const newFiles = [...files];
     newFiles.splice(index, 1);
@@ -132,6 +140,7 @@ export default function Onboard() {
       return;
     }
 
+    posthog.capture('onboarding_submit_files', { count: validFiles.length });
     setIsSubmitting(true);
     try {
       // Submit all files concurrently for faster optimistic UI response
@@ -207,7 +216,10 @@ export default function Onboard() {
                   {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
                 </Button>
                 <button
-                  onClick={() => navigate("/studio")}
+                  onClick={() => {
+                    posthog.capture('onboarding_skip_files');
+                    navigate("/studio");
+                  }}
                   disabled={isSubmitting}
                   className="h-11 w-full flex items-center justify-center rounded-xl text-body hover:text-ink hover:bg-hairline transition-colors font-semibold text-[13px] disabled:opacity-50"
                 >
@@ -234,7 +246,10 @@ export default function Onboard() {
                   Your files are queued and syncing in the background.
                 </p>
               </div>
-              <Button variant="dark" onClick={() => navigate("/studio")} className="h-11 w-full">
+              <Button variant="dark" onClick={() => {
+                posthog.capture('onboarding_complete');
+                navigate("/studio");
+              }} className="h-11 w-full">
                 Go to Studio <ArrowRight size={18} />
               </Button>
             </>

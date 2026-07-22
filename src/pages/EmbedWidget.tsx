@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import posthog from "posthog-js";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
@@ -67,7 +68,10 @@ function StreakBadge({ searchParams }: { searchParams: URLSearchParams }) {
         const d = res.data || {};
         setValue(metric === "edits" ? d?.named?.total ?? 0 : d?.streak?.current ?? 0);
       })
-      .catch(() => setValue(0));
+      .catch(() => {
+        setValue(0);
+        posthog.capture('error_widget_render', { widget: 'streak', error: 'api_error' });
+      });
   }, [slug, metric]);
 
   const num = value == null ? "—" : metric === "edits" ? value.toLocaleString() : String(value);
@@ -121,8 +125,24 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
   const slug = searchParams.get("slug") || "";
   const daysRaw = parseInt(searchParams.get("days") || "365", 10);
   const days = Number.isNaN(daysRaw) ? 365 : Math.max(1, Math.min(3650, daysRaw));
-  const bg = hexParam(searchParams.get("bg")) || "#fffaf4";
-  const text = hexParam(searchParams.get("text")) || "#ffffff";
+
+  const style = searchParams.get("style") || "fimanu";
+  const bg = searchParams.get("bg");
+  const text = searchParams.get("text");
+  const cards = searchParams.get("cards")?.split("-").map(c => `#${c}`);
+
+  const getBaseTheme = (s: string) => {
+    if (s === 'github') return { bg: '#0d1116', text: '#c9d1d9', cards: ['#56d364', '#2da042', '#196c2e', '#0e4429'] };
+    if (s === 'figma') return { bg: '#fffaf4', text: '#ffffff', cards: ['#f24e1e', '#1abcfe', '#0acf83', '#a259ff'] };
+    return { bg: '#fffaf4', text: '#ffffff', cards: [] as string[] };
+  };
+  
+  const baseTheme = getBaseTheme(style);
+  
+  const activeBg = bg === "transparent" ? "transparent" : (hexParam(bg) || baseTheme.bg);
+  const activeText = hexParam(text) || baseTheme.text;
+  const activeCards = cards && cards.length === 4 ? cards : baseTheme.cards;
+
   const radiusRaw = parseInt(searchParams.get("radius") || "16", 10);
   const radius = Number.isNaN(radiusRaw) ? 16 : Math.max(0, Math.min(48, radiusRaw));
 
@@ -151,6 +171,7 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
       .catch(() => {
         setActivity({ rows: [], dailyTotals: {}, days, filterMine: false, myFigmaUserId: null });
         setFiles([]);
+        posthog.capture('error_widget_render', { widget: 'breakdown', error: 'api_error' });
       })
       .finally(() => setLoading(false));
   }, [slug, days]);
@@ -167,7 +188,7 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
       };
 
   const containerStyle: React.CSSProperties = {
-    backgroundColor: bg,
+    backgroundColor: activeBg,
     padding: 16,
     borderRadius: 16,
     boxSizing: "border-box",
@@ -198,7 +219,7 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
   return (
     <div style={outerStyle}>
       <div style={containerStyle}>
-        <FileVolumeBreakdown activity={activity} files={files} embedded cardRadius={radius} textColor={text} />
+        <FileVolumeBreakdown activity={activity} files={files} embedded cardRadius={radius} textColor={activeText} cardColors={activeCards} />
       </div>
     </div>
   );
@@ -232,10 +253,19 @@ export default function EmbedWidget() {
     axios
       .get(`/api/public/${encodeURIComponent(slug)}/activity?mode=all&days=365&tz=${encodeURIComponent(tz)}${fileKeysParam}`)
       .then((res) => setDailyTotals(res.data?.dailyTotals ?? {}))
-      .catch(() => setDailyTotals({}))
+      .catch(() => {
+        setDailyTotals({});
+        posthog.capture('error_widget_render', { widget: 'heatmap', error: 'api_error' });
+      })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug, searchParams.get("files"), isStreak, isBreakdown]);
+
+  useEffect(() => {
+    if (isEmbedded) {
+      posthog.capture('embed_viewed', { widget, referrer: document.referrer });
+    }
+  }, [isEmbedded, widget]);
 
   const rawStyle = searchParams.get("style") || "fimanu";
   const bg = searchParams.get("bg");

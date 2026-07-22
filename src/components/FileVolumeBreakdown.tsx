@@ -12,6 +12,7 @@ interface FileVolumeBreakdownProps {
   embedded?: boolean;
   cardRadius?: number;
   textColor?: string;
+  cardColors?: string[];
 }
 
 export default function FileVolumeBreakdown({
@@ -20,6 +21,7 @@ export default function FileVolumeBreakdown({
   embedded = false,
   cardRadius,
   textColor = "#ffffff",
+  cardColors = [],
 }: FileVolumeBreakdownProps) {
   const { displayItems, total } = useMemo(() => {
     if (!activity || !activity.rows) return { displayItems: [], total: 0 };
@@ -80,13 +82,13 @@ export default function FileVolumeBreakdown({
       style={{ color: textColor }}
     >
       {displayItems.length === 1 && (
-        <Card item={displayItems[0]} total={total} radius={cardRadius} isPrimary style={{ gridColumn: "1 / span 3", gridRow: "1 / span 2" }} />
+        <Card item={displayItems[0]} total={total} radius={cardRadius} isPrimary customColor={cardColors[0]} style={{ gridColumn: "1 / span 3", gridRow: "1 / span 2" }} />
       )}
 
       {displayItems.length === 2 && (
         <>
-          <Card item={displayItems[0]} total={total} radius={cardRadius} isPrimary style={{ gridColumn: "1 / span 2", gridRow: "1 / span 2" }} />
-          <Card item={displayItems[1]} total={total} radius={cardRadius} style={{ gridColumn: "3", gridRow: "1 / span 2" }} />
+          <Card item={displayItems[0]} total={total} radius={cardRadius} isPrimary customColor={cardColors[0]} style={{ gridColumn: "1 / span 2", gridRow: "1 / span 2" }} />
+          <Card item={displayItems[1]} total={total} radius={cardRadius} customColor={cardColors[1]} style={{ gridColumn: "3", gridRow: "1 / span 2" }} />
         </>
       )}
 
@@ -97,18 +99,21 @@ export default function FileVolumeBreakdown({
             total={total}
             radius={cardRadius}
             isPrimary
+            customColor={cardColors[0]}
             style={{ gridColumn: "1", gridRow: "1 / span 2" }}
           />
           <Card
             item={displayItems[1]}
             total={total}
             radius={cardRadius}
+            customColor={cardColors[1]}
             style={{ gridColumn: "2 / span 2", gridRow: "1" }}
           />
           <Card
             item={displayItems[2]}
             total={total}
             radius={cardRadius}
+            customColor={cardColors[2]}
             style={{ gridColumn: displayItems.length === 3 ? "2 / span 2" : "2", gridRow: "2" }}
           />
           {displayItems[3] && (
@@ -117,6 +122,7 @@ export default function FileVolumeBreakdown({
               total={total}
               radius={cardRadius}
               isOther={displayItems[3].fileKey === 'other'}
+              customColor={cardColors[3]}
               style={{ gridColumn: "3", gridRow: "2" }}
             />
           )}
@@ -126,9 +132,10 @@ export default function FileVolumeBreakdown({
   );
 }
 
-function Card({ item, total, style, radius, isOther = false, isPrimary = false }: { item: any; total: number; style?: React.CSSProperties; radius?: number; isOther?: boolean; isPrimary?: boolean }) {
+function Card({ item, total, style, radius, isOther = false, isPrimary = false, customColor }: { item: any; total: number; style?: React.CSSProperties; radius?: number; isOther?: boolean; isPrimary?: boolean; customColor?: string }) {
   const percent = total > 0 ? Math.round((item.count / total) * 100) : 0;
-  const bgStyle = isOther ? { backgroundColor: '#6b7280' } : { backgroundColor: colorForKey(item.fileKey) };
+  const fallbackBg = isOther ? '#6b7280' : colorForKey(item.fileKey);
+  const bgStyle = { backgroundColor: customColor || fallbackBg };
   const lastEdit = item.lastModified
     ? formatDistanceToNowStrict(new Date(item.lastModified), { addSuffix: true })
     : (isOther ? null : 'No recent edits');

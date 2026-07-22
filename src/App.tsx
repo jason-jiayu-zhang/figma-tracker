@@ -82,6 +82,7 @@ function AppRoutes() {
   const { loggedIn, loading, refresh } = useSession();
   const [searchParams] = useSearchParams();
   const justConnected = searchParams.get("connected") === "1";
+  const loggedOut = searchParams.get("loggedout") === "1";
 
   // Right after OAuth (?connected=1) the session cookie is set synchronously by
   // the backend, but the SPA may have loaded /me before the redirect landed.
@@ -107,6 +108,17 @@ function AppRoutes() {
         <Suspense fallback={<Spinner />}>
           <Routes>
             <Route path="*" element={<Onboard />} />
+          </Routes>
+        </Suspense>
+      );
+    }
+    // Just logged out (or deleted the account): land on the marketing page
+    // rather than bouncing straight back into Figma OAuth.
+    if (loggedOut) {
+      return (
+        <Suspense fallback={<Spinner />}>
+          <Routes>
+            <Route path="*" element={<Landing />} />
           </Routes>
         </Suspense>
       );

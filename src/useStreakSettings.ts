@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import posthog from "posthog-js";
 import { useSession } from "./session";
 import { APP_ORIGIN } from "./config";
 import { readSettings, writeSettings } from "./settingsStore";
@@ -130,23 +131,32 @@ export function useStreakSettings() {
     });
   };
 
+  const copyWrapped = (key: string, text: string) => {
+    posthog.capture('studio_copy_snippet', { widget: 'streak', type: key });
+    copy(key, text);
+  };
+
   return {
     slug,
     published,
     metric,
-    setMetric,
+    setMetric: (v: StreakMetric) => { posthog.capture('studio_change_streak_metric', { value: v }); setMetric(v); },
     theme,
-    setTheme,
+    setTheme: (v: StreakTheme) => { posthog.capture('studio_change_streak_theme', { value: v }); setTheme(v); },
     emoji,
-    setEmoji,
+    setEmoji: (v: boolean | ((prev: boolean) => boolean)) => {
+      // If it's a function, we don't know the exact value here, but usually it's a toggle
+      posthog.capture('studio_toggle_streak_emoji');
+      setEmoji(v);
+    },
     radius,
-    setRadius,
+    setRadius: (v: number) => { posthog.capture('studio_change_streak_radius', { value: v }); setRadius(v); },
     font,
-    setFont,
+    setFont: (v: StreakFont) => { posthog.capture('studio_change_streak_font', { value: v }); setFont(v); },
     output,
-    setOutput,
+    setOutput: (v: StreakOutput) => { posthog.capture('studio_change_streak_output', { value: v }); setOutput(v); },
     colors,
-    setColor,
+    setColor: (k: StreakColorKey, v: string) => { posthog.capture('studio_change_streak_color', { key: k, value: v }); setColor(k, v); },
     preset,
     alt,
     badgeUrl,
@@ -155,6 +165,6 @@ export function useStreakSettings() {
     imgMd,
     iframeCode,
     copiedKey,
-    copy,
+    copy: copyWrapped,
   };
 }

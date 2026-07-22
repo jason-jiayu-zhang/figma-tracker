@@ -283,14 +283,18 @@ h3 {
     transform: none;
   }
 
-  /* Headline lines clip upward from behind a mask. */
+  /* Headline lines clip upward from behind a mask. The padding gives
+     descenders (g/y/p) room inside the overflow clip; the equal negative
+     margin cancels it so line-height-1 stacking is unchanged. */
   .line-mask {
     display: block;
     overflow: hidden;
+    padding-bottom: 0.16em;
+    margin-bottom: -0.16em;
   }
   .line-mask > span {
     display: block;
-    transform: translateY(105%);
+    transform: translateY(120%);
     transition: transform 0.85s var(--ease-out-quint);
     transition-delay: var(--reveal-delay, 0s);
   }
