@@ -1,14 +1,37 @@
 import React, { useState } from "react";
-import { RefreshCw, FileText, Activity, Layers, GitCommit, Zap, Flame } from "lucide-react";
+import {
+  RefreshCw,
+  FileText,
+  Activity,
+  Layers,
+  GitCommit,
+  Zap,
+  Flame,
+} from "lucide-react";
+import posthog from "posthog-js";
 import { useFigmaData } from "../useFigmaData";
-import { format, subDays, addDays, getDay, isSameDay, startOfToday, formatDistanceToNowStrict } from "date-fns";
+import {
+  format,
+  subDays,
+  addDays,
+  getDay,
+  isSameDay,
+  startOfToday,
+  formatDistanceToNowStrict,
+} from "date-fns";
 import { FigmaFile, FigmaVersion } from "../types";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import InsightsPanel from "../components/InsightsPanel";
 import SummaryHero from "../components/SummaryHero";
 import DashboardSkeleton from "../components/DashboardSkeleton";
-import { Card, SectionHeader, StatInline, StatTile, SegmentedControl } from "../components/ui";
+import {
+  Card,
+  SectionHeader,
+  StatInline,
+  StatTile,
+  SegmentedControl,
+} from "../components/ui";
 
 const isWeekendDate = (date: Date) => {
   const d = getDay(date); // 0 = Sun, 6 = Sat
@@ -41,7 +64,7 @@ function computeContribStats(dailyTotals: Record<string, number>) {
   const active = new Set(
     Object.entries(dailyTotals)
       .filter(([, c]) => c > 0)
-      .map(([d]) => d)
+      .map(([d]) => d),
   );
 
   const today = startOfToday();
@@ -123,14 +146,17 @@ export default function Dashboard() {
     setDays,
   } = useFigmaData();
 
-  const selectedFileKey = selectedFileKeys.length === 1 ? selectedFileKeys[0] : null;
-  const setSelectedFileKey = (key: string | null) => setSelectedFileKeys(key ? [key] : []);
+  const selectedFileKey =
+    selectedFileKeys.length === 1 ? selectedFileKeys[0] : null;
+  const setSelectedFileKey = (key: string | null) =>
+    setSelectedFileKeys(key ? [key] : []);
 
   const [selectedFile, setSelectedFile] = useState<FigmaFile | null>(null);
   const [versions, setVersions] = useState<FigmaVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
 
   const handleFileClick = async (file: FigmaFile) => {
+    posthog.capture("file_version_history_viewed");
     setSelectedFile(file);
     // also set the global selected file key so activity chart filters
     setSelectedFileKeys([file.file_key]);
@@ -167,13 +193,19 @@ export default function Dashboard() {
     { label: "1M", value: 30 },
     { label: "90D", value: 90 },
     { label: "1Y", value: 365 },
-    { label: "YTD", value: Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000) + 1 },
+    {
+      label: "YTD",
+      value:
+        Math.floor(
+          (Date.now() - new Date(new Date().getFullYear(), 0, 1).getTime()) /
+            86400000,
+        ) + 1,
+    },
     { label: "All", value: 3650 },
   ];
 
   return (
     <div className="flex flex-col gap-6 items-start w-full">
-
       {/* SUMMARY HERO — accent gauge draws the eye to the overall streak */}
       <SummaryHero
         streakCurrent={contrib.current}
@@ -186,14 +218,48 @@ export default function Dashboard() {
 
       {/* KPI ROW */}
       <div className="flex gap-4 items-stretch w-full shrink-0">
-        <StatTile plain icon={<FileText size={20} />} value={<span className="tabular-nums">{(stats?.filesTracked ?? files.length).toLocaleString()}</span>} label="Files tracked" />
-        <StatTile plain icon={<GitCommit size={20} />} value={<span className="tabular-nums">{(stats?.totalVersions ?? 0).toLocaleString()}</span>} label="Total versions" title="Every saved version across all your files, all time." />
-        <StatTile plain icon={<Zap size={20} />} value={<span className="tabular-nums">{(stats?.editsToday ?? 0).toLocaleString()}</span>} label="Edits today" />
+        <StatTile
+          plain
+          icon={<FileText size={20} />}
+          value={
+            <span className="tabular-nums">
+              {(stats?.filesTracked ?? files.length).toLocaleString()}
+            </span>
+          }
+          label="Files tracked"
+        />
+        <StatTile
+          plain
+          icon={<GitCommit size={20} />}
+          value={
+            <span className="tabular-nums">
+              {(stats?.totalVersions ?? 0).toLocaleString()}
+            </span>
+          }
+          label="Total versions"
+          title="Every saved version across all your files, all time."
+        />
+        <StatTile
+          plain
+          icon={<Zap size={20} />}
+          value={
+            <span className="tabular-nums">
+              {(stats?.editsToday ?? 0).toLocaleString()}
+            </span>
+          }
+          label="Edits today"
+        />
         {/* Sync tile — clickable, wired to the existing manual-sync action */}
         <StatTile
           plain
-          icon={<RefreshCw size={20} className={syncing ? "animate-spin" : ""} />}
-          value={<span className="text-[16px] leading-tight">{syncing ? "Syncing…" : lastSyncLabel}</span>}
+          icon={
+            <RefreshCw size={20} className={syncing ? "animate-spin" : ""} />
+          }
+          value={
+            <span className="text-[16px] leading-tight">
+              {syncing ? "Syncing…" : lastSyncLabel}
+            </span>
+          }
           label={syncing ? "Please wait" : "Last synced · tap to sync"}
           onClick={() => triggerSync()}
           disabled={syncing}
@@ -218,9 +284,36 @@ export default function Dashboard() {
           subtitle={
             <StatInline
               items={[
-                { label: <><span className="tabular-nums">{contrib.total.toLocaleString()}</span> edits</>, strong: true },
-                { icon: <Flame size={13} className="text-accent" />, label: <><span className="tabular-nums">{contrib.current}</span>-day streak</> },
-                { label: <>best <span className="tabular-nums">{contrib.best.count.toLocaleString()}</span></> },
+                {
+                  label: (
+                    <>
+                      <span className="tabular-nums">
+                        {contrib.total.toLocaleString()}
+                      </span>{" "}
+                      edits
+                    </>
+                  ),
+                  strong: true,
+                },
+                {
+                  icon: <Flame size={13} className="text-accent" />,
+                  label: (
+                    <>
+                      <span className="tabular-nums">{contrib.current}</span>
+                      -day streak
+                    </>
+                  ),
+                },
+                {
+                  label: (
+                    <>
+                      best{" "}
+                      <span className="tabular-nums">
+                        {contrib.best.count.toLocaleString()}
+                      </span>
+                    </>
+                  ),
+                },
               ]}
             />
           }
@@ -236,7 +329,12 @@ export default function Dashboard() {
           }
         />
         <div className="bg-canvas flex flex-col gap-3 items-start justify-end p-4 rounded-2xl shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] w-full">
-          <Heatmap data={activity?.dailyTotals ?? {}} theme="light" customTheme={fimanuTheme} profileUrl="/profile" />
+          <Heatmap
+            data={activity?.dailyTotals ?? {}}
+            theme="light"
+            customTheme={fimanuTheme}
+            profileUrl="/profile"
+          />
         </div>
       </Card>
 
@@ -250,11 +348,16 @@ export default function Dashboard() {
           icon={<Layers size={20} />}
           title="Volume Breakdown"
           subtitle="Percentage of total edit volume per file."
-          action={<SegmentedControl value={days} onChange={setDays} options={rangeOptions} />}
+          action={
+            <SegmentedControl
+              value={days}
+              onChange={setDays}
+              options={rangeOptions}
+            />
+          }
         />
         <FileVolumeBreakdown activity={activity} files={files} />
       </Card>
-
     </div>
   );
 }

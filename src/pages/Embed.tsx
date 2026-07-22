@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import posthog from "posthog-js";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
-import { Copy, Telescope, Check, SlidersHorizontal, Monitor, Layers, Flame } from "lucide-react";
+import {
+  Copy,
+  Telescope,
+  Check,
+  SlidersHorizontal,
+  Monitor,
+  Layers,
+  Flame,
+} from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { useSession } from "../session";
 import { APP_ORIGIN } from "../config";
@@ -15,39 +24,98 @@ import {
 import { SectionHeader, Button } from "../components/ui";
 
 function getPreviewColor(theme: string, level: number) {
-  if (theme === 'github') return ['bg-[#151b23]', 'bg-[#0e4429]', 'bg-[#196c2e]', 'bg-[#2da042]', 'bg-[#56d364]'][level - 1];
-  if (theme === 'fimanu') return ['bg-[#d9d9d9]', 'bg-[#1bca7c]', 'bg-[#1ab7fa]', 'bg-[#9851f9]', 'bg-[#f23b27]'][level - 1];
-  if (theme === 'figma') return ['bg-[#d9d9d9]', 'bg-[#0acf83]', 'bg-[#1abcfe]', 'bg-[#a259ff]', 'bg-[#f24e1e]'][level - 1];
-  return ['bg-[#d9d9d9]', 'bg-[#1bca7c]', 'bg-[#1ab7fa]', 'bg-[#9851f9]', 'bg-[#f23b27]'][level - 1];
+  if (theme === "github")
+    return [
+      "bg-[#151b23]",
+      "bg-[#0e4429]",
+      "bg-[#196c2e]",
+      "bg-[#2da042]",
+      "bg-[#56d364]",
+    ][level - 1];
+  if (theme === "fimanu")
+    return [
+      "bg-[#d9d9d9]",
+      "bg-[#1bca7c]",
+      "bg-[#1ab7fa]",
+      "bg-[#9851f9]",
+      "bg-[#f23b27]",
+    ][level - 1];
+  if (theme === "figma")
+    return [
+      "bg-[#d9d9d9]",
+      "bg-[#0acf83]",
+      "bg-[#1abcfe]",
+      "bg-[#a259ff]",
+      "bg-[#f24e1e]",
+    ][level - 1];
+  return [
+    "bg-[#d9d9d9]",
+    "bg-[#1bca7c]",
+    "bg-[#1ab7fa]",
+    "bg-[#9851f9]",
+    "bg-[#f23b27]",
+  ][level - 1];
 }
 
 const StyleOption = ({ active, label, previewTheme, onClick }: any) => {
   return (
-    <button type="button" role="radio" aria-checked={active} onClick={onClick} className="flex flex-col gap-2 items-start justify-center text-left cursor-pointer rounded-lg transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:animate-none" style={{ width: '140px' }}>
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active}
+      onClick={onClick}
+      className="flex flex-col gap-2 items-start justify-center text-left cursor-pointer rounded-lg transition-transform duration-150 ease-out hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:animate-none"
+      style={{ width: "140px" }}
+    >
       <div className="flex gap-2 items-center shrink-0">
-        <div className={`h-4 w-4 rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? 'bg-ink' : 'bg-canvas border border-line'}`}>
+        <div
+          className={`h-4 w-4 rounded-[3.2px] shadow-sm flex items-center justify-center ${active ? "bg-ink" : "bg-canvas border border-line"}`}
+        >
           {active && <Check size={10} color="white" strokeWidth={3} />}
         </div>
-        <p className={`font-sans text-[12px] tracking-[-0.12px] whitespace-nowrap transition-colors ${active ? 'font-bold text-ink' : 'font-normal text-body'}`}>
+        <p
+          className={`font-sans text-[12px] tracking-[-0.12px] whitespace-nowrap transition-colors ${active ? "font-bold text-ink" : "font-normal text-body"}`}
+        >
           {label}
         </p>
       </div>
-      <div className={`${previewTheme === 'github' ? 'bg-[#0d1116]' : 'bg-surface border border-line'} flex items-center justify-center px-2 py-1.5 rounded-lg shadow-sm w-full transition-shadow ${active ? 'ring-2 ring-accent/40' : ''}`}>
+      <div
+        className={`${previewTheme === "github" ? "bg-[#0d1116]" : "bg-surface border border-line"} flex items-center justify-center px-2 py-1.5 rounded-lg shadow-sm w-full transition-shadow ${active ? "ring-2 ring-accent/40" : ""}`}
+      >
         <div className="flex gap-1.5 items-center">
-          <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-ink'}`}>Less</p>
+          <p
+            className={`text-[10px] tracking-[-0.1px] ${previewTheme === "github" ? "text-[#9198a1]" : "text-ink"}`}
+          >
+            Less
+          </p>
           <div className="flex gap-0.5">
-            {[1, 2, 3, 4, 5].map(i => (
-              <div key={i} className={`rounded-[3px] size-3 ${getPreviewColor(previewTheme, i)}`} />
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div
+                key={i}
+                className={`rounded-[3px] size-3 ${getPreviewColor(previewTheme, i)}`}
+              />
             ))}
           </div>
-          <p className={`text-[10px] tracking-[-0.1px] ${previewTheme === 'github' ? 'text-[#9198a1]' : 'text-ink'}`}>More</p>
+          <p
+            className={`text-[10px] tracking-[-0.1px] ${previewTheme === "github" ? "text-[#9198a1]" : "text-ink"}`}
+          >
+            More
+          </p>
         </div>
       </div>
     </button>
   );
 };
 
-const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: string) => void, title?: string }) => {
+const ColorPicker = ({
+  color,
+  onChange,
+  title,
+}: {
+  color: string;
+  onChange: (c: string) => void;
+  title?: string;
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const popover = useRef<HTMLDivElement>(null);
 
@@ -92,8 +160,13 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
           </div>
           <div className="mt-2 px-1 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <div className="size-3 rounded-sm border border-black/5" style={{ backgroundColor: color }} />
-              <span className="text-[10px] font-mono font-bold text-ink uppercase tracking-wider">{color}</span>
+              <div
+                className="size-3 rounded-sm border border-black/5"
+                style={{ backgroundColor: color }}
+              />
+              <span className="text-[10px] font-mono font-bold text-ink uppercase tracking-wider">
+                {color}
+              </span>
             </div>
           </div>
         </div>
@@ -102,11 +175,25 @@ const ColorPicker = ({ color, onChange, title }: { color: string, onChange: (c: 
   );
 };
 
-const SnippetRow = ({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) => (
+const SnippetRow = ({
+  label,
+  value,
+  copied,
+  onCopy,
+}: {
+  label: string;
+  value: string;
+  copied: boolean;
+  onCopy: () => void;
+}) => (
   <div className="flex flex-col gap-1 w-full">
-    <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{label}</span>
+    <span className="text-[11px] font-bold text-muted uppercase tracking-wider">
+      {label}
+    </span>
     <div className="flex items-stretch gap-2 w-full">
-      <code className="flex-1 min-w-0 truncate bg-canvas border border-line rounded-lg px-3 py-2 text-[11px] text-body font-mono">{value}</code>
+      <code className="flex-1 min-w-0 truncate bg-canvas border border-line rounded-lg px-3 py-2 text-[11px] text-body font-mono">
+        {value}
+      </code>
       <button
         type="button"
         onClick={onCopy}
@@ -121,7 +208,14 @@ const SnippetRow = ({ label, value, copied, onCopy }: { label: string; value: st
 );
 
 export default function EmbedEditor() {
-  const { activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
+  const {
+    activity,
+    loading,
+    files,
+    selectedFileKeys,
+    setSelectedFileKeys,
+    setFilterMine,
+  } = useFigmaData();
   const { user } = useSession();
   // Public embeds are addressed by the user's profile_slug (no auth). The embed
   // only renders data once the profile is published (public_enabled).
@@ -133,7 +227,11 @@ export default function EmbedEditor() {
     setFilterMine(false);
   }, [setFilterMine]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const [embedStyle, setEmbedStyle] = useState("Fimanu Style");
+  const [embedStyle, setEmbedStyleRaw] = useState("Fimanu Style");
+  const setEmbedStyle = (style: string) => {
+    setEmbedStyleRaw(style);
+    if (style !== embedStyle) posthog.capture("embed_style_changed", { style });
+  };
   const [copied, setCopied] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   // How the "Copy" button emits the embed: a bare URL (paste into Notion etc.)
@@ -145,10 +243,13 @@ export default function EmbedEditor() {
   const badgeHtml = `<img src="${badgeUrl}" alt="Figma streak" height="28" />`;
   const badgeMd = `![Figma streak](${badgeUrl})`;
   const copyBadge = (kind: "html" | "md") => {
-    navigator.clipboard.writeText(kind === "html" ? badgeHtml : badgeMd).then(() => {
-      setCopiedBadge(kind);
-      setTimeout(() => setCopiedBadge((k) => (k === kind ? null : k)), 2000);
-    });
+    navigator.clipboard
+      .writeText(kind === "html" ? badgeHtml : badgeMd)
+      .then(() => {
+        posthog.capture("streak_badge_copied", { format: kind });
+        setCopiedBadge(kind);
+        setTimeout(() => setCopiedBadge((k) => (k === kind ? null : k)), 2000);
+      });
   };
 
   // Settings State
@@ -163,7 +264,8 @@ export default function EmbedEditor() {
 
   // Sync state with URL params on mount and when params change
   useEffect(() => {
-    const fileKeys = searchParams.get("files")?.split(",").filter(Boolean) || [];
+    const fileKeys =
+      searchParams.get("files")?.split(",").filter(Boolean) || [];
     // Only update if different to avoid loops
     if (JSON.stringify(fileKeys) !== JSON.stringify(selectedFileKeys)) {
       setSelectedFileKeys(fileKeys);
@@ -173,7 +275,12 @@ export default function EmbedEditor() {
   // When embedStyle presets change, reset constraints/defaults if not "Custom Style"
   useEffect(() => {
     if (embedStyle === "Custom Style") return; // don't override manual adjustments
-    const theme = embedStyle === 'GitHub Style' ? githubTheme : embedStyle === 'Figma Style' ? figmaTheme : fimanuTheme;
+    const theme =
+      embedStyle === "GitHub Style"
+        ? githubTheme
+        : embedStyle === "Figma Style"
+          ? figmaTheme
+          : fimanuTheme;
     setRectSize(theme.rectSize || 12);
     setRectRadius(theme.rectRadius || 2);
     setOverrideBg("");
@@ -200,12 +307,18 @@ export default function EmbedEditor() {
     setSearchParams(nextParams);
   };
 
-  const baseTheme = embedStyle === 'GitHub Style' ? githubTheme : embedStyle === 'Figma Style' ? figmaTheme : fimanuTheme;
-  const activeLevels = overrideLevels.length === 4 ? overrideLevels : baseTheme.levelColors || [];
+  const baseTheme =
+    embedStyle === "GitHub Style"
+      ? githubTheme
+      : embedStyle === "Figma Style"
+        ? figmaTheme
+        : fimanuTheme;
+  const activeLevels =
+    overrideLevels.length === 4 ? overrideLevels : baseTheme.levelColors || [];
   const activeEmpty = overrideEmpty || baseTheme.emptyColor || "#d9d9d9";
   const activeBg = transparentBg
     ? "transparent"
-    : overrideBg || (embedStyle === 'GitHub Style' ? '#0d1116' : '#fffaf4');
+    : overrideBg || (embedStyle === "GitHub Style" ? "#0d1116" : "#fffaf4");
   const activeText = overrideText || baseTheme.textColor || "#1A1A1A";
 
   const activeTheme: HeatmapTheme = {
@@ -231,7 +344,10 @@ export default function EmbedEditor() {
         params.set("text", activeText.replace("#", ""));
         params.set("empty", activeEmpty.replace("#", ""));
         if (activeLevels.length === 4)
-          params.set("levels", activeLevels.map((c) => c.replace("#", "")).join("-"));
+          params.set(
+            "levels",
+            activeLevels.map((c) => c.replace("#", "")).join("-"),
+          );
         params.set("radius", rectRadius.toString());
         params.set("size", rectSize.toString());
       } else if (transparentBg) {
@@ -241,7 +357,17 @@ export default function EmbedEditor() {
 
       return `${APP_ORIGIN}/embed-widget?${params.toString()}`;
     },
-    [slug, embedStyle, activeBg, activeText, activeEmpty, activeLevels, rectRadius, rectSize, transparentBg]
+    [
+      slug,
+      embedStyle,
+      activeBg,
+      activeText,
+      activeEmpty,
+      activeLevels,
+      rectRadius,
+      rectSize,
+      transparentBg,
+    ],
   );
 
   // Wrap the URL in the chosen output format (bare link or <iframe> tag).
@@ -253,13 +379,17 @@ export default function EmbedEditor() {
       }
       return url;
     },
-    [copyFormat, rectSize]
+    [copyFormat, rectSize],
   );
 
   const handleCopy = () => {
     navigator.clipboard
       .writeText(buildEmbedCode(buildWidgetUrl(selectedFileKeys)))
       .then(() => {
+        posthog.capture("embed_copied", {
+          copy_format: copyFormat,
+          style: embedStyle,
+        });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
@@ -276,16 +406,15 @@ export default function EmbedEditor() {
 
   if (loading && !activity) {
     return (
-      <div
-        aria-busy="true"
-        className="flex gap-8 items-start shrink-0 w-full"
-      >
+      <div aria-busy="true" className="flex gap-8 items-start shrink-0 w-full">
         <div className="bg-surface rounded-4xl shadow-card shrink-0 w-[360px] h-[520px] animate-pulse motion-reduce:animate-none" />
         <div className="flex flex-col gap-6 flex-1 min-w-0">
           <div className="bg-surface rounded-4xl shadow-card w-full h-[220px] animate-pulse motion-reduce:animate-none" />
           <div className="bg-surface rounded-4xl shadow-card w-full h-[280px] animate-pulse motion-reduce:animate-none" />
         </div>
-        <span className="sr-only" role="status" aria-live="polite">Loading embed editor…</span>
+        <span className="sr-only" role="status" aria-live="polite">
+          Loading embed editor…
+        </span>
       </div>
     );
   }
@@ -305,24 +434,52 @@ export default function EmbedEditor() {
 
         <div className="flex flex-col gap-6 w-full px-1">
           <div className="flex flex-col gap-3">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Embed Styles</p>
-            <div role="radiogroup" aria-label="Embed style" className="flex flex-wrap gap-3 w-full">
-              <StyleOption active={embedStyle === "Fimanu Style"} label="Fimanu Style" previewTheme="fimanu" onClick={() => setEmbedStyle("Fimanu Style")} />
-              <StyleOption active={embedStyle === "GitHub Style"} label="GitHub Style" previewTheme="github" onClick={() => setEmbedStyle("GitHub Style")} />
-              <StyleOption active={embedStyle === "Figma Style"} label="Figma Style" previewTheme="figma" onClick={() => setEmbedStyle("Figma Style")} />
-              <StyleOption active={embedStyle === "Custom Style"} label="Custom Style" previewTheme="custom" onClick={() => setEmbedStyle("Custom Style")} />
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider">
+              Embed Styles
+            </p>
+            <div
+              role="radiogroup"
+              aria-label="Embed style"
+              className="flex flex-wrap gap-3 w-full"
+            >
+              <StyleOption
+                active={embedStyle === "Fimanu Style"}
+                label="Fimanu Style"
+                previewTheme="fimanu"
+                onClick={() => setEmbedStyle("Fimanu Style")}
+              />
+              <StyleOption
+                active={embedStyle === "GitHub Style"}
+                label="GitHub Style"
+                previewTheme="github"
+                onClick={() => setEmbedStyle("GitHub Style")}
+              />
+              <StyleOption
+                active={embedStyle === "Figma Style"}
+                label="Figma Style"
+                previewTheme="figma"
+                onClick={() => setEmbedStyle("Figma Style")}
+              />
+              <StyleOption
+                active={embedStyle === "Custom Style"}
+                label="Custom Style"
+                previewTheme="custom"
+                onClick={() => setEmbedStyle("Custom Style")}
+              />
             </div>
           </div>
 
           <div className="flex flex-col gap-3">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Heatmap Colors</p>
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider">
+              Heatmap Colors
+            </p>
             <div className="flex gap-2 items-center">
-              {[3, 2, 1, 0].map(i => (
+              {[3, 2, 1, 0].map((i) => (
                 <ColorPicker
                   key={i}
                   title={`Level ${i + 1} color`}
                   color={activeLevels[i]}
-                  onChange={newColor => {
+                  onChange={(newColor) => {
                     const newLevels = [...activeLevels];
                     newLevels[i] = newColor;
                     setOverrideLevels(newLevels);
@@ -333,7 +490,7 @@ export default function EmbedEditor() {
               <ColorPicker
                 title="Zero activity color"
                 color={activeEmpty}
-                onChange={newColor => {
+                onChange={(newColor) => {
                   setOverrideEmpty(newColor);
                   setEmbedStyle("Custom Style");
                 }}
@@ -343,12 +500,14 @@ export default function EmbedEditor() {
 
           <div className="flex gap-4 w-full">
             <div className="flex flex-col gap-2 flex-1">
-              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Background</p>
+              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">
+                Background
+              </p>
               <div className="w-full">
                 <ColorPicker
                   title="Background color"
                   color={activeBg}
-                  onChange={newColor => {
+                  onChange={(newColor) => {
                     setOverrideBg(newColor);
                     setEmbedStyle("Custom Style");
                   }}
@@ -356,12 +515,14 @@ export default function EmbedEditor() {
               </div>
             </div>
             <div className="flex flex-col gap-2 flex-1">
-              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Text</p>
+              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">
+                Text
+              </p>
               <div className="w-full">
                 <ColorPicker
                   title="Text color"
                   color={activeText}
-                  onChange={newColor => {
+                  onChange={(newColor) => {
                     setOverrideText(newColor);
                     setEmbedStyle("Custom Style");
                   }}
@@ -371,9 +532,23 @@ export default function EmbedEditor() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">Border Radius: {rectRadius.toFixed(1)}px</p>
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">
+              Border Radius: {rectRadius.toFixed(1)}px
+            </p>
             <div className="flex flex-col gap-1.5 w-full mt-1">
-              <input type="range" aria-label="Border radius" className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" min="0" max={rectSize / 2} step="0.5" value={rectRadius} onChange={e => { setRectRadius(parseFloat(e.target.value)); setEmbedStyle("Custom Style"); }} />
+              <input
+                type="range"
+                aria-label="Border radius"
+                className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                min="0"
+                max={rectSize / 2}
+                step="0.5"
+                value={rectRadius}
+                onChange={(e) => {
+                  setRectRadius(parseFloat(e.target.value));
+                  setEmbedStyle("Custom Style");
+                }}
+              />
               <div className="flex justify-between text-[10px] text-muted font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Sharp</span>
                 <span>Soft</span>
@@ -383,9 +558,23 @@ export default function EmbedEditor() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">Embed Size: {rectSize}px</p>
+            <p className="text-[13px] font-bold text-muted uppercase tracking-wider whitespace-nowrap tabular-nums">
+              Embed Size: {rectSize}px
+            </p>
             <div className="flex flex-col gap-1.5 w-full mt-1">
-              <input type="range" aria-label="Embed size" className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent" min="6" max="24" step="1" value={rectSize} onChange={e => { setRectSize(parseInt(e.target.value)); setEmbedStyle("Custom Style"); }} />
+              <input
+                type="range"
+                aria-label="Embed size"
+                className="w-[calc(100%-8px)] mx-auto accent-accent h-1 bg-line rounded-lg appearance-none cursor-pointer border-none shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                min="6"
+                max="24"
+                step="1"
+                value={rectSize}
+                onChange={(e) => {
+                  setRectSize(parseInt(e.target.value));
+                  setEmbedStyle("Custom Style");
+                }}
+              />
               <div className="flex justify-between text-[10px] text-muted font-bold uppercase tracking-wider mt-1 px-1">
                 <span>Small</span>
                 <span>Medium</span>
@@ -396,8 +585,12 @@ export default function EmbedEditor() {
 
           <div className="flex items-center justify-between gap-3">
             <div className="flex flex-col gap-0.5">
-              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">Transparent background</p>
-              <p className="text-[11px] text-muted tracking-[-0.11px]">Blend into any page — no background fill.</p>
+              <p className="text-[13px] font-bold text-muted uppercase tracking-wider">
+                Transparent background
+              </p>
+              <p className="text-[11px] text-muted tracking-[-0.11px]">
+                Blend into any page — no background fill.
+              </p>
             </div>
             <button
               type="button"
@@ -407,7 +600,9 @@ export default function EmbedEditor() {
               onClick={() => setTransparentBg((v) => !v)}
               className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${transparentBg ? "bg-green" : "bg-muted/40"}`}
             >
-              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform duration-200 ease-out ${transparentBg ? "translate-x-5" : ""}`} />
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform duration-200 ease-out ${transparentBg ? "translate-x-5" : ""}`}
+              />
             </button>
           </div>
         </div>
@@ -415,15 +610,23 @@ export default function EmbedEditor() {
         <div className="flex flex-col gap-3 w-[calc(100%-8px)] mt-auto pt-4 pb-2">
           {!published && (
             <p className="text-[11px] leading-snug text-muted bg-canvas border border-line rounded-lg px-3 py-2">
-              Publish your profile (set a URL + enable public in <span className="font-bold text-body">Profile</span>) so this embed can load without a login.
+              Publish your profile (set a URL + enable public in{" "}
+              <span className="font-bold text-body">Profile</span>) so this
+              embed can load without a login.
             </p>
           )}
           {/* Output format: bare link (Notion/paste) vs. <iframe> tag (websites) */}
-          <div role="group" aria-label="Embed output format" className="bg-canvas flex items-center p-1 rounded-lg w-full">
-            {([
-              { key: "link", label: "Link" },
-              { key: "iframe", label: "iframe" },
-            ] as const).map((opt) => (
+          <div
+            role="group"
+            aria-label="Embed output format"
+            className="bg-canvas flex items-center p-1 rounded-lg w-full"
+          >
+            {(
+              [
+                { key: "link", label: "Link" },
+                { key: "iframe", label: "iframe" },
+              ] as const
+            ).map((opt) => (
               <button
                 key={opt.key}
                 onClick={() => setCopyFormat(opt.key)}
@@ -436,18 +639,32 @@ export default function EmbedEditor() {
           </div>
           <Button
             onClick={handleCopy}
-            aria-label={copyFormat === "iframe" ? "Copy iframe embed code" : "Copy embed link"}
+            aria-label={
+              copyFormat === "iframe"
+                ? "Copy iframe embed code"
+                : "Copy embed link"
+            }
             className="w-full"
           >
-            {copied ? <Check size={16} strokeWidth={3} /> : <Copy size={16} strokeWidth={2.5} />}
-            {copied ? "Copied!" : copyFormat === "iframe" ? "Copy iframe Code" : "Copy Embed Link"}
+            {copied ? (
+              <Check size={16} strokeWidth={3} />
+            ) : (
+              <Copy size={16} strokeWidth={2.5} />
+            )}
+            {copied
+              ? "Copied!"
+              : copyFormat === "iframe"
+                ? "Copy iframe Code"
+                : "Copy Embed Link"}
           </Button>
           <span className="sr-only" role="status" aria-live="polite">
             {copied || copiedKey ? "Copied to clipboard" : ""}
           </span>
           <Button
             variant="secondary"
-            onClick={() => window.open(buildWidgetUrl(selectedFileKeys), "_blank")}
+            onClick={() =>
+              window.open(buildWidgetUrl(selectedFileKeys), "_blank")
+            }
             className="w-full"
           >
             <Telescope size={16} strokeWidth={2.5} /> Preview in Browser
@@ -482,13 +699,12 @@ export default function EmbedEditor() {
           >
             <Heatmap
               data={activity?.dailyTotals ?? {}}
-              theme={embedStyle === 'GitHub Style' ? 'dark' : 'light'}
+              theme={embedStyle === "GitHub Style" ? "dark" : "light"}
               customTheme={activeTheme}
               profileUrl="/profile"
             />
           </div>
         </div>
-
 
         {/* File Selection Box */}
         <div className="bg-surface flex flex-col gap-6 items-start overflow-clip p-6 rounded-4xl shadow-card shrink-0 w-full text-ink">
@@ -506,23 +722,31 @@ export default function EmbedEditor() {
               aria-checked={selectedFileKeys.length === 0}
               onClick={() => {
                 setSelectedFileKeys([]);
-                setSearchParams(prev => {
+                setSearchParams((prev) => {
                   const next = new URLSearchParams(prev);
                   next.delete("files");
                   return next;
                 });
               }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-colors text-left w-full ${selectedFileKeys.length === 0 ? 'bg-canvas border border-accent/20' : 'hover:bg-hairline border border-transparent'}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md cursor-pointer transition-colors text-left w-full ${selectedFileKeys.length === 0 ? "bg-canvas border border-accent/20" : "hover:bg-hairline border border-transparent"}`}
             >
-              <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.length === 0 ? 'bg-accent border-accent' : 'border-line bg-surface'}`}>
-                {selectedFileKeys.length === 0 && <Check size={8} color="white" strokeWidth={4} />}
+              <div
+                className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.length === 0 ? "bg-accent border-accent" : "border-line bg-surface"}`}
+              >
+                {selectedFileKeys.length === 0 && (
+                  <Check size={8} color="white" strokeWidth={4} />
+                )}
               </div>
-              <span className={`text-[11px] font-bold truncate ${selectedFileKeys.length === 0 ? 'text-ink' : 'text-body'}`}>All Files Activity</span>
+              <span
+                className={`text-[11px] font-bold truncate ${selectedFileKeys.length === 0 ? "text-ink" : "text-body"}`}
+              >
+                All Files Activity
+              </span>
             </button>
             {files.map((file: any) => (
               <div
                 key={file.file_key}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors group ${selectedFileKeys.includes(file.file_key) ? 'bg-canvas border border-accent/20' : 'hover:bg-hairline border border-transparent'}`}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors group ${selectedFileKeys.includes(file.file_key) ? "bg-canvas border border-accent/20" : "hover:bg-hairline border border-transparent"}`}
               >
                 <button
                   type="button"
@@ -531,12 +755,22 @@ export default function EmbedEditor() {
                   onClick={() => handleToggleFile(file.file_key)}
                   className="flex items-center gap-1.5 flex-1 min-w-0 text-left cursor-pointer overflow-hidden"
                 >
-                  <div className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.includes(file.file_key) ? 'bg-accent border-accent' : 'border-line bg-surface'}`}>
-                    {selectedFileKeys.includes(file.file_key) && <Check size={8} color="white" strokeWidth={4} />}
+                  <div
+                    className={`size-3.5 rounded flex items-center justify-center border shrink-0 ${selectedFileKeys.includes(file.file_key) ? "bg-accent border-accent" : "border-line bg-surface"}`}
+                  >
+                    {selectedFileKeys.includes(file.file_key) && (
+                      <Check size={8} color="white" strokeWidth={4} />
+                    )}
                   </div>
                   <div className="flex flex-col overflow-hidden leading-tight">
-                    <span className={`text-[11px] font-bold truncate ${selectedFileKeys.includes(file.file_key) ? 'text-ink' : 'text-body'}`}>{file.name}</span>
-                    <span className="text-[9px] text-muted truncate">{file.project_name}</span>
+                    <span
+                      className={`text-[11px] font-bold truncate ${selectedFileKeys.includes(file.file_key) ? "text-ink" : "text-body"}`}
+                    >
+                      {file.name}
+                    </span>
+                    <span className="text-[9px] text-muted truncate">
+                      {file.project_name}
+                    </span>
                   </div>
                 </button>
                 <button
@@ -545,10 +779,22 @@ export default function EmbedEditor() {
                     handleCopyFile(file.file_key);
                   }}
                   className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-within:opacity-100 p-1 hover:bg-surface rounded transition-all text-muted hover:text-accent shadow-sm border border-transparent hover:border-line"
-                  aria-label={copyFormat === "iframe" ? "Copy iframe for this file" : "Copy embed link for this file"}
-                  title={copyFormat === "iframe" ? "Copy iframe for this file" : "Copy embed link for this file"}
+                  aria-label={
+                    copyFormat === "iframe"
+                      ? "Copy iframe for this file"
+                      : "Copy embed link for this file"
+                  }
+                  title={
+                    copyFormat === "iframe"
+                      ? "Copy iframe for this file"
+                      : "Copy embed link for this file"
+                  }
                 >
-                  {copiedKey === file.file_key ? <Check size={11} strokeWidth={3} /> : <Copy size={11} />}
+                  {copiedKey === file.file_key ? (
+                    <Check size={11} strokeWidth={3} />
+                  ) : (
+                    <Copy size={11} />
+                  )}
                 </button>
               </div>
             ))}
@@ -566,20 +812,43 @@ export default function EmbedEditor() {
 
           {!published ? (
             <p className="text-[11px] leading-snug text-muted bg-canvas border border-line rounded-lg px-3 py-2 w-full">
-              Publish your profile (set a URL + enable public in <span className="font-bold text-body">Profile</span>) to generate your badge.
+              Publish your profile (set a URL + enable public in{" "}
+              <span className="font-bold text-body">Profile</span>) to generate
+              your badge.
             </p>
           ) : (
             <div className="flex flex-col gap-4 w-full">
               <div className="flex items-center gap-3 flex-wrap">
-                <img src={badgeUrl} alt="Figma streak badge preview" className="h-7" />
-                <img src={`${badgeUrl}?theme=dark`} alt="Figma streak badge dark preview" className="h-7" />
+                <img
+                  src={badgeUrl}
+                  alt="Figma streak badge preview"
+                  className="h-7"
+                />
+                <img
+                  src={`${badgeUrl}?theme=dark`}
+                  alt="Figma streak badge dark preview"
+                  className="h-7"
+                />
               </div>
               <p className="text-[11px] text-muted tracking-[-0.11px] -mt-1">
-                Add <code className="font-mono text-body">?theme=dark</code>, <code className="font-mono text-body">?metric=edits</code>, or <code className="font-mono text-body">?emoji=1</code> to the URL to customize.
+                Add <code className="font-mono text-body">?theme=dark</code>,{" "}
+                <code className="font-mono text-body">?metric=edits</code>, or{" "}
+                <code className="font-mono text-body">?emoji=1</code> to the URL
+                to customize.
               </p>
               <div className="flex flex-col gap-3 w-full">
-                <SnippetRow label="HTML" value={badgeHtml} copied={copiedBadge === "html"} onCopy={() => copyBadge("html")} />
-                <SnippetRow label="Markdown" value={badgeMd} copied={copiedBadge === "md"} onCopy={() => copyBadge("md")} />
+                <SnippetRow
+                  label="HTML"
+                  value={badgeHtml}
+                  copied={copiedBadge === "html"}
+                  onCopy={() => copyBadge("html")}
+                />
+                <SnippetRow
+                  label="Markdown"
+                  value={badgeMd}
+                  copied={copiedBadge === "md"}
+                  onCopy={() => copyBadge("md")}
+                />
               </div>
               <span className="sr-only" role="status" aria-live="polite">
                 {copiedBadge ? "Copied to clipboard" : ""}
@@ -591,4 +860,3 @@ export default function EmbedEditor() {
     </div>
   );
 }
-

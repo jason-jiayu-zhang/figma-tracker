@@ -1,10 +1,27 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Plus, Trash2, FileText, Search, Archive, ArchiveRestore, FolderTree, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  FileText,
+  Search,
+  Archive,
+  ArchiveRestore,
+  FolderTree,
+  ChevronDown,
+} from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import posthog from "posthog-js";
 import { useFigmaData } from "../useFigmaData";
 import { formatDistanceToNow } from "date-fns";
 import AddFileModal from "../components/AddFileModal";
-import { Card, SectionHeader, Button, IconChip, SegmentedControl, colorForKey } from "../components/ui";
+import {
+  Card,
+  SectionHeader,
+  Button,
+  IconChip,
+  SegmentedControl,
+  colorForKey,
+} from "../components/ui";
 import { FigmaFile } from "../types";
 
 type SortKey = "recent" | "name" | "versions";
@@ -13,7 +30,8 @@ type SortKey = "recent" | "name" | "versions";
 const STALE_DAYS = 60;
 function isStale(file: FigmaFile): boolean {
   if (!file.last_modified) return false;
-  const ageDays = (Date.now() - new Date(file.last_modified).getTime()) / 86400000;
+  const ageDays =
+    (Date.now() - new Date(file.last_modified).getTime()) / 86400000;
   return ageDays >= STALE_DAYS;
 }
 
@@ -68,7 +86,11 @@ function FileRow({
       <td className="flex items-center gap-1">
         <button
           aria-label={`${archived ? "Unarchive" : "Archive"} ${file.name || file.file_key}`}
-          title={archived ? "Unarchive — show on your dashboard again" : "Archive — hide from dashboard, keep syncing"}
+          title={
+            archived
+              ? "Unarchive — show on your dashboard again"
+              : "Archive — hide from dashboard, keep syncing"
+          }
           className="text-white/75 hover:text-white transition-colors p-2 rounded-full cursor-pointer hover:bg-white/10"
           onClick={() => onArchive(file.file_key, !archived)}
         >
@@ -87,7 +109,8 @@ function FileRow({
 }
 
 export default function Files() {
-  const { allFiles, removeFile, archiveFile, refresh, loading } = useFigmaData();
+  const { allFiles, removeFile, archiveFile, refresh, loading } =
+    useFigmaData();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -107,7 +130,7 @@ export default function Files() {
           next.delete("add");
           return next;
         },
-        { replace: true }
+        { replace: true },
       );
     }
   }, [searchParams, setSearchParams]);
@@ -115,15 +138,31 @@ export default function Files() {
   const handleRemoveFile = async (fileKey: string) => {
     if (confirm("Are you sure you want to stop tracking this file?")) {
       await removeFile(fileKey);
+      posthog.capture("file_removed");
     }
+  };
+
+  const handleArchiveFile = async (fileKey: string, archived: boolean) => {
+    await archiveFile(fileKey, archived);
+    posthog.capture("file_archived", {
+      action: archived ? "archive" : "unarchive",
+    });
   };
 
   const q = query.trim().toLowerCase();
   const matchesQuery = (f: FigmaFile) =>
-    !q || (f.name || "").toLowerCase().includes(q) || f.file_key.toLowerCase().includes(q);
+    !q ||
+    (f.name || "").toLowerCase().includes(q) ||
+    f.file_key.toLowerCase().includes(q);
 
-  const active = useMemo(() => allFiles.filter((f) => !f.archived_at), [allFiles]);
-  const archived = useMemo(() => allFiles.filter((f) => f.archived_at), [allFiles]);
+  const active = useMemo(
+    () => allFiles.filter((f) => !f.archived_at),
+    [allFiles],
+  );
+  const archived = useMemo(
+    () => allFiles.filter((f) => f.archived_at),
+    [allFiles],
+  );
 
   const sortFiles = (list: FigmaFile[]) => {
     const arr = [...list];
@@ -134,7 +173,8 @@ export default function Files() {
     } else {
       arr.sort(
         (a, b) =>
-          new Date(b.last_modified || 0).getTime() - new Date(a.last_modified || 0).getTime()
+          new Date(b.last_modified || 0).getTime() -
+          new Date(a.last_modified || 0).getTime(),
       );
     }
     return arr;
@@ -142,9 +182,12 @@ export default function Files() {
 
   const visibleActive = useMemo(
     () => sortFiles(active.filter(matchesQuery)),
-    [active, q, sortKey]
+    [active, q, sortKey],
   );
-  const visibleArchived = useMemo(() => archived.filter(matchesQuery), [archived, q]);
+  const visibleArchived = useMemo(
+    () => archived.filter(matchesQuery),
+    [archived, q],
+  );
 
   // Group visible active files under their project name (sorted groups).
   const groups = useMemo(() => {
@@ -158,9 +201,15 @@ export default function Files() {
 
   if (loading) {
     return (
-      <div role="status" className="flex items-center justify-center min-h-[60vh]">
+      <div
+        role="status"
+        className="flex items-center justify-center min-h-[60vh]"
+      >
         <div className="flex flex-col items-center gap-3">
-          <div aria-hidden="true" className="w-8 h-8 border-2 border-blue border-t-transparent rounded-full animate-spin" />
+          <div
+            aria-hidden="true"
+            className="w-8 h-8 border-2 border-blue border-t-transparent rounded-full animate-spin"
+          />
           <span className="sr-only">Loading</span>
         </div>
       </div>
@@ -189,7 +238,10 @@ export default function Files() {
         {hasFiles && (
           <div className="flex flex-wrap items-center gap-3 w-full">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <Search
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none"
+              />
               <input
                 type="search"
                 value={query}
@@ -222,56 +274,81 @@ export default function Files() {
 
         {/* Table Content */}
         {hasFiles && (
-        <table className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full rounded-lg pb-2">
-          {/* Table Header */}
-          <thead className="w-full">
-            <tr className="content-stretch flex items-center justify-between pl-3 pr-[33.5px] py-1 relative shrink-0 w-full">
-              <th scope="col" className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-px pr-4 relative font-medium leading-[normal] text-[14px] text-black tracking-[-0.14px]">
-                File ID
-              </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
-                File Type
-              </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
-                User Seat
-              </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
-                Last edit
-              </th>
-            </tr>
-          </thead>
-
-          {/* Active files (flat or grouped by project) */}
-          <tbody className="flex flex-col gap-2 w-full">
-            {groupByProject
-              ? groups.map(([project, list]) => (
-                  <React.Fragment key={project}>
-                    <tr className="flex items-center w-full pt-2 pb-0.5 px-3">
-                      <th scope="colgroup" className="flex items-center gap-2 font-bold text-[13px] text-body uppercase tracking-wider">
-                        {project}
-                        <span className="text-muted font-medium tabular-nums normal-case tracking-[-0.12px]">
-                          {list.length}
-                        </span>
-                      </th>
-                    </tr>
-                    {list.map((file) => (
-                      <FileRow key={file.file_key} file={file} onRemove={handleRemoveFile} onArchive={archiveFile} />
-                    ))}
-                  </React.Fragment>
-                ))
-              : visibleActive.map((file) => (
-                  <FileRow key={file.file_key} file={file} onRemove={handleRemoveFile} onArchive={archiveFile} />
-                ))}
-
-            {visibleActive.length === 0 && (
-              <tr className="w-full">
-                <td className="w-full py-10 text-center text-[14px] text-body">
-                  No files match “{query}”.
-                </td>
+          <table className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full rounded-lg pb-2">
+            {/* Table Header */}
+            <thead className="w-full">
+              <tr className="content-stretch flex items-center justify-between pl-3 pr-[33.5px] py-1 relative shrink-0 w-full">
+                <th
+                  scope="col"
+                  className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-px pr-4 relative font-medium leading-[normal] text-[14px] text-black tracking-[-0.14px]"
+                >
+                  File ID
+                </th>
+                <th
+                  scope="col"
+                  className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]"
+                >
+                  File Type
+                </th>
+                <th
+                  scope="col"
+                  className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]"
+                >
+                  User Seat
+                </th>
+                <th
+                  scope="col"
+                  className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]"
+                >
+                  Last edit
+                </th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+
+            {/* Active files (flat or grouped by project) */}
+            <tbody className="flex flex-col gap-2 w-full">
+              {groupByProject
+                ? groups.map(([project, list]) => (
+                    <React.Fragment key={project}>
+                      <tr className="flex items-center w-full pt-2 pb-0.5 px-3">
+                        <th
+                          scope="colgroup"
+                          className="flex items-center gap-2 font-bold text-[13px] text-body uppercase tracking-wider"
+                        >
+                          {project}
+                          <span className="text-muted font-medium tabular-nums normal-case tracking-[-0.12px]">
+                            {list.length}
+                          </span>
+                        </th>
+                      </tr>
+                      {list.map((file) => (
+                        <FileRow
+                          key={file.file_key}
+                          file={file}
+                          onRemove={handleRemoveFile}
+                          onArchive={handleArchiveFile}
+                        />
+                      ))}
+                    </React.Fragment>
+                  ))
+                : visibleActive.map((file) => (
+                    <FileRow
+                      key={file.file_key}
+                      file={file}
+                      onRemove={handleRemoveFile}
+                      onArchive={handleArchiveFile}
+                    />
+                  ))}
+
+              {visibleActive.length === 0 && (
+                <tr className="w-full">
+                  <td className="w-full py-10 text-center text-[14px] text-body">
+                    No files match “{query}”.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         )}
 
         {/* Archived section — collapsed by default, muted rows */}
@@ -283,7 +360,10 @@ export default function Files() {
               onClick={() => setShowArchived((v) => !v)}
               className="flex items-center gap-2 text-[13px] font-bold text-body uppercase tracking-wider hover:text-ink transition-colors self-start"
             >
-              <ChevronDown size={16} className={`transition-transform ${showArchived ? "" : "-rotate-90"}`} />
+              <ChevronDown
+                size={16}
+                className={`transition-transform ${showArchived ? "" : "-rotate-90"}`}
+              />
               Archived
               <span className="text-muted font-medium tabular-nums normal-case tracking-[-0.12px]">
                 {visibleArchived.length}
@@ -293,7 +373,12 @@ export default function Files() {
               <table className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full">
                 <tbody className="flex flex-col gap-2 w-full">
                   {visibleArchived.map((file) => (
-                    <FileRow key={file.file_key} file={file} onRemove={handleRemoveFile} onArchive={archiveFile} />
+                    <FileRow
+                      key={file.file_key}
+                      file={file}
+                      onRemove={handleRemoveFile}
+                      onArchive={handleArchiveFile}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -302,28 +387,34 @@ export default function Files() {
         )}
 
         {!hasFiles && (
-            <div className="w-full py-16 flex flex-col items-center justify-center text-center gap-4">
-              <IconChip plain>
-                <FileText size={20} />
-              </IconChip>
-              <div className="flex flex-col gap-1.5 max-w-[320px]">
-                <h3 className="font-bold text-[18px] tracking-[-0.18px] text-ink">No files tracked yet</h3>
-                <p className="text-[14px] text-body leading-relaxed">
-                  Add a Figma file to start tracking its version history and activity.
-                </p>
-              </div>
-              <Button onClick={() => setShowAddModal(true)}>
-                <Plus size={16} /> Add your first file
-              </Button>
+          <div className="w-full py-16 flex flex-col items-center justify-center text-center gap-4">
+            <IconChip plain>
+              <FileText size={20} />
+            </IconChip>
+            <div className="flex flex-col gap-1.5 max-w-[320px]">
+              <h3 className="font-bold text-[18px] tracking-[-0.18px] text-ink">
+                No files tracked yet
+              </h3>
+              <p className="text-[14px] text-body leading-relaxed">
+                Add a Figma file to start tracking its version history and
+                activity.
+              </p>
             </div>
-          )}
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus size={16} /> Add your first file
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Add File Modal */}
       <AddFileModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
-        onSuccess={() => { setShowAddModal(false); refresh(); }}
+        onSuccess={() => {
+          setShowAddModal(false);
+          refresh();
+        }}
       />
     </div>
   );

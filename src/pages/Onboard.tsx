@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import posthog from "posthog-js";
 import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
-import { Plus, X, Check, ArrowRight, Figma, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
+import {
+  Plus,
+  X,
+  Check,
+  ArrowRight,
+  Figma,
+  FolderPlus,
+  Sparkles,
+  ShieldCheck,
+} from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
 import { Card, Button, SectionHeader } from "../components/ui";
@@ -26,7 +36,9 @@ function ProgressBar({ step }: { step: number }) {
         <span className="text-[12px] font-semibold text-body tracking-[-0.12px]">
           {step === 3 ? "Setup complete" : "You're almost there"}
         </span>
-        <span className="text-[12px] font-bold text-green tabular-nums tracking-[-0.12px]">{pct}%</span>
+        <span className="text-[12px] font-bold text-green tabular-nums tracking-[-0.12px]">
+          {pct}%
+        </span>
       </div>
       <div className="h-1.5 w-full rounded-full bg-hairline overflow-hidden">
         <div
@@ -61,7 +73,11 @@ function Stepper({ step }: { step: number }) {
               </div>
               <span
                 className={`text-[11px] tracking-[0.02em] leading-none transition-colors ${
-                  current ? "text-ink font-semibold" : done ? "text-body font-medium" : "text-muted"
+                  current
+                    ? "text-ink font-semibold"
+                    : done
+                      ? "text-body font-medium"
+                      : "text-muted"
                 }`}
               >
                 {s.label}
@@ -85,7 +101,9 @@ function Stepper({ step }: { step: number }) {
    raw key still works. */
 function extractFileKey(input: string): string {
   const val = input.trim();
-  const m = val.match(/figma\.com\/(?:file|design|proto|board)\/([A-Za-z0-9]+)/i);
+  const m = val.match(
+    /figma\.com\/(?:file|design|proto|board)\/([A-Za-z0-9]+)/i,
+  );
   return m ? m[1] : val;
 }
 
@@ -129,6 +147,7 @@ export default function Onboard() {
 
   const startOAuth = async () => {
     setError(null);
+    posthog.capture("onboard_connect_started");
     try {
       const res = await axios.post("/api/oauth/start");
       if (res.data?.url) {
@@ -156,7 +175,7 @@ export default function Onboard() {
 
   const submitFiles = async () => {
     setError(null);
-    const validFiles = files.map(f => extractFileKey(f)).filter(Boolean);
+    const validFiles = files.map((f) => extractFileKey(f)).filter(Boolean);
     if (validFiles.length === 0) {
       setError("Please add at least one file key.");
       return;
@@ -172,8 +191,13 @@ export default function Onboard() {
     setIsSubmitting(true);
     try {
       // Submit all files concurrently for faster optimistic UI response
-      await Promise.all(validFiles.map(fileKey => axios.post("/api/user/files", { fileKey })));
+      await Promise.all(
+        validFiles.map((fileKey) => axios.post("/api/user/files", { fileKey })),
+      );
 
+      posthog.capture("onboard_files_submitted", {
+        file_count: validFiles.length,
+      });
       setStep(3);
     } catch (err) {
       setError("Failed to save files.");
@@ -207,13 +231,25 @@ export default function Onboard() {
               <div className="bg-canvas rounded-2xl p-4 flex items-start gap-3">
                 <ShieldCheck size={18} className="text-green shrink-0 mt-0.5" />
                 <p className="text-[13px] text-body leading-relaxed">
-                  We request read access to <span className="text-ink font-medium">file metadata, version history, and comments</span> only — never your design content.
+                  We request read access to{" "}
+                  <span className="text-ink font-medium">
+                    file metadata, version history, and comments
+                  </span>{" "}
+                  only — never your design content.
                 </p>
               </div>
-              <Button variant="primary" onClick={startOAuth} className="h-11 w-full">
+              <Button
+                variant="primary"
+                onClick={startOAuth}
+                className="h-11 w-full"
+              >
                 Connect Figma <ArrowRight size={18} />
               </Button>
-              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
+              {error && (
+                <p role="alert" className="text-[13px] text-accent font-medium">
+                  {error}
+                </p>
+              )}
             </>
           )}
 
@@ -257,12 +293,20 @@ export default function Onboard() {
               </div>
 
               <p className="text-[13px] text-body leading-relaxed">
-                Just paste the whole file URL — we grab the key automatically. Prefer the raw key? That works too. At least one is required; you can add more later.
+                Just paste the whole file URL — we grab the key automatically.
+                Prefer the raw key? That works too. At least one is required;
+                you can add more later.
               </p>
 
               <div className="flex flex-col gap-2.5">
-                <Button variant="primary" onClick={submitFiles} disabled={isSubmitting} className="h-11 w-full">
-                  {isSubmitting ? "Saving…" : "Start tracking"} <ArrowRight size={18} />
+                <Button
+                  variant="primary"
+                  onClick={submitFiles}
+                  disabled={isSubmitting}
+                  className="h-11 w-full"
+                >
+                  {isSubmitting ? "Saving…" : "Start tracking"}{" "}
+                  <ArrowRight size={18} />
                 </Button>
                 <button
                   onClick={() => navigate("/dashboard")}
@@ -272,7 +316,11 @@ export default function Onboard() {
                   Skip for now
                 </button>
               </div>
-              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
+              {error && (
+                <p role="alert" className="text-[13px] text-accent font-medium">
+                  {error}
+                </p>
+              )}
             </>
           )}
 
@@ -292,7 +340,14 @@ export default function Onboard() {
                   Your files are queued and syncing in the background.
                 </p>
               </div>
-              <Button variant="dark" onClick={() => navigate("/dashboard")} className="h-11 w-full">
+              <Button
+                variant="dark"
+                onClick={() => {
+                  posthog.capture("onboard_completed");
+                  navigate("/dashboard");
+                }}
+                className="h-11 w-full"
+              >
                 Go to Dashboard <ArrowRight size={18} />
               </Button>
             </>
@@ -301,7 +356,8 @@ export default function Onboard() {
       </Card>
 
       <p className="text-[12px] text-muted flex items-center gap-1.5">
-        <ShieldCheck size={13} /> Metadata &amp; version history only — never your design content.
+        <ShieldCheck size={13} /> Metadata &amp; version history only — never
+        your design content.
       </p>
     </div>
   );

@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
-import {
-  Stats,
-  ActivityData,
-  FigmaFile,
-  SyncSession,
-  Insights,
-} from "./types";
+import posthog from "posthog-js";
+import { Stats, ActivityData, FigmaFile, SyncSession, Insights } from "./types";
 
 // Poll interval for auto-refresh so the dashboard stays live (spec §6).
 const POLL_MS = 45000;
@@ -15,7 +10,9 @@ const POLL_MS = 45000;
 // dates into the SAME calendar days the Heatmap renders (fixes the off-by-one).
 function browserTz(): string {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles";
+    return (
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles"
+    );
   } catch {
     return "America/Los_Angeles";
   }
@@ -81,7 +78,8 @@ export function useFigmaData() {
           // Guard against the SPA index.html fallback (200 text/html) that the
           // server returns for an unknown /api route — never feed HTML to state.
           const d = res.data;
-          if (d && typeof d === "object" && d.streak) setInsights(d as Insights);
+          if (d && typeof d === "object" && d.streak)
+            setInsights(d as Insights);
         })
         .catch((e) => console.error("Failed to fetch insights:", e));
     } catch (err) {
@@ -106,7 +104,10 @@ export function useFigmaData() {
   }, [fetchData]);
   useEffect(() => {
     const id = setInterval(() => {
-      if (typeof document === "undefined" || document.visibilityState === "visible") {
+      if (
+        typeof document === "undefined" ||
+        document.visibilityState === "visible"
+      ) {
         fetchDataRef.current();
       }
     }, POLL_MS);
@@ -115,6 +116,7 @@ export function useFigmaData() {
 
   const triggerSync = async () => {
     setSyncing(true);
+    posthog.capture("sync_triggered");
     try {
       await axios.post("/api/sync/manual");
       await fetchData();

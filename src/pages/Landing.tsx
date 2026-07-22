@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { ArrowRight, Activity, Users, FileText } from "lucide-react";
 import { format, subDays, startOfToday } from "date-fns";
+import posthog from "posthog-js";
 import imgFimanuLogo from "../assets/FimanuLogoFull.svg";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import { useSession } from "../session";
@@ -34,7 +35,8 @@ function useDemoActivity() {
       const d = subDays(today, i);
       const weekend = d.getDay() === 0 || d.getDay() === 6;
       if (rand() < (weekend ? 0.25 : 0.82)) {
-        data[format(d, "yyyy-MM-dd")] = 1 + Math.floor(rand() * (weekend ? 6 : 14));
+        data[format(d, "yyyy-MM-dd")] =
+          1 + Math.floor(rand() * (weekend ? 6 : 14));
       }
     }
     return data;
@@ -63,6 +65,12 @@ export default function Landing() {
         <div>
           <a
             href={ctaHref}
+            onClick={() =>
+              posthog.capture("landing_cta_clicked", {
+                cta_text: loggedIn ? "Go to Dashboard" : "Sign In",
+                location: "nav",
+              })
+            }
             className="bg-ink text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-black transition-colors"
           >
             {loggedIn ? "Go to Dashboard" : "Sign In"}
@@ -76,32 +84,53 @@ export default function Landing() {
           Introducing Fimanu 1.0
         </div>
         <h1 className="text-5xl md:text-7xl font-black text-ink tracking-tight leading-tight text-balance mb-8 max-w-4xl animate-fade-in-up animation-delay-100">
-          Visualize your team's <span className="text-blue">Figma activity</span> in real-time.
+          Visualize your team's{" "}
+          <span className="text-blue">Figma activity</span> in real-time.
         </h1>
         <p className="text-xl text-body text-pretty mb-12 max-w-2xl animate-fade-in-up animation-delay-200">
-          Automatically track file contributions, generate GitHub-style activity heatmaps, and gain insights into your design workflow without lifting a finger.
+          Automatically track file contributions, generate GitHub-style activity
+          heatmaps, and gain insights into your design workflow without lifting
+          a finger.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-up animation-delay-300">
           <a
             href={ctaHref}
+            onClick={() =>
+              posthog.capture("landing_cta_clicked", {
+                cta_text: loggedIn ? "Go to Dashboard" : "Get Started for Free",
+                location: "hero",
+              })
+            }
             className="bg-blue text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-[#16a6e0] transition-[transform,box-shadow,background-color] duration-200 ease-out shadow-card hover:shadow-card-hover active:scale-95 flex items-center justify-center gap-2"
           >
-            {loggedIn ? "Go to Dashboard" : "Get Started for Free"} <ArrowRight size={20} />
+            {loggedIn ? "Go to Dashboard" : "Get Started for Free"}{" "}
+            <ArrowRight size={20} />
           </a>
         </div>
 
         {/* Live demo — see the product working before being asked to connect. */}
         <div className="w-full max-w-4xl mt-20 animate-fade-in-up animation-delay-300">
           <div className="flex items-center justify-between mb-4 px-1">
-            <span className="text-sm font-semibold text-body">A year of design activity, at a glance</span>
-            <span className="text-xs font-medium text-muted uppercase tracking-[0.1em]">Sample data</span>
+            <span className="text-sm font-semibold text-body">
+              A year of design activity, at a glance
+            </span>
+            <span className="text-xs font-medium text-muted uppercase tracking-[0.1em]">
+              Sample data
+            </span>
           </div>
           <div className="bg-surface rounded-3xl shadow-card border border-line p-6 overflow-x-auto">
-            <Heatmap data={demoActivity} theme="light" customTheme={demoTheme} />
+            <Heatmap
+              data={demoActivity}
+              theme="light"
+              customTheme={demoTheme}
+            />
           </div>
           <p className="text-body mt-5 text-base">
             This is example activity.{" "}
-            <a href={ctaHref} className="text-blue font-semibold hover:underline">
+            <a
+              href={ctaHref}
+              className="text-blue font-semibold hover:underline"
+            >
               Connect your Figma
             </a>{" "}
             to see your own — free, no credit card.
@@ -116,9 +145,12 @@ export default function Landing() {
             <div className="w-16 h-16 bg-green/10 text-green rounded-2xl flex items-center justify-center mb-6">
               <Activity size={32} />
             </div>
-            <h2 className="text-2xl font-bold text-ink mb-4">Activity Heatmaps</h2>
+            <h2 className="text-2xl font-bold text-ink mb-4">
+              Activity Heatmaps
+            </h2>
             <p className="text-body text-pretty leading-relaxed">
-              Beautiful, interactive heatmaps showing your daily design contributions, just like GitHub.
+              Beautiful, interactive heatmaps showing your daily design
+              contributions, just like GitHub.
             </p>
           </div>
           <div className="flex flex-col items-center text-center">
@@ -127,7 +159,8 @@ export default function Landing() {
             </div>
             <h2 className="text-2xl font-bold text-ink mb-4">Team Tracking</h2>
             <p className="text-body text-pretty leading-relaxed">
-              Monitor exactly who is working on what, and when, across all your monitored Figma files.
+              Monitor exactly who is working on what, and when, across all your
+              monitored Figma files.
             </p>
           </div>
           <div className="flex flex-col items-center text-center">
@@ -136,7 +169,8 @@ export default function Landing() {
             </div>
             <h2 className="text-2xl font-bold text-ink mb-4">File Insights</h2>
             <p className="text-body text-pretty leading-relaxed">
-              Drill down into specific files to see version history, active collaborators, and peak editing times.
+              Drill down into specific files to see version history, active
+              collaborators, and peak editing times.
             </p>
           </div>
         </div>
