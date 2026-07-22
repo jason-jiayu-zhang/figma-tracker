@@ -180,19 +180,30 @@ function App() {
     );
   }
 
-  // 3. Marketing site (root domain): render the Landing page only.
-  if (!IS_APP_MODE) {
-    return (
-      <Suspense fallback={<Spinner />}>
-        <Routes>
-          <Route path="*" element={<Landing />} />
-        </Routes>
-      </Suspense>
-    );
+  // 3 & 4. Routing based on domain mode.
+  if (IS_APP_MODE) {
+    // Dashboard app only (app.* subdomain or VITE_IS_APP=1).
+    return <AppRoutes />;
   }
 
-  // 4. Dashboard app (app.* subdomain or VITE_IS_APP=1).
-  return <AppRoutes />;
+  // Root domain: serve Marketing on `/`, App on specific paths.
+  if (
+    path.startsWith("/studio") ||
+    path.startsWith("/files") ||
+    path.startsWith("/settings") ||
+    path.startsWith("/onboard") ||
+    path.startsWith("/home")
+  ) {
+    return <AppRoutes />;
+  }
+
+  return (
+    <Suspense fallback={<Spinner />}>
+      <Routes>
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
 export default App;
