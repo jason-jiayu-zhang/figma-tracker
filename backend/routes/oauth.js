@@ -18,56 +18,80 @@ function stateCacheAllowed() {
   return process.env.NODE_ENV !== "production";
 }
 
-// POST /api/oauth/start -> returns an authorization URL to redirect the user to
+// Shared helper: build the Figma OAuth authorization URL and persist state.
+// Returns the URL string, or null + sends an error response.
+async function buildOAuthUrl(res, fileKeys) {
+  const clientId = process.env.FIGMA_CLIENT_ID;
+  const redirectUri = process.env.FIGMA_OAUTH_REDIRECT_URI;
+
+  if (!clientId || clientId === "undefined" || !redirectUri || redirectUri === "undefined") {
+    console.error("[oauth/start] Critical Error: FIGMA_CLIENT_ID or FIGMA_OAUTH_REDIRECT_URI is missing or set to 'undefined'.");
+    res.status(500).send("Server configuration error: OAuth credentials missing.");
+    return null;
+  }
+
+  const state = crypto.randomBytes(16).toString("hex");
+  const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 minutes
+
+  try {
+    const { error: stateError } = await supabase.from("oauth_states").insert({
+      state,
+      expires_at: expiresAt,
+      metadata: { fileKeys: fileKeys || "" }
+    });
+    if (stateError) throw stateError;
+  } catch (err) {
+    if (!stateCacheAllowed()) {
+      console.error("[oauth/start] Failed to persist OAuth state:", err?.message || err);
+      res.status(500).send("Failed to start OAuth");
+      return null;
+    }
+    console.warn("[oauth/start] Supabase insert failed — using in-memory cache for state (dev fallback)", err?.message || err);
+    oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
+  }
+
+  // Minimal read scopes (no file_content:read). file_comments:read and
+  // file_dev_resources:read back the Tier-2 comment/dev-resource analytics.
+  const scope =
+    "current_user:read file_metadata:read file_versions:read file_comments:read file_dev_resources:read";
+
+  return `https://www.figma.com/oauth?client_id=${encodeURIComponent(
+    clientId,
+  )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(
+    scope,
+  )}&state=${encodeURIComponent(state)}&response_type=code`;
+}
+
+// GET /api/oauth/start -> 302 redirect to Figma OAuth.
+// This is the primary flow: the browser navigates here directly, and the server
+// issues a 302. This bypasses Chrome extensions that intercept client-side
+// window.location.href assignments or strip query parameters from JS-initiated
+// navigations.
+router.get("/start", async (req, res) => {
+  try {
+    const fileKeys = req.query.fileKeys || "";
+    console.log("[/api/oauth/start] GET — Starting OAuth (fileKeys provided:", !!fileKeys, ")");
+
+    const url = await buildOAuthUrl(res, fileKeys);
+    if (!url) return; // buildOAuthUrl already sent the error response
+    res.redirect(url);
+  } catch (err) {
+    console.error("/api/oauth/start GET error:", err.message);
+    res.status(500).send("OAuth start failed");
+  }
+});
+
+// POST /api/oauth/start -> returns an authorization URL as JSON (legacy).
 router.post("/start", async (req, res) => {
   try {
     const { fileKeys } = req.body || {};
-    console.log("[/api/oauth/start] Starting OAuth (fileKeys provided:", !!fileKeys, ")");
-    
-    const clientId = process.env.FIGMA_CLIENT_ID;
-    const redirectUri = process.env.FIGMA_OAUTH_REDIRECT_URI;
+    console.log("[/api/oauth/start] POST — Starting OAuth (fileKeys provided:", !!fileKeys, ")");
 
-    if (!clientId || clientId === "undefined" || !redirectUri || redirectUri === "undefined") {
-      console.error("[/api/oauth/start] Critical Error: FIGMA_CLIENT_ID or FIGMA_OAUTH_REDIRECT_URI is missing or set to 'undefined'.");
-      return res.status(500).json({ 
-        error: "Server configuration error: OAuth credentials missing.",
-        details: "Please ensure FIGMA_CLIENT_ID and FIGMA_OAUTH_REDIRECT_URI are correctly set in your .env file."
-      });
-    }
-
-    const state = crypto.randomBytes(16).toString("hex");
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 minutes
-
-    try {
-      const { error: stateError } = await supabase.from("oauth_states").insert({
-        state,
-        expires_at: expiresAt,
-        metadata: { fileKeys: fileKeys || "" }
-      });
-      if (stateError) throw stateError;
-    } catch (err) {
-      if (!stateCacheAllowed()) {
-        console.error("[/api/oauth/start] Failed to persist OAuth state:", err?.message || err);
-        return res.status(500).json({ error: "Failed to start OAuth" });
-      }
-      console.warn("[/api/oauth/start] Supabase insert failed — using in-memory cache for state (dev fallback)", err?.message || err);
-      oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
-    }
-
-    // Minimal read scopes (no file_content:read). file_comments:read and
-    // file_dev_resources:read back the Tier-2 comment/dev-resource analytics.
-    const scope =
-      "current_user:read file_metadata:read file_versions:read file_comments:read file_dev_resources:read";
-
-    const url = `https://www.figma.com/oauth?client_id=${encodeURIComponent(
-      clientId,
-    )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(
-      scope,
-    )}&state=${encodeURIComponent(state)}&response_type=code`;
-
+    const url = await buildOAuthUrl(res, fileKeys);
+    if (!url) return; // buildOAuthUrl already sent the error response
     res.json({ url });
   } catch (err) {
-    console.error("/api/oauth/start error:", err.message);
+    console.error("/api/oauth/start POST error:", err.message);
     res.status(500).json({ error: err.message });
   }
 });

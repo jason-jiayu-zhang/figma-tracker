@@ -381,21 +381,13 @@ export default function Landing() {
   const appBase = APP_DASHBOARD_URL;
   const studioHref = appBase ? `${appBase}/studio` : "/studio";
 
-  const startOAuth = async () => {
+  const startOAuth = () => {
     posthog.capture('onboarding_start_oauth');
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await axios.post("/api/oauth/start");
-      if (res.data?.url) {
-        window.location.href = res.data.url;
-        return;
-      }
-      setError("Failed to start OAuth");
-    } catch {
-      setError("Failed to start OAuth");
-    }
-    setBusy(false);
+    // Navigate directly to the GET endpoint which issues a 302 redirect to
+    // Figma. This bypasses Chrome extensions that intercept client-side
+    // window.location.href assignments or rewrite URL parameters from
+    // JS-initiated navigations.
+    window.location.href = "/api/oauth/start";
   };
 
   const PrimaryCta = ({ className = "" }: { className?: string }) =>

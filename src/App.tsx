@@ -1,6 +1,5 @@
 import React, { Suspense, useEffect, useRef } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
-import axios from "axios";
 import Footer from "./components/Footer";
 import TopNav from "./components/TopNav";
 import { SHELL, SHELL_TOP_PAD } from "./components/ui";
@@ -34,22 +33,12 @@ function Spinner({ label }: { label?: string }) {
   );
 }
 
-// Kick off Figma OAuth (POST /api/oauth/start → { url }).
-async function startOAuth() {
-  try {
-    const res = await axios.post("/api/oauth/start");
-    if (res.data?.url) {
-      window.location.href = res.data.url;
-      return;
-    }
-  } catch (err) {
-    console.error("Failed to start OAuth:", err);
-  }
-}
-
+// Kick off Figma OAuth — navigate directly to the GET endpoint which issues a
+// 302 redirect to Figma. This bypasses Chrome extensions that intercept
+// client-side window.location.href assignments or rewrite URL parameters.
 function OAuthRedirect() {
   useEffect(() => {
-    startOAuth();
+    window.location.href = "/api/oauth/start";
   }, []);
   return <Spinner label="Redirecting to Figma…" />;
 }
