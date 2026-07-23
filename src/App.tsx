@@ -66,7 +66,7 @@ function AppLayout() {
   );
 }
 
-// App-subdomain (dashboard) routing, gated on the cookie session.
+// Dashboard (app) routing, gated on the cookie session.
 function AppRoutes() {
   const { loggedIn, loading, refresh } = useSession();
   const [searchParams] = useSearchParams();
@@ -119,7 +119,7 @@ function AppRoutes() {
         </Suspense>
       );
     }
-    // On the dedicated app subdomain, auto-redirect to OAuth.
+    // In forced app mode (local dev), auto-redirect to OAuth.
     // On the root domain, fall back to the landing page so the user isn't
     // trapped in an OAuth loop.
     if (IS_APP_MODE) {
@@ -188,7 +188,7 @@ function App() {
 
   // 3 & 4. Routing based on domain mode.
   if (IS_APP_MODE) {
-    // Dashboard app only (app.* subdomain or VITE_IS_APP=1).
+    // Dashboard app only (forced via VITE_IS_APP=1, e.g. local dev).
     return <AppRoutes />;
   }
 

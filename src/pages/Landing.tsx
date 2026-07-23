@@ -18,7 +18,6 @@ import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import { colorForKey } from "../components/ui";
 import { ActivityData } from "../types";
 import { useSession } from "../session";
-import { APP_DASHBOARD_URL } from "../config";
 
 /* ── Motion primitives ──────────────────────────────────────── */
 
@@ -376,10 +375,8 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // The app lives on the app subdomain; link there when configured,
-  // otherwise fall back to a same-origin path.
-  const appBase = APP_DASHBOARD_URL;
-  const studioHref = appBase ? `${appBase}/studio` : "/studio";
+  // Single-origin app: the dashboard lives at /studio on this same domain.
+  const studioHref = "/studio";
 
   const startOAuth = () => {
     posthog.capture('onboarding_start_oauth');
