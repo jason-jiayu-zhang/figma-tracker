@@ -78,7 +78,7 @@ export default function FileVolumeBreakdown({
 
   return (
     <div
-      className="flex-[1_0_0] gap-x-2 gap-y-2 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,0.70fr)] grid-rows-[minmax(0,1fr)_minmax(0,0.70fr)] min-h-px min-w-px relative w-full rounded-2xl overflow-hidden"
+      className="flex-[1_0_0] gap-x-2 gap-y-2 grid grid-cols-[minmax(30%,2fr)_minmax(0,1fr)_minmax(0,0.70fr)] grid-rows-[minmax(0,1fr)_minmax(0,0.70fr)] min-h-px min-w-px relative w-full rounded-2xl overflow-hidden"
       style={{ color: textColor }}
     >
       {displayItems.length === 1 && (
