@@ -60,7 +60,7 @@ export default function Settings() {
     } catch {
       /* ignore */
     }
-    posthog.capture('nav_logout');
+    posthog.capture('settings_logout');
     // ?loggedout=1 tells the app shell to show the marketing landing page
     // instead of bouncing a session-less visit straight back into OAuth.
     window.location.href = '/?loggedout=1';

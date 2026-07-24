@@ -8,6 +8,7 @@ import {
   Check,
   Copy,
   Flame,
+  Info,
   RefreshCw,
   RotateCcw,
   ShieldCheck,
@@ -18,6 +19,18 @@ import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import { colorForKey } from "../components/ui";
 import { ActivityData } from "../types";
 import { useSession } from "../session";
+
+/** True for Safari (desktop + iOS), excluding Chrome/Firefox/Edge/Android —
+ *  including their iOS WebKit builds. Safari is the only browser where a
+ *  content/ad blocker corrupts Figma's login bundle and crashes the tab
+ *  ("reloaded because a problem occurred"), so we gate the pre-flight hint to
+ *  it and never tax the majority. */
+function isSafariBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /^((?!chrome|android|crios|fxios|edgios).)*safari/i.test(
+    navigator.userAgent,
+  );
+}
 
 /* ── Motion primitives ──────────────────────────────────────── */
 
@@ -365,6 +378,27 @@ export default function Landing() {
   const [showSwitch, setShowSwitch] = useState(false);
   const [showFailedModal, setShowFailedModal] = useState(false);
 
+  // Safari-only pre-flight hint: a content/ad blocker can crash Figma's login
+  // page before OAuth even starts. Show a calm, dismissible line so a user who
+  // hits the crash knows to pause their blocker and retry — instead of bouncing
+  // for good. Persisted so it doesn't nag on every visit.
+  const safariBrowser = isSafariBrowser();
+  const [safariHintDismissed, setSafariHintDismissed] = useState(() => {
+    try {
+      return localStorage.getItem("ft_safari_hint_dismissed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismissSafariHint = () => {
+    try {
+      localStorage.setItem("ft_safari_hint_dismissed", "1");
+    } catch {
+      /* ignore storage errors (private mode, etc.) */
+    }
+    setSafariHintDismissed(true);
+  };
+
   useReveals();
 
   const heroRef = useRef<HTMLElement>(null);
@@ -419,7 +453,9 @@ export default function Landing() {
       const ts = Number(localStorage.getItem("ft_oauth_pending"));
       if (ts > 0 && Date.now() - ts < 15 * 60 * 1000) {
         setShowFailedModal(true);
-        posthog.capture("oauth_failed_attempt_detected");
+        posthog.capture('onboarding_oauth_failed', {
+          browser: safariBrowser ? 'safari' : 'other',
+        });
       }
     } catch {
       /* ignore */
@@ -502,9 +538,14 @@ export default function Landing() {
               That Figma sign-in didn't complete
             </h2>
             <p className="mt-3 text-[14px] leading-relaxed text-body">
-              If you picked the wrong Figma account, Figma stays signed into it
-              and won't offer a picker next time. Sign out of Figma first, then
-              reconnect to choose a different account.
+              If Figma's page reloaded or crashed — most common on Safari with an
+              ad or content blocker — pause the blocker for figma.com, then
+              reconnect.
+            </p>
+            <p className="mt-2 text-[14px] leading-relaxed text-body">
+              Or, if you picked the wrong Figma account, Figma stays signed into
+              it and won't offer a picker next time. Sign out of Figma first,
+              then reconnect to choose a different account.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               <button
@@ -610,6 +651,24 @@ export default function Landing() {
                 See how it works
               </a>
             </div>
+
+            {!loggedIn && safariBrowser && !safariHintDismissed && (
+              <div className="reveal mt-4 flex max-w-md items-start gap-2 rounded-2xl border border-line bg-surface/70 px-4 py-3 text-left text-[13px] leading-relaxed text-body [--reveal-delay:0.42s]">
+                <Info size={15} className="mt-0.5 shrink-0 text-muted" />
+                <span className="flex-1">
+                  On Safari? If Figma's page reloads or won't load, pause your ad
+                  blocker (or content blocker) for figma.com, then try again.
+                </span>
+                <button
+                  type="button"
+                  onClick={dismissSafariHint}
+                  aria-label="Dismiss"
+                  className="ui-text shrink-0 text-muted transition-colors hover:text-ink"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             {error && (
               <p
