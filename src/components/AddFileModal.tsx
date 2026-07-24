@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { X, CheckCircle2 } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { Button } from "./ui";
+import { extractFileKey } from "../figmaKey";
 
 export default function AddFileModal({ isOpen, onClose, onSuccess }: { isOpen: boolean, onClose: () => void, onSuccess?: () => void }) {
   const { addFile } = useFigmaData();
@@ -26,11 +27,6 @@ export default function AddFileModal({ isOpen, onClose, onSuccess }: { isOpen: b
       trigger?.focus();
     };
   }, [isOpen, onClose]);
-
-  const extractFileKey = (url: string) => {
-    const match = url.match(/figma\.com\/(?:design|file|board)\/([a-zA-Z0-9\-_]+)/);
-    return match ? match[1] : url.trim();
-  };
 
   const handleAddFile = async () => {
     if (!newFileUrl.trim()) return;

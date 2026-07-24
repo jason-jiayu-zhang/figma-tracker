@@ -6,6 +6,7 @@ import { Plus, X, Check, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
 import { Button, colorForKey } from "../components/ui";
+import { extractFileKey } from "../figmaKey";
 
 /* Goal-gradient head start: never show 0%. Connecting Figma already happened on
    the landing page, so the bar opens well past the starting line — the closer
@@ -31,16 +32,6 @@ function ProgressBar({ step }: { step: number }) {
       </div>
     </div>
   );
-}
-
-/* Smart default: shift the user's task from "hunt down the file key" to just
-   "paste the URL". Accepts a full Figma link (…/design/KEY/…, /file/, /proto/,
-   /board/) and returns the bare key; anything else passes straight through so a
-   raw key still works. */
-function extractFileKey(input: string): string {
-  const val = input.trim();
-  const m = val.match(/figma\.com\/(?:file|design|proto|board)\/([A-Za-z0-9]+)/i);
-  return m ? m[1] : val;
 }
 
 /* Real Figma keys run ~22-25 base62 chars, so this only fires once a paste
@@ -98,24 +89,37 @@ export default function Onboard() {
 
   const submitFiles = async () => {
     setError(null);
-    const validFiles = files.map(f => extractFileKey(f)).filter(Boolean);
-    if (validFiles.length === 0) {
+    const entries = files
+      .map(raw => ({ raw, key: extractFileKey(raw) }))
+      .filter(e => e.key);
+    if (entries.length === 0) {
       setError("Please add at least one file key.");
       return;
     }
 
-    posthog.capture('onboarding_submit_files', { count: validFiles.length });
+    posthog.capture('onboarding_submit_files', { count: entries.length });
     setIsSubmitting(true);
-    try {
-      // Submit all files concurrently for faster optimistic UI response
-      await Promise.all(validFiles.map(fileKey => axios.post("/api/user/files", { fileKey })));
+    // Submit all files concurrently; allSettled (rather than all) so one bad
+    // link doesn't roll back files that already saved successfully.
+    const results = await Promise.allSettled(
+      entries.map(e => axios.post("/api/user/files", { fileKey: e.key }))
+    );
+    setIsSubmitting(false);
 
+    const failed = entries.filter((_, i) => results[i].status === "rejected");
+    if (failed.length === 0) {
       setStep(2);
-    } catch (err) {
-      setError("Failed to save files.");
-    } finally {
-      setIsSubmitting(false);
+      return;
     }
+
+    // Leave only the failed entries so the user can fix and retry just those
+    // — the rest already saved and don't need to be resubmitted.
+    setFiles(failed.map(f => f.raw));
+    setError(
+      failed.length === entries.length
+        ? "Failed to save files. Make sure the URLs or keys are valid."
+        : `Saved the rest, but couldn't add: ${failed.map(f => f.raw).join(", ")}`
+    );
   };
 
   return (
