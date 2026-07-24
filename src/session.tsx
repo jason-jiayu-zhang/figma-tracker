@@ -41,6 +41,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       const res = await axios.get("/api/user/me");
       const u = res.data as SessionUser;
       setUser(u);
+      // A confirmed session means the last OAuth attempt succeeded — clear the
+      // "pending attempt" flag Landing uses to detect a failed/aborted login.
+      try {
+        localStorage.removeItem("ft_oauth_pending");
+      } catch {
+        /* ignore storage errors (private mode, etc.) */
+      }
       posthog.identify(u.figma_user_id, { handle: u.handle });
       return u;
     } catch {

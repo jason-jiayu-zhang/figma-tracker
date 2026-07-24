@@ -358,11 +358,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 /* ── Page ───────────────────────────────────────────────────── */
 
 export default function Landing() {
-  const { loggedIn } = useSession();
+  const { loggedIn, loading } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [showSwitch, setShowSwitch] = useState(false);
+  const [showFailedModal, setShowFailedModal] = useState(false);
 
   useReveals();
 
@@ -381,12 +382,74 @@ export default function Landing() {
 
   const startOAuth = () => {
     posthog.capture('onboarding_start_oauth');
+    // Drop a timestamped flag so that if the user returns to Landing still
+    // logged out (the attempt failed or was aborted — e.g. Figma's "invalid
+    // redirect uri" on a stuck account), we can detect it and prompt them to
+    // sign out of Figma and reconnect. Cleared on a confirmed session in
+    // session.tsx.
+    try {
+      localStorage.setItem("ft_oauth_pending", String(Date.now()));
+    } catch {
+      /* ignore storage errors (private mode, etc.) */
+    }
     // Navigate directly to the GET endpoint which issues a 302 redirect to
     // Figma. This bypasses Chrome extensions that intercept client-side
     // window.location.href assignments or rewrite URL parameters from
     // JS-initiated navigations.
     window.location.href = "/api/oauth/start";
   };
+
+  const dismissFailedModal = () => {
+    try {
+      localStorage.removeItem("ft_oauth_pending");
+    } catch {
+      /* ignore */
+    }
+    setShowFailedModal(false);
+  };
+
+  // Detect a previous OAuth attempt that never produced a session: the flag is
+  // still set, we're done loading, and we're logged out. Show the recovery
+  // popup once the session state has resolved (so a logged-in user, whose flag
+  // session.tsx clears on refresh, never sees it). The 15-minute window keeps a
+  // stale flag from surfacing on an unrelated visit days later.
+  useEffect(() => {
+    if (loading || loggedIn) return;
+    try {
+      const ts = Number(localStorage.getItem("ft_oauth_pending"));
+      if (ts > 0 && Date.now() - ts < 15 * 60 * 1000) {
+        setShowFailedModal(true);
+        posthog.capture("oauth_failed_attempt_detected");
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [loading, loggedIn]);
+
+  // Kill-switch via PostHog feature flag `oauth-recovery-popup`. Fails OPEN:
+  // the popup shows by default (so it works before the flag exists, and if
+  // PostHog is blocked/never loads), and is suppressed only when the flag is
+  // explicitly turned off.
+  useEffect(() => {
+    const unsub = posthog.onFeatureFlags(() => {
+      if (posthog.isFeatureEnabled("oauth-recovery-popup") === false) {
+        setShowFailedModal(false);
+      }
+    });
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
+  }, []);
+
+  // Escape closes the recovery popup.
+  useEffect(() => {
+    if (!showFailedModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") dismissFailedModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showFailedModal]);
 
   // Escape hatch for the "signed into the wrong Figma account" trap. Figma
   // remembers the last account in its own session cookie on figma.com, and
@@ -421,6 +484,55 @@ export default function Landing() {
 
   return (
     <div className="min-h-dvh overflow-clip bg-canvas font-sans text-ink">
+      {/* Recovery popup: shown when a prior OAuth attempt didn't complete. */}
+      {showFailedModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-gutter"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="oauth-failed-title"
+        >
+          <div
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+            onClick={dismissFailedModal}
+            aria-hidden="true"
+          />
+          <div className="relative z-10 w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-card">
+            <h2 id="oauth-failed-title" className="display text-[20px] text-ink">
+              That Figma sign-in didn't complete
+            </h2>
+            <p className="mt-3 text-[14px] leading-relaxed text-body">
+              If you picked the wrong Figma account, Figma stays signed into it
+              and won't offer a picker next time. Sign out of Figma first, then
+              reconnect to choose a different account.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={signOutOfFigma}
+                className={`${BTN_GHOST} h-10 px-4`}
+              >
+                Sign out of Figma <ArrowRight size={15} />
+              </button>
+              <button
+                type="button"
+                onClick={startOAuth}
+                className={`${BTN_PRIMARY} h-10 px-4`}
+              >
+                Reconnect Figma <ArrowRight size={15} />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={dismissFailedModal}
+              className="ui-text mt-4 text-[13px] text-muted underline decoration-muted/40 underline-offset-4 transition-colors hover:text-ink"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ───────────────────────────────────────────── */}
       <header className="fixed inset-x-0 top-0 z-50 px-gutter py-4">
         <div
