@@ -222,6 +222,19 @@ h3 {
     opacity: 0.4;
   }
 
+  /* ── Onboarding: file-slot color claim ─────────────────
+     Pops when a pasted link/key resolves to a trackable file, syncing with
+     the same per-file categorical color (colorForKey) used everywhere else
+     in the dashboard — the slot visibly "claims" its color. */
+  @keyframes claim {
+    from { transform: scale(0.7); }
+    60% { transform: scale(1.08); }
+    to { transform: scale(1); }
+  }
+  .animate-claim {
+    animation: claim 0.4s var(--ease-out-quint);
+  }
+
   /* Manifesto fragments drift gently in place. */
   @keyframes fragment-drift {
     from { transform: translateY(0); }

@@ -1,23 +1,18 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import posthog from "posthog-js";
 import axios from "axios";
 import imgFimanuLogo from "../assets/fimanu-logo-full.svg";
-import { Plus, X, Check, ArrowRight, FolderPlus, Sparkles, ShieldCheck } from "lucide-react";
+import { Plus, X, Check, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSession } from "../session";
-import { Card, Button, SectionHeader } from "../components/ui";
-
-const STEPS = [
-  { n: 1, label: "Files" },
-  { n: 2, label: "Done" },
-];
+import { Button, colorForKey } from "../components/ui";
 
 /* Goal-gradient head start: never show 0%. Connecting Figma already happened on
    the landing page, so the bar opens well past the starting line — the closer
    the fill looks to full, the harder it is to abandon. */
 const PROGRESS = { 1: 60, 2: 100 } as const;
 
-/** Slim progress track above the stepper — the numeric head-start cue. */
+/** Slim progress track — the numeric head-start cue. */
 function ProgressBar({ step }: { step: number }) {
   const pct = PROGRESS[step as 1 | 2] ?? 60;
   return (
@@ -38,47 +33,6 @@ function ProgressBar({ step }: { step: number }) {
   );
 }
 
-/** Horizontal progress stepper built from the dashboard's chip motif. */
-function Stepper({ step }: { step: number }) {
-  return (
-    <div className="flex items-start w-full">
-      {STEPS.map((s, i) => {
-        const done = step > s.n;
-        const current = step === s.n;
-        return (
-          <React.Fragment key={s.n}>
-            <div className="flex flex-col items-center gap-2 w-14 shrink-0">
-              <div
-                className={`size-10 rounded-xl flex items-center justify-center font-bold text-[14px] transition-colors ${
-                  done
-                    ? "bg-green text-white"
-                    : current
-                      ? "bg-blue text-white shadow-sm"
-                      : "bg-hairline text-muted"
-                }`}
-              >
-                {done ? <Check size={18} /> : s.n}
-              </div>
-              <span
-                className={`text-[11px] tracking-[0.02em] leading-none transition-colors ${
-                  current ? "text-ink font-semibold" : done ? "text-body font-medium" : "text-muted"
-                }`}
-              >
-                {s.label}
-              </span>
-            </div>
-            {i < STEPS.length - 1 && (
-              <div
-                className={`h-[2px] flex-1 rounded-full mt-5 transition-colors ${step > s.n ? "bg-green" : "bg-line"}`}
-              />
-            )}
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
 /* Smart default: shift the user's task from "hunt down the file key" to just
    "paste the URL". Accepts a full Figma link (…/design/KEY/…, /file/, /proto/,
    /board/) and returns the bare key; anything else passes straight through so a
@@ -89,6 +43,11 @@ function extractFileKey(input: string): string {
   return m ? m[1] : val;
 }
 
+/* Real Figma keys run ~22-25 base62 chars, so this only fires once a paste
+   looks like an actual key rather than a few stray characters — it's a
+   confidence cue, not a validation gate (the backend still has final say). */
+const MIN_RECOGNIZED_KEY_LEN = 8;
+
 export default function Onboard() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -97,6 +56,7 @@ export default function Onboard() {
   const [files, setFiles] = useState<string[]>([""]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showLinkHint, setShowLinkHint] = useState(false);
 
   useEffect(() => {
     posthog.capture('onboarding_view_step', { step });
@@ -119,6 +79,10 @@ export default function Onboard() {
   const addFileField = () => {
     posthog.capture('onboarding_add_file_field');
     setFiles([...files, ""]);
+  };
+  const toggleLinkHint = () => {
+    if (!showLinkHint) posthog.capture('onboarding_link_hint_open');
+    setShowLinkHint((v) => !v);
   };
   const removeFileField = (index: number) => {
     const newFiles = [...files];
@@ -158,57 +122,115 @@ export default function Onboard() {
     <div className="min-h-dvh bg-canvas flex flex-col items-center justify-center p-6 gap-5">
       <img src={imgFimanuLogo} alt="Fimanu" className="h-7 w-auto" />
 
-      <Card className="w-full max-w-[540px] p-7 flex flex-col gap-7">
+      <div className="w-full max-w-[540px] flex flex-col gap-7">
         <ProgressBar step={step} />
-        <Stepper step={step} />
-
-        <div className="h-px bg-line w-full" />
 
         <div
           key={step}
-          className="flex flex-col gap-6 min-h-[236px] animate-in fade-in slide-in-from-bottom-2 duration-300"
+          className="flex flex-col gap-6 min-h-[236px] border-t border-hairline pt-7 animate-fade-in-up"
         >
           {step === 1 && (
             <>
-              <SectionHeader
-                plain
-                icon={<FolderPlus size={20} />}
-                title="Select files"
-                subtitle="Paste a Figma file link for anything you want to monitor — we'll pull out the key for you."
-              />
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="display text-[20px] leading-tight text-ink">Select files</h2>
+                  <button
+                    type="button"
+                    onClick={toggleLinkHint}
+                    aria-expanded={showLinkHint}
+                    aria-controls="file-link-hint"
+                    className="shrink-0 text-[12px] text-muted underline decoration-muted/40 underline-offset-4 transition-colors hover:text-ink"
+                  >
+                    Where do I find this?
+                  </button>
+                </div>
+                <p className="text-[12px] text-muted tracking-[-0.12px]">
+                  Paste a link to any file, board, or prototype — we'll grab the key and give it a color.
+                </p>
+                {showLinkHint && (
+                  <p id="file-link-hint" className="text-[12px] text-muted leading-relaxed mt-1 animate-fade-in-up">
+                    In Figma, open the file, then <span className="font-semibold text-body">Share → Copy link</span>.
+                    Paste it below — we'll pull out the key for you.
+                  </p>
+                )}
+              </div>
 
-              <div className="flex flex-col gap-2.5 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
-                {files.map((file, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={file}
-                      onChange={(e) => updateFileField(idx, e.target.value)}
-                      aria-label={`Figma file link or key ${idx + 1}`}
-                      placeholder="Paste a Figma file URL or key"
-                      className="flex-1 px-4 h-11 bg-canvas border border-line focus:border-accent rounded-xl outline-none transition-colors font-mono text-[13px] text-ink placeholder:text-muted"
-                    />
-                    {files.length > 1 && (
-                      <button
-                        onClick={() => removeFileField(idx)}
-                        aria-label="Remove file"
-                        className="size-11 shrink-0 flex items-center justify-center rounded-xl text-muted hover:text-accent hover:bg-hairline transition-colors"
-                      >
-                        <X size={18} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 custom-scrollbar">
+                {files.map((file, idx) => {
+                  const key = extractFileKey(file);
+                  const recognized = key.length >= MIN_RECOGNIZED_KEY_LEN;
+                  return (
+                    <div key={idx} className="animate-fade-in-up">
+                      {recognized ? (
+                        // Same idiom as a Files-page row (FileRow in Files.tsx): the whole
+                        // row becomes the file's dashboard color, not just a small chip —
+                        // this is a live preview of the row it'll become after tracking.
+                        <div
+                          key="claimed"
+                          className="flex items-center gap-3 rounded-lg pl-3 pr-2 py-2.5 animate-claim"
+                          style={{ backgroundColor: colorForKey(key) }}
+                        >
+                          <Check size={18} className="text-white shrink-0" strokeWidth={2.5} />
+                          <div className="flex-1 min-w-0 flex flex-col">
+                            <input
+                              type="text"
+                              value={file}
+                              onChange={(e) => updateFileField(idx, e.target.value)}
+                              aria-label={`Figma file link or key ${idx + 1}`}
+                              className="w-full bg-transparent outline-none font-mono font-semibold text-[13px] text-white tracking-[-0.12px] truncate focus-visible:outline-none"
+                            />
+                            <span className="font-medium text-[11px] text-white/75 tracking-[-0.12px] truncate">
+                              key · {key}
+                            </span>
+                          </div>
+                          {files.length > 1 && (
+                            <button
+                              onClick={() => removeFileField(idx)}
+                              aria-label="Remove file"
+                              className="text-white/75 hover:text-white transition-colors p-2 rounded-full hover:bg-white/10 shrink-0"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          key="unclaimed"
+                          className="flex items-center gap-3 rounded-lg border-2 border-dashed border-line pl-3 pr-2 py-2.5 focus-within:border-accent transition-colors"
+                        >
+                          <Link2 size={18} className="text-muted shrink-0" />
+                          <input
+                            type="text"
+                            value={file}
+                            onChange={(e) => updateFileField(idx, e.target.value)}
+                            aria-label={`Figma file link or key ${idx + 1}`}
+                            placeholder="Paste a Figma file URL or key"
+                            className="flex-1 min-w-0 bg-transparent outline-none font-mono text-[13px] text-ink placeholder:text-muted"
+                          />
+                          {files.length > 1 && (
+                            <button
+                              onClick={() => removeFileField(idx)}
+                              aria-label="Remove file"
+                              className="text-muted hover:text-accent hover:bg-hairline transition-colors p-2 rounded-full shrink-0"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
                 <button
                   onClick={addFileField}
-                  className="flex items-center justify-center gap-2 h-11 border border-dashed border-line rounded-xl text-body hover:border-accent hover:text-accent transition-colors font-semibold text-[13px]"
+                  className="flex items-center justify-center gap-2 h-11 border border-dashed border-line rounded-lg text-body hover:border-accent hover:text-accent transition-colors font-semibold text-[13px]"
                 >
                   <Plus size={16} /> Add another file
                 </button>
               </div>
 
-              <p className="text-[13px] text-body leading-relaxed">
-                Just paste the whole file URL — we grab the key automatically. Prefer the raw key? That works too. At least one is required; you can add more later.
+              <p className="text-[12px] text-muted leading-relaxed">
+                Prefer the raw key instead of a link? That works too — and you can always add more files later.
               </p>
 
               <div className="flex flex-col gap-2.5">
@@ -226,19 +248,19 @@ export default function Onboard() {
                   Skip for now
                 </button>
               </div>
-              {error && <p role="alert" className="text-[13px] text-accent font-medium">{error}</p>}
+              {error && <p role="alert" className="text-[13px] text-red font-medium">{error}</p>}
             </>
           )}
 
           {step === 2 && (
             <>
-              <SectionHeader
-                plain
-                icon={<Sparkles size={20} />}
-                title="You're all set"
-                subtitle="We've started syncing. Full version history can take a few minutes to appear."
-              />
-              <div className="bg-canvas rounded-2xl p-4 flex items-center gap-3">
+              <div className="flex flex-col gap-1">
+                <h2 className="display text-[20px] leading-tight text-ink">You're all set</h2>
+                <p className="text-[12px] text-muted tracking-[-0.12px]">
+                  We've started syncing. Full version history can take a few minutes to appear.
+                </p>
+              </div>
+              <div className="bg-surface border border-line rounded-2xl p-4 flex items-center gap-3">
                 <div className="size-9 shrink-0 rounded-xl bg-green/10 text-green flex items-center justify-center">
                   <Check size={18} />
                 </div>
@@ -255,7 +277,7 @@ export default function Onboard() {
             </>
           )}
         </div>
-      </Card>
+      </div>
 
       <p className="text-[12px] text-muted flex items-center gap-1.5">
         <ShieldCheck size={13} /> Metadata &amp; version history only — never your design content.
