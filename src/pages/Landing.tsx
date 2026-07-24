@@ -362,6 +362,7 @@ export default function Landing() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [showSwitch, setShowSwitch] = useState(false);
 
   useReveals();
 
@@ -385,6 +386,17 @@ export default function Landing() {
     // window.location.href assignments or rewrite URL parameters from
     // JS-initiated navigations.
     window.location.href = "/api/oauth/start";
+  };
+
+  // Escape hatch for the "signed into the wrong Figma account" trap. Figma
+  // remembers the last account in its own session cookie on figma.com, and
+  // its OAuth endpoint has no account-picker / prompt param — so re-running
+  // OAuth silently reuses that account and loops. The only fix is to log the
+  // user out of Figma first (opened in a new tab so this page stays put),
+  // after which reconnecting shows a fresh Figma login.
+  const signOutOfFigma = () => {
+    posthog.capture('onboarding_switch_figma_account');
+    window.open("https://www.figma.com/logout", "_blank", "noopener");
   };
 
   const PrimaryCta = ({ className = "" }: { className?: string }) =>
@@ -494,6 +506,45 @@ export default function Landing() {
               >
                 {error}
               </p>
+            )}
+
+            {!loggedIn && (
+              <div className="reveal mt-4 flex flex-col items-center gap-3 [--reveal-delay:0.42s]">
+                <button
+                  type="button"
+                  onClick={() => setShowSwitch((v) => !v)}
+                  aria-expanded={showSwitch}
+                  className="ui-text text-[13px] text-muted underline decoration-muted/40 underline-offset-4 transition-colors hover:text-ink"
+                >
+                  Signed in with the wrong Figma account?
+                </button>
+
+                {showSwitch && (
+                  <div className="max-w-md rounded-2xl border border-line bg-surface/70 p-4 text-left text-[13px] leading-relaxed text-body">
+                    <p>
+                      Figma keeps you signed into the last account you used, and
+                      won't offer a picker during connect. Sign out of Figma
+                      first, then reconnect to choose a different account.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={signOutOfFigma}
+                        className={`${BTN_GHOST} h-9 px-4 text-[13px]`}
+                      >
+                        Sign out of Figma <ArrowRight size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={startOAuth}
+                        className={`${BTN_PRIMARY} h-9 px-4 text-[13px]`}
+                      >
+                        Reconnect Figma <ArrowRight size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
 
             <p className="reveal mt-6 flex max-w-md items-start gap-2 text-left text-[13px] leading-relaxed text-muted [--reveal-delay:0.46s]">

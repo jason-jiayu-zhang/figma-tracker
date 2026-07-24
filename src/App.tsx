@@ -33,16 +33,6 @@ function Spinner({ label }: { label?: string }) {
   );
 }
 
-// Kick off Figma OAuth — navigate directly to the GET endpoint which issues a
-// 302 redirect to Figma. This bypasses Chrome extensions that intercept
-// client-side window.location.href assignments or rewrite URL parameters.
-function OAuthRedirect() {
-  useEffect(() => {
-    window.location.href = "/api/oauth/start";
-  }, []);
-  return <Spinner label="Redirecting to Figma…" />;
-}
-
 // The authenticated dashboard shell: floating top nav + routed content + footer.
 function AppLayout() {
   return (
@@ -119,12 +109,11 @@ function AppRoutes() {
         </Suspense>
       );
     }
-    // In forced app mode (local dev), auto-redirect to OAuth.
-    // On the root domain, fall back to the landing page so the user isn't
-    // trapped in an OAuth loop.
-    if (IS_APP_MODE) {
-      return <OAuthRedirect />;
-    }
+    // Logged out: always land on the marketing/landing page — never auto-fire
+    // OAuth. Auto-redirecting here silently reuses Figma's cached session, so a
+    // user who logged into the wrong account gets bounced straight back to that
+    // account and can never reach the "wrong Figma account?" escape hatch that
+    // lives on Landing. This applies in app mode (local dev) too.
     return (
       <Suspense fallback={<Spinner />}>
         <Routes>
