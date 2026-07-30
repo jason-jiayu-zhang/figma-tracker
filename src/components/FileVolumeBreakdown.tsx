@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { colorForKey } from './ui';

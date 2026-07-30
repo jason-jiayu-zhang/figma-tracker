@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import posthog from "posthog-js";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useSession } from "./session";
 import { APP_ORIGIN } from "./config";
 import {

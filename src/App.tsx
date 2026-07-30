@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useRef } from "react";
-import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router";
 import Footer from "./components/Footer";
 import TopNav from "./components/TopNav";
 import { SHELL, SHELL_TOP_PAD } from "./components/ui";

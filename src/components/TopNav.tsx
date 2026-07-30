@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { useSession } from "../session";
 import { FileText, Wand2, Settings as SettingsIcon, Plus, User as UserIcon } from "lucide-react";
 import { SHELL } from "./ui";

@@ -3,7 +3,7 @@ import posthog from "posthog-js";
 import axios from "axios";
 import imgFimanuLogo from "../assets/fimanu-logo-full.svg";
 import { Plus, X, Check, ArrowRight, ShieldCheck, Link2 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import { useSession } from "../session";
 import { Button, colorForKey } from "../components/ui";
 import { extractFileKey } from "../figmaKey";

@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import imgFooterSVG from "../assets/footer.svg";
 import imgFimanuLogoFull from "../assets/fimanu-logo-full.svg";
 import { CONTACT_EMAIL } from "../config";

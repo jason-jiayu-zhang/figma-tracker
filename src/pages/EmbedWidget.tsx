@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import posthog from "posthog-js";
 import axios from "axios";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import { ActivityData, FigmaFile } from "../types";

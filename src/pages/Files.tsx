@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Plus, Trash2, FileText, Search, Archive, ArchiveRestore, FolderTree, RefreshCw, Layers } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useFigmaData } from "../useFigmaData";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import AddFileModal from "../components/AddFileModal";
