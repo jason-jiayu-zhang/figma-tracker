@@ -2,6 +2,7 @@ import "./posthog";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import axios from "axios";
 import App from "./App";
 import { SessionProvider } from "./session";
@@ -15,10 +16,12 @@ if (API_BASE) axios.defaults.baseURL = API_BASE;
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <SessionProvider>
-        <App />
-      </SessionProvider>
-    </BrowserRouter>
+    <HelmetProvider>
+      <BrowserRouter>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </BrowserRouter>
+    </HelmetProvider>
   </React.StrictMode>,
 );

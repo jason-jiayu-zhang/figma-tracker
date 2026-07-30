@@ -1,10 +1,16 @@
 import React from "react";
 import LegalLayout, { H, P, UL } from "../components/LegalLayout";
+import Seo from "../components/Seo";
 import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function Privacy() {
   return (
     <LegalLayout title="Privacy Policy" updated="July 13, 2026">
+      <Seo
+        title="Privacy Policy — Fimanu"
+        description="How Fimanu collects, uses, and protects your information when you connect your Figma account and use the Service."
+        path="/privacy"
+      />
       <P>
         This Privacy Policy explains how Fimanu (“Fimanu”, “we”, “us”) collects,
         uses, and protects your information when you use the Fimanu application

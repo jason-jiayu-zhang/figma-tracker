@@ -16,6 +16,7 @@ import {
 import imgFimanuLogo from "../assets/fimanu-logo.svg";
 import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
+import Seo from "../components/Seo";
 import { colorForKey } from "../components/ui";
 import { ActivityData } from "../types";
 import { useSession } from "../session";
@@ -520,6 +521,11 @@ export default function Landing() {
 
   return (
     <div className="min-h-dvh overflow-clip bg-canvas font-sans text-ink">
+      <Seo
+        title="Fimanu — Embeddable Figma Activity Widgets"
+        description="Turn your Figma version history into embeddable activity heatmaps, streak badges, and file breakdowns for your README, Notion, or portfolio."
+        path="/"
+      />
       {/* Recovery popup: shown when a prior OAuth attempt didn't complete. */}
       {showFailedModal && (
         <div

@@ -1,10 +1,16 @@
 import React from "react";
 import LegalLayout, { H, P, UL } from "../components/LegalLayout";
+import Seo from "../components/Seo";
 import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function Docs() {
   return (
     <LegalLayout title="Documentation" updated="July 13, 2026">
+      <Seo
+        title="Documentation — Fimanu"
+        description="A quick guide to connecting Figma, syncing activity, and embedding Fimanu's heatmaps, streak badges, and file breakdowns."
+        path="/docs"
+      />
       <P>
         A quick guide to getting the most out of Fimanu. If you get stuck,
         email{" "}

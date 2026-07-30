@@ -1,10 +1,16 @@
 import React from "react";
 import LegalLayout, { H, P, UL } from "../components/LegalLayout";
+import Seo from "../components/Seo";
 import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function About() {
   return (
     <LegalLayout title="About Fimanu" updated="July 13, 2026">
+      <Seo
+        title="About — Fimanu"
+        description="Fimanu turns your Figma activity into embeddable widgets: activity heatmaps, streak badges, and file breakdowns for your README, Notion, or portfolio."
+        path="/about"
+      />
       <P>
         Fimanu turns your Figma activity into embeddable widgets. Connect your
         Figma account and Fimanu tracks the files you care about — version

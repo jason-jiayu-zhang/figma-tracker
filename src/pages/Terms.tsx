@@ -1,10 +1,16 @@
 import React from "react";
 import LegalLayout, { H, P, UL } from "../components/LegalLayout";
+import Seo from "../components/Seo";
 import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function Terms() {
   return (
     <LegalLayout title="Terms of Service" updated="July 13, 2026">
+      <Seo
+        title="Terms of Service — Fimanu"
+        description="The terms that govern your access to and use of Fimanu, an independently operated Figma activity tracking product."
+        path="/terms"
+      />
       <P>
         These Terms of Service (“Terms”) govern your access to and use of Fimanu
         (the “Service”), an independently operated product. By connecting your

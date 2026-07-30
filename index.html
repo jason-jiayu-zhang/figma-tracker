@@ -8,10 +8,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Urbanist:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-    <meta
-      name="description"
-      content="Turn your Figma version history into embeddable activity heatmaps, streak badges, and file breakdowns for your README, Notion, or portfolio."
-    />
+    <!-- title, meta description, and canonical are set per-route by
+         src/components/Seo.tsx via react-helmet-async -->
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -29,6 +27,18 @@
     <meta name="twitter:title" content="Fimanu" />
     <meta name="twitter:description" content="Visualize your creativity." />
     <meta name="twitter:image" content="https://figma-tracker.onrender.com/og.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Fimanu",
+        "url": "https://figma-tracker.onrender.com/",
+        "description": "Turn your Figma version history into embeddable activity heatmaps, streak badges, and file breakdowns for your README, Notion, or portfolio.",
+        "applicationCategory": "DesignApplication",
+        "operatingSystem": "Web"
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

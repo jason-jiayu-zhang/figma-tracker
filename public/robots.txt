@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /studio
+Disallow: /files
+Disallow: /settings
+Disallow: /onboard
+Disallow: /embed-widget
+
+Sitemap: https://figma-tracker.onrender.com/sitemap.xml
