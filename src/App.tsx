@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router";
 import Footer from "./components/Footer";
 import TopNav from "./components/TopNav";
@@ -23,7 +23,7 @@ function Spinner({ label }: { label?: string }) {
       <div className="flex flex-col items-center gap-3">
         <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue" />
         {label && (
-          <span className="text-[12px] text-muted uppercase tracking-[0.12em] font-semibold">
+          <span className="max-w-xs text-center text-[12px] text-muted uppercase tracking-[0.12em] font-semibold">
             {label}
           </span>
         )}
@@ -84,7 +84,31 @@ function AppRoutes() {
     return () => clearInterval(id);
   }, [justConnected, loggedIn, refresh]);
 
-  if (loading) return <Spinner label="Loading" />;
+  // The Render backend sleeps when idle (free-tier, no keep-warm ping — see
+  // DEPLOYMENT.md §6.3), so the very first request can take tens of seconds to
+  // wake it. Only show that explanation once loading has actually run long,
+  // so the normal (already-warm) case still shows a plain spinner.
+  const [slowLoad, setSlowLoad] = useState(false);
+  useEffect(() => {
+    if (!loading) {
+      setSlowLoad(false);
+      return;
+    }
+    const id = setTimeout(() => setSlowLoad(true), 2500);
+    return () => clearTimeout(id);
+  }, [loading]);
+
+  if (loading) {
+    return (
+      <Spinner
+        label={
+          slowLoad
+            ? "Waking up the server — first load can take up to a minute"
+            : "Loading"
+        }
+      />
+    );
+  }
 
   if (!loggedIn) {
     // Just back from OAuth: keep onboarding on screen while we poll for the

@@ -13,7 +13,9 @@ Two ways to run the sync on Render:
 - **Free instance — external cron.** Render's free web service sleeps after ~15 min
   idle and can't host an always-on loop, so set `RESIDENT_SYNC=off` and drive sync from
   a **free external scheduler** (cron-job.org) that pings `GET /api/sync/incremental`
-  every few minutes (§6). The ping also keeps the free instance warm.
+  a few times an hour (§6). The instance is deliberately **not** kept warm — letting it
+  sleep between hits is what keeps this free. The frontend shows a "waking up" note on
+  first load so a cold start doesn't read as broken.
 
 > **Serverless note:** the backend cannot run on a serverless host — the sync loop is
 > long-running and stateful, and serverless functions are short-lived. If you ever host
@@ -77,7 +79,9 @@ Frontend build-time variables (must be present at build time — set them in Ren
 Render's **free** web service spins down after ~15 min of inactivity, so the first
 request after idle is slow (cold start) and an always-on sync loop can't run. Either
 upgrade to a paid instance for the resident loop, or keep the free instance and drive
-sync via external cron (§6) — the periodic ping doubles as a keep-warm.
+sync via external cron (§6). Don't try to ping it into staying warm — that just burns
+the free instance-hour allowance for no real benefit. Let it sleep; the frontend tells
+users a first load may take a moment.
 
 ---
 
@@ -150,7 +154,7 @@ DNS split. The Render URL works as-is if you don't want one.
 
 ---
 
-## 6. Free-tier sync via external cron ($0, "every few minutes")
+## 6. Free-tier sync via external cron ($0, a few times an hour)
 
 The resident sync loop needs an always-on host. On Render's **free** instance the process
 spins down when idle, so drive sync with a **free external scheduler** instead. This keeps
@@ -166,14 +170,20 @@ On the Render service from §1, additionally set:
 - `RESIDENT_SYNC=off`
 - `CRON_SECRET=<output of `openssl rand -hex 32`>`
 
-Note the service URL (`https://<your-service>.onrender.com`). The free instance sleeps
-after ~15 min idle; the cron ping below keeps it warm (a ≤14 min interval means it
-effectively never sleeps).
+Note the service URL (`https://<your-service>.onrender.com`).
 
 ### 6.2 Schedule the sync (cron-job.org, free)
 1. Create an account at https://cron-job.org → **Create cronjob**.
 2. **URL:** `https://<your-service>.onrender.com/api/sync/incremental`
-3. **Schedule:** every 3–5 minutes (1-minute granularity is supported).
+3. **Schedule:** every 30 minutes. Render's idle timeout is ~15 min after the *last*
+   request, so each cron hit keeps the instance awake ~15 min regardless of how fast
+   the sync itself runs — duty cycle is roughly `15 / interval`. At 30 min that's
+   ~360 instance-hours/month from the cron alone, comfortably under Render's 750/month
+   free-tier cap (§ Free-instance note in §1) with headroom for real user traffic. A
+   tighter interval (e.g. the old "every 3–5 min") defeats the free tier by keeping it
+   perpetually warm — same instance-hours as a paid always-on service. The tradeoff is
+   background sync freshness, not user-facing latency: a logged-in user's own page load
+   always fetches live (§ frontend cold-start note below).
 4. **Request headers:** add `Authorization: Bearer <your CRON_SECRET>`.
    - Alternatively pass it as a query param: `.../api/sync/incremental?key=<CRON_SECRET>`.
 5. (Optional) Add a second job hitting `GET /api/sync` (full sync) once a day.
@@ -181,7 +191,14 @@ effectively never sleeps).
 GitHub Actions `schedule:` works too, but its minimum is ~5 min and runs are often
 delayed under load — cron-job.org is more punctual for this.
 
-### 6.3 Verify
+### 6.3 Cold starts are expected, not a bug
+With no keep-warm ping, the instance sleeps between cron hits and real user visits. The
+first request after idle (whoever sends it — cron or a user) pays Render's cold-start
+cost, roughly tens of seconds. The frontend's initial session check (`App.tsx`) shows a
+"waking up the server" message if that first load runs long, so this reads as expected
+behavior rather than a broken app.
+
+### 6.4 Verify
 - `curl -s -H "Authorization: Bearer $CRON_SECRET" https://<your-service>.onrender.com/api/sync/incremental`
   → `{"ok":true,"updateFound":...}`. Without the header → `401 Unauthorized`.
 - Confirm the cron-job.org execution history shows `200` responses.
