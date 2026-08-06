@@ -8,32 +8,6 @@ import { useSession } from "../session";
 import { Button, colorForKey } from "../components/ui";
 import { extractFileKey } from "../figmaKey";
 
-/* Goal-gradient head start: never show 0%. Connecting Figma already happened on
-   the landing page, so the bar opens well past the starting line — the closer
-   the fill looks to full, the harder it is to abandon. */
-const PROGRESS = { 1: 60, 2: 100 } as const;
-
-/** Slim progress track — the numeric head-start cue. */
-function ProgressBar({ step }: { step: number }) {
-  const pct = PROGRESS[step as 1 | 2] ?? 60;
-  return (
-    <div className="flex flex-col gap-2 w-full">
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] font-semibold text-body tracking-[-0.12px]">
-          {step === 2 ? "Setup complete" : "You're almost there"}
-        </span>
-        <span className="text-[12px] font-bold text-green tabular-nums tracking-[-0.12px]">{pct}%</span>
-      </div>
-      <div className="h-1.5 w-full rounded-full bg-hairline overflow-hidden">
-        <div
-          className="h-full rounded-full bg-green transition-[width] duration-500 ease-out"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 /* Real Figma keys run ~22-25 base62 chars, so this only fires once a paste
    looks like an actual key rather than a few stray characters — it's a
    confidence cue, not a validation gate (the backend still has final say). */
@@ -127,8 +101,6 @@ export default function Onboard() {
       <img src={imgFimanuLogo} alt="Fimanu" className="h-7 w-auto" />
 
       <div className="w-full max-w-[540px] flex flex-col gap-7">
-        <ProgressBar step={step} />
-
         <div
           key={step}
           className="flex flex-col gap-6 min-h-[236px] border-t border-hairline pt-7 animate-fade-in-up"

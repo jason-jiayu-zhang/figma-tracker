@@ -27,10 +27,12 @@ function isStale(file: FigmaFile): boolean {
 /** One file row. Archived rows render muted; stale active rows get a badge. */
 function FileRow({
   file,
+  index = 0,
   onRemove,
   onArchive,
 }: {
   file: FigmaFile;
+  index?: number;
   onRemove: (fileKey: string) => void;
   onArchive: (fileKey: string, archived: boolean) => void;
 }) {
@@ -43,47 +45,52 @@ function FileRow({
 
   return (
     <tr
-      className={`content-stretch flex items-center justify-between pl-3 pr-4 py-3 relative rounded-lg shrink-0 w-full transition-transform hover:scale-[1.01] ${archived ? "opacity-60" : ""}`}
-      style={{ backgroundColor: rowColor }}
+      role="row"
+      style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+      className={`flex items-center justify-between gap-4 pl-6 pr-6 py-3 relative rounded-full shrink-0 w-full border border-line bg-surface shadow-card transition-[box-shadow,background-color] hover:bg-hairline/60 hover:shadow-card-hover animate-fade-in-up ${archived ? "opacity-60" : ""}`}
     >
-      <td className="content-stretch flex flex-[1_0_0] flex-col items-start leading-[normal] min-h-px min-w-[200px] relative whitespace-nowrap overflow-hidden">
-        <span className="flex items-center gap-2 max-w-[240px] w-full">
-          <span className="font-extrabold relative shrink-0 text-[18px] text-white tracking-[-0.18px] truncate">
-            {file.name || "Untitled"}
-          </span>
-          {stale && (
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-white bg-white/25 rounded-full px-2 py-0.5">
-              Stale
+      <td role="cell" className="flex flex-[1_0_0] items-center gap-3 min-h-px min-w-[200px] relative overflow-hidden">
+        <span
+          aria-hidden="true"
+          className="size-2.5 shrink-0 rounded-full border border-black/10"
+          style={{ backgroundColor: rowColor }}
+        />
+        <span className="flex flex-col min-w-0">
+          <span className="flex items-center gap-2 max-w-[240px] w-full">
+            <span className="font-extrabold relative shrink-0 text-[15px] text-ink tracking-[-0.15px] truncate">
+              {file.name || "Untitled"}
             </span>
-          )}
-        </span>
-        <span className="font-medium relative shrink-0 text-[12px] text-white tracking-[-0.12px]">
-          {file.file_key}
+            {stale && (
+              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 rounded-full px-2 py-0.5">
+                Stale
+              </span>
+            )}
+          </span>
+          <span className="font-medium relative shrink-0 text-[12px] text-muted tracking-[-0.12px] truncate">
+            {file.file_key}
+          </span>
         </span>
       </td>
 
-      <td className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[16px] text-white text-center tracking-[-0.16px]">
-        Figma Design
+      <td role="cell" className="flex-[1_0_0] font-semibold leading-[normal] min-h-px min-w-px relative text-[14px] text-body text-center tracking-[-0.14px] tabular-nums">
+        {file.versionCount ?? 0}
       </td>
-      <td className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[16px] text-white text-center tracking-[-0.16px]">
-        Edit
-      </td>
-      <td className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[16px] text-white text-center tracking-[-0.16px] tabular-nums">
+      <td role="cell" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-body text-center tracking-[-0.14px] tabular-nums">
         {lastSync}
       </td>
 
-      <td className="flex items-center gap-1">
+      <td role="cell" className="flex items-center gap-1">
         <button
           aria-label={`${archived ? "Unarchive" : "Archive"} ${file.name || file.file_key}`}
           title={archived ? "Unarchive — include in your widgets again" : "Archive — hide from widgets, keep syncing"}
-          className="text-white/75 hover:text-white transition-colors p-2 rounded-full cursor-pointer hover:bg-white/10"
+          className="text-muted hover:text-ink transition-colors p-2 rounded-full cursor-pointer hover:bg-hairline"
           onClick={() => onArchive(file.file_key, !archived)}
         >
           {archived ? <ArchiveRestore size={18} /> : <Archive size={18} />}
         </button>
         <button
           aria-label={`Stop tracking ${file.name || file.file_key}`}
-          className="text-white/75 hover:text-white transition-colors p-2 rounded-full cursor-pointer hover:bg-white/10"
+          className="text-muted hover:text-accent transition-colors p-2 rounded-full cursor-pointer hover:bg-hairline"
           onClick={() => onRemove(file.file_key)}
         >
           <Trash2 size={18} />
@@ -219,27 +226,30 @@ export default function Files() {
       {/* Stage: the list itself, sitting on the canvas. */}
       <div className="flex-1 flex flex-col w-full pt-6 pb-32">
         {hasFiles && (
-        <table className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full rounded-lg pb-2">
+        <table role="table" className="content-stretch flex flex-col gap-2 items-start relative shrink-0 w-full rounded-lg pb-2">
           {/* Table Header */}
-          <thead className="w-full">
-            <tr className="content-stretch flex items-center justify-between pl-3 pr-[33.5px] py-1 relative shrink-0 w-full">
-              <th scope="col" className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-px pr-4 relative font-medium leading-[normal] text-[14px] text-black tracking-[-0.14px]">
+          <thead role="rowgroup" className="w-full">
+            <tr role="row" className="content-stretch flex items-center justify-between gap-4 pl-6 pr-6 py-1 relative shrink-0 w-full">
+              <th role="columnheader" scope="col" className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-[200px] pr-4 relative font-medium leading-[normal] text-[13px] text-muted tracking-[-0.13px]">
                 File ID
               </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
-                File Type
+              <th role="columnheader" scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[13px] text-muted text-center tracking-[-0.13px]">
+                Versions
               </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
-                User Seat
-              </th>
-              <th scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[14px] text-black text-center tracking-[-0.14px]">
+              <th role="columnheader" scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[13px] text-muted text-center tracking-[-0.13px]">
                 Last edit
+              </th>
+              {/* Invisible spacer matching the row actions column (two p-2/18px icon
+                  buttons + gap-1) so Versions/Last edit line up with real cell centers. */}
+              <th role="columnheader" aria-hidden="true" className="flex items-center gap-1 invisible">
+                <span className="p-2"><Archive size={18} /></span>
+                <span className="p-2"><Trash2 size={18} /></span>
               </th>
             </tr>
           </thead>
 
           {/* Active files (flat or grouped by project) */}
-          <tbody className="flex flex-col gap-2 w-full">
+          <tbody role="rowgroup" className="flex flex-col gap-2 w-full">
             {groupByProject
               ? groups.map(([project, list]) => (
                   <React.Fragment key={project}>
@@ -251,18 +261,18 @@ export default function Files() {
                         </span>
                       </th>
                     </tr>
-                    {list.map((file) => (
-                      <FileRow key={file.file_key} file={file} onRemove={handleRemoveFile} onArchive={archiveFile} />
+                    {list.map((file, i) => (
+                      <FileRow key={file.file_key} file={file} index={i} onRemove={handleRemoveFile} onArchive={archiveFile} />
                     ))}
                   </React.Fragment>
                 ))
-              : visible.map((file) => (
-                  <FileRow key={file.file_key} file={file} onRemove={handleRemoveFile} onArchive={archiveFile} />
+              : visible.map((file, i) => (
+                  <FileRow key={file.file_key} file={file} index={i} onRemove={handleRemoveFile} onArchive={archiveFile} />
                 ))}
 
             {visible.length === 0 && (
-              <tr className="w-full">
-                <td className="w-full py-10 text-center text-[14px] text-body">
+              <tr role="row" className="w-full">
+                <td role="cell" className="w-full py-10 text-center text-[14px] text-body">
                   {q ? `No files match “${query}”.` : `No ${view === "archived" ? "archived" : "active"} files.`}
                 </td>
               </tr>

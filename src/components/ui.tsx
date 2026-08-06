@@ -132,31 +132,6 @@ export function SectionHeader({
   );
 }
 
-export interface StatItem {
-  icon?: React.ReactNode;
-  label: React.ReactNode;
-  strong?: boolean;
-}
-
-/** The dot-separated inline stat row (e.g. "1,204 edits · 🔥 8-day streak · best 31"). */
-export function StatInline({ items, className = "" }: { items: StatItem[]; className?: string }) {
-  return (
-    <div
-      className={`flex items-center gap-2 text-[12px] tracking-[-0.12px] text-body whitespace-nowrap tabular-nums ${className}`}
-    >
-      {items.map((it, i) => (
-        <React.Fragment key={i}>
-          {i > 0 && <span className="text-line">·</span>}
-          <span className={`flex items-center gap-1 ${it.strong ? "font-semibold text-ink" : ""}`}>
-            {it.icon}
-            {it.label}
-          </span>
-        </React.Fragment>
-      ))}
-    </div>
-  );
-}
-
 type ButtonVariant = "primary" | "secondary" | "ghost" | "dark";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
@@ -296,51 +271,3 @@ export function Popover({
   );
 }
 
-/** KPI tile: brand chip + big value + label. Becomes a button when onClick is set. */
-export function StatTile({
-  color = "blue",
-  plain = false,
-  icon,
-  value,
-  label,
-  onClick,
-  title,
-  disabled,
-  className = "",
-}: {
-  color?: ChipColor;
-  plain?: boolean;
-  icon: React.ReactNode;
-  value: React.ReactNode;
-  label: React.ReactNode;
-  onClick?: () => void;
-  title?: string;
-  disabled?: boolean;
-  className?: string;
-}) {
-  const inner = (
-    <>
-      <IconChip color={color} plain={plain}>{icon}</IconChip>
-      <div className="flex flex-col min-w-0">
-        <p className="display text-[22px] text-ink leading-none truncate tabular-nums">
-          {value}
-        </p>
-        <p className="text-[12px] text-body tracking-[-0.12px] mt-1 truncate">{label}</p>
-      </div>
-    </>
-  );
-  const base = "bg-surface flex items-center gap-3 p-4 rounded-card border border-line shadow-card flex-1 min-w-0";
-  if (onClick) {
-    return (
-      <button
-        onClick={onClick}
-        disabled={disabled}
-        title={title}
-        className={`${base} text-left transition-[transform,box-shadow] hover:shadow-card-hover active:scale-[0.98] disabled:opacity-70 ${className}`}
-      >
-        {inner}
-      </button>
-    );
-  }
-  return <div title={title} className={`${base} ${className}`}>{inner}</div>;
-}

@@ -96,7 +96,7 @@ export default function Settings() {
       />
 
       {/* Account */}
-      <Card className="flex flex-col gap-5 p-6">
+      <Card className="flex flex-col gap-5 p-6 animate-fade-in-up">
         <h2 className="display text-[18px] text-ink">Account</h2>
         <div className="flex items-center gap-4">
           <div className="relative rounded-full shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_-1px_rgba(0,0,0,0.1)] shrink-0 size-16 overflow-hidden bg-hairline">
@@ -127,7 +127,7 @@ export default function Settings() {
       </Card>
 
       {/* Embed publishing controls */}
-      <Card className="flex flex-col gap-5 p-6">
+      <Card className="flex flex-col gap-5 p-6 animate-fade-in-up animation-delay-100">
         <SectionHeader
           plain
           icon={<Globe size={20} />}
@@ -197,7 +197,7 @@ export default function Settings() {
       </Card>
 
       {/* Danger zone — delete account + all data */}
-      <Card className="flex flex-col gap-5 p-6 border-red/30!">
+      <Card className="flex flex-col gap-5 p-6 border-red/30! animate-fade-in-up animation-delay-200">
         <SectionHeader
           plain
           icon={<AlertTriangle size={20} className="text-red" />}
