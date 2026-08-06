@@ -711,7 +711,7 @@ function buildBadgeSvg({ metric, value, theme, emoji, colors = {}, radius }) {
   const muted = colors.muted || preset.muted; // body
 
   const num =
-    metric === "edits" ? Number(value).toLocaleString() : String(value);
+    metric === "edits" ? Number(value).toLocaleString("en-US") : String(value);
   const label = metric === "edits" ? "edits" : "day streak";
 
   const fontSize = 12;

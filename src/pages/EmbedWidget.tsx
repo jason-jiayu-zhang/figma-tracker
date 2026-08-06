@@ -6,7 +6,7 @@ import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import { ActivityData, FigmaFile } from "../types";
 import { APP_ORIGIN } from "../config";
-import { themeForStyle } from "../embedThemes";
+import { themeForStyle, breakdownThemeForStyle } from "../embedThemes";
 
 // True when rendered inside an <iframe>. Embedded, we hug the content so the
 // host iframe isn't padded out to a full 100vh of empty space; standalone
@@ -74,7 +74,7 @@ function StreakBadge({ searchParams }: { searchParams: URLSearchParams }) {
       });
   }, [slug, metric]);
 
-  const num = value == null ? "—" : metric === "edits" ? value.toLocaleString() : String(value);
+  const num = value == null ? "—" : metric === "edits" ? value.toLocaleString("en-US") : String(value);
   const label = metric === "edits" ? "edits" : "day streak";
 
   const flame = emoji ? (
@@ -131,13 +131,7 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
   const text = searchParams.get("text");
   const cards = searchParams.get("cards")?.split("-").map(c => `#${c}`);
 
-  const getBaseTheme = (s: string) => {
-    if (s === 'github') return { bg: '#0d1116', text: '#c9d1d9', cards: ['#56d364', '#2da042', '#196c2e', '#0e4429'] };
-    if (s === 'figma') return { bg: '#fffaf4', text: '#ffffff', cards: ['#f24e1e', '#1abcfe', '#0acf83', '#a259ff'] };
-    return { bg: '#fffaf4', text: '#ffffff', cards: [] as string[] };
-  };
-  
-  const baseTheme = getBaseTheme(style);
+  const baseTheme = breakdownThemeForStyle(style);
   
   const activeBg = bg === "transparent" ? "transparent" : (hexParam(bg) || baseTheme.bg);
   const activeText = hexParam(text) || baseTheme.text;
@@ -233,6 +227,8 @@ export default function EmbedWidget() {
 
   const slug = searchParams.get("slug") || "";
   const fileKeys = (searchParams.get("files")?.split(",").filter(Boolean)) || [];
+  const daysRaw = parseInt(searchParams.get("days") || "365", 10);
+  const days = Number.isNaN(daysRaw) ? 365 : Math.max(1, Math.min(3650, daysRaw));
 
   const [dailyTotals, setDailyTotals] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -251,7 +247,7 @@ export default function EmbedWidget() {
     const fileKeysParam =
       fileKeys.length > 0 ? `&fileKeys=${encodeURIComponent(fileKeys.join(","))}` : "";
     axios
-      .get(`/api/public/${encodeURIComponent(slug)}/activity?mode=all&days=365&tz=${encodeURIComponent(tz)}${fileKeysParam}`)
+      .get(`/api/public/${encodeURIComponent(slug)}/activity?mode=all&days=${days}&tz=${encodeURIComponent(tz)}${fileKeysParam}`)
       .then((res) => setDailyTotals(res.data?.dailyTotals ?? {}))
       .catch(() => {
         setDailyTotals({});
@@ -259,7 +255,7 @@ export default function EmbedWidget() {
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug, searchParams.get("files"), isStreak, isBreakdown]);
+  }, [slug, searchParams.get("files"), searchParams.get("days"), isStreak, isBreakdown]);
 
   useEffect(() => {
     if (isEmbedded) {
@@ -374,6 +370,7 @@ export default function EmbedWidget() {
           theme={rawStyle === "github" ? "dark" : "light"}
           customTheme={activeTheme}
           profileUrl={profileUrl}
+          days={days}
         />
       </div>
     </div>

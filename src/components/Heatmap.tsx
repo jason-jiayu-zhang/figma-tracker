@@ -210,7 +210,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
         <div
           className="pb-2"
           role="img"
-          aria-label={`Activity heatmap: ${total} edits over the last year`}
+          aria-label={`Activity heatmap: ${total} edits over the last ${days >= 365 ? "year" : `${days} days`}`}
           style={{ minWidth: weeks.length * (tRectSize + tGap) + 28 }}
         >
           {/* Month labels */}

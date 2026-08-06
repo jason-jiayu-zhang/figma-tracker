@@ -9,7 +9,7 @@ import { Button, SegmentedControl, Divider, Popover, SHELL, SHELL_TOP_PAD } from
 import { ColorPicker, StyleOption, SnippetRow, PublishForm, PublishControl } from "../components/embedControls";
 import { useEmbedSettings } from "../useEmbedSettings";
 import { useStreakSettings, STREAK_FONTS } from "../useStreakSettings";
-import { useBreakdownSettings } from "../useBreakdownSettings";
+import { useBreakdownSettings, breakdownRanges } from "../useBreakdownSettings";
 
 const STYLES = [
   { label: "Fimanu", value: "Fimanu Style", previewTheme: "fimanu" },
@@ -349,35 +349,50 @@ function DockActions({
   );
 }
 
-function StreakDock({ streak }: { streak: ReturnType<typeof useStreakSettings> }) {
+function StreakDock({
+  streak,
+  previewWidth,
+  onPreviewWidthChange,
+}: {
+  streak: ReturnType<typeof useStreakSettings>;
+  previewWidth: number;
+  onPreviewWidthChange: (v: number) => void;
+}) {
   const fontDisabled = streak.output === "image";
   return (
     <DockTabs
       actions={
-        <DockActions
-          published={streak.published}
-          previewUrl={streak.output === "image" ? streak.badgeUrl : streak.iframeUrl}
-          copiedKey={streak.copiedKey}
-          copy={streak.copy}
-          note={
-            streak.output === "image"
-              ? "Portable SVG — renders in READMEs, Notion and markdown."
-              : "For websites — the only output that honors the font choice."
-          }
-          snippets={
-            streak.output === "image"
-              ? [
-                  { key: "html", label: "HTML", value: streak.imgHtml },
-                  { key: "md", label: "Markdown", value: streak.imgMd },
-                ]
-              : [{ key: "iframe", label: "iframe", value: streak.iframeCode }]
-          }
-        />
+        <>
+          <DockSlider label="Preview" value={previewWidth} min={25} max={100} step={1} onChange={onPreviewWidthChange} format={(v) => `${v}%`} />
+          <Divider />
+          <DockActions
+            published={streak.published}
+            previewUrl={streak.output === "image" ? streak.badgeUrl : streak.iframeUrl}
+            copiedKey={streak.copiedKey}
+            copy={streak.copy}
+            note={
+              streak.output === "image"
+                ? "Portable SVG — renders in READMEs, Notion and markdown."
+                : "For websites — the only output that honors the font choice."
+            }
+            snippets={
+              streak.output === "image"
+                ? [
+                    { key: "html", label: "HTML", value: streak.imgHtml },
+                    { key: "md", label: "Markdown", value: streak.imgMd },
+                  ]
+                : [
+                    { key: "link", label: "Link", value: streak.iframeUrl },
+                    { key: "iframe", label: "iframe", value: streak.iframeCode },
+                  ]
+            }
+          />
+        </>
       }
       tabs={[
         {
-          id: "content",
-          label: "Content",
+          id: "data",
+          label: "Data",
           icon: <Database size={15} />,
           content: (
             <>
@@ -402,8 +417,6 @@ function StreakDock({ streak }: { streak: ReturnType<typeof useStreakSettings> }
                   { label: "Website", value: "iframe" },
                 ]}
               />
-              <Divider />
-              <DockToggle label="Emoji" checked={streak.emoji} onChange={() => streak.setEmoji((v) => !v)} />
             </>
           ),
         },
@@ -428,7 +441,7 @@ function StreakDock({ streak }: { streak: ReturnType<typeof useStreakSettings> }
                 <ColorPicker title="Background" color={streak.colors.bg} onChange={(c) => streak.setColor("bg", c)} />
                 <ColorPicker title="Text / number" color={streak.colors.text} onChange={(c) => streak.setColor("text", c)} contrastAgainst={streak.colors.bg} />
                 <ColorPicker title="Label" color={streak.colors.muted} onChange={(c) => streak.setColor("muted", c)} contrastAgainst={streak.colors.bg} />
-                <ColorPicker title="Accent / flame" color={streak.colors.accent} onChange={(c) => streak.setColor("accent", c)} contrastAgainst={streak.colors.bg} />
+                <ColorPicker title="Accent / flame" color={streak.colors.accent} onChange={(c) => streak.setColor("accent", c)} contrastAgainst={streak.colors.bg} disabled={streak.emoji} />
                 <ColorPicker title="Border" color={streak.colors.border} onChange={(c) => streak.setColor("border", c)} />
               </div>
               <Divider />
@@ -451,7 +464,9 @@ function StreakDock({ streak }: { streak: ReturnType<typeof useStreakSettings> }
                 </select>
               </label>
               <Divider />
-              <DockSlider label="Radius" value={streak.radius} min={0} max={24} step={1} onChange={streak.setRadius} format={(v) => `${v}px`} />
+              <DockSlider label="Radius" value={streak.radius} min={0} max={14} step={1} onChange={streak.setRadius} format={(v) => `${v}px`} />
+              <Divider />
+              <DockToggle label="Emoji" checked={streak.emoji} onChange={() => streak.setEmoji((v) => !v)} />
             </>
           ),
         },
@@ -460,18 +475,33 @@ function StreakDock({ streak }: { streak: ReturnType<typeof useStreakSettings> }
   );
 }
 
-function BreakdownDock({ breakdown }: { breakdown: ReturnType<typeof useBreakdownSettings> }) {
+function BreakdownDock({
+  breakdown,
+  previewWidth,
+  onPreviewWidthChange,
+}: {
+  breakdown: ReturnType<typeof useBreakdownSettings>;
+  previewWidth: number;
+  onPreviewWidthChange: (v: number) => void;
+}) {
   return (
     <DockTabs
       actions={
-        <DockActions
-          published={breakdown.published}
-          previewUrl={breakdown.url}
-          copiedKey={breakdown.copiedKey}
-          copy={breakdown.copy}
-          note="Drop into any website — the file breakdown renders in an iframe."
-          snippets={[{ key: "iframe", label: "iframe", value: breakdown.iframeCode }]}
-        />
+        <>
+          <DockSlider label="Preview" value={previewWidth} min={25} max={100} step={1} onChange={onPreviewWidthChange} format={(v) => `${v}%`} />
+          <Divider />
+          <DockActions
+            published={breakdown.published}
+            previewUrl={breakdown.url}
+            copiedKey={breakdown.copiedKey}
+            copy={breakdown.copy}
+            note="Drop into any website — the file breakdown renders in an iframe."
+            snippets={[
+              { key: "link", label: "Link", value: breakdown.url },
+              { key: "iframe", label: "iframe", value: breakdown.iframeCode },
+            ]}
+          />
+        </>
       }
       tabs={[
         {
@@ -535,7 +565,7 @@ function BreakdownDock({ breakdown }: { breakdown: ReturnType<typeof useBreakdow
 }
 
 export default function Studio() {
-  const { activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine } = useFigmaData();
+  const { activity, loading, files, selectedFileKeys, setSelectedFileKeys, setFilterMine, days, setDays } = useFigmaData();
 
   // Studio shows all edits (not just mine) so file selection works for any file.
   useEffect(() => {
@@ -544,6 +574,8 @@ export default function Studio() {
 
   const {
     published,
+    days: heatmapDays,
+    setDays: setHeatmapDays,
     embedStyle,
     setEmbedStyle,
     rectSize,
@@ -570,10 +602,14 @@ export default function Studio() {
     iframeCode,
     copiedKey,
     copy,
-  } = useEmbedSettings({ selectedFileKeys, setSelectedFileKeys });
+  } = useEmbedSettings({ selectedFileKeys, setSelectedFileKeys, days, setDays });
 
   const [widgetMode, setWidgetMode] = useState<WidgetMode>("heatmap");
   const [previewWidth, setPreviewWidth] = useState(100);
+  const handlePreviewWidthChange = useCallback((v: number) => {
+    posthog.capture('studio_change_preview_scale', { value: v });
+    setPreviewWidth(v);
+  }, []);
   const streak = useStreakSettings();
   const breakdown = useBreakdownSettings();
 
@@ -612,10 +648,8 @@ export default function Studio() {
     <div className="bg-canvas flex flex-col min-h-dvh w-full">
       <TopNav />
 
-      {/* Sub-nav: sits in the same slot as the Files view switcher. Swaps both
-          the centered preview and the dock controls. Preview width lives here
-          rather than in a dock tab — it scales the stage, not the embed. */}
-      <div className={`${SHELL} ${SHELL_TOP_PAD} shrink-0 flex items-center justify-between gap-4 flex-wrap`}>
+      {/* Sub-nav: sits in the same slot as the Files view switcher. */}
+      <div className={`${SHELL} ${SHELL_TOP_PAD} shrink-0 flex items-center gap-4 flex-wrap`}>
         <div role="radiogroup" aria-label="Widget" className="flex items-center gap-1 p-1 rounded-full bg-surface border border-hairline shadow-card w-fit">
           {WIDGETS.map((w) => (
             <button
@@ -634,19 +668,6 @@ export default function Studio() {
             </button>
           ))}
         </div>
-
-        <DockSlider
-          label="Preview"
-          value={previewWidth}
-          min={25}
-          max={100}
-          step={1}
-          onChange={(v) => {
-            posthog.capture('studio_change_preview_scale', { value: v });
-            setPreviewWidth(v);
-          }}
-          format={(v) => `${v}%`}
-        />
       </div>
 
       {/* Stage: the active widget centered on the canvas, clear of the dock. */}
@@ -664,12 +685,13 @@ export default function Studio() {
                   data={activity?.dailyTotals ?? {}}
                   theme={embedStyle === "GitHub Style" ? "dark" : "light"}
                   customTheme={activeTheme}
+                  days={days}
                 />
               </div>
             ) : widgetMode === "breakdown" ? (
               <div
                 className="w-full rounded-2xl border border-transparent shadow-card p-4 flex flex-col transition-colors"
-                style={{ backgroundColor: breakdown.activeBg, height: 320 }}
+                style={breakdown.transparentBg ? { ...checkerboard(), height: 320 } : { backgroundColor: breakdown.activeBg, height: 320 }}
               >
                 <FileVolumeBreakdown
                   activity={previewActivity}
@@ -711,23 +733,27 @@ export default function Studio() {
       {/* Floating bottom dock: tabbed groups + pinned primary actions. */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-max max-w-[calc(100%-3rem)] flex flex-col items-center gap-2">
         {widgetMode === "streak" ? (
-          <StreakDock streak={streak} />
+          <StreakDock streak={streak} previewWidth={previewWidth} onPreviewWidthChange={handlePreviewWidthChange} />
         ) : widgetMode === "breakdown" ? (
-          <BreakdownDock breakdown={breakdown} />
+          <BreakdownDock breakdown={breakdown} previewWidth={previewWidth} onPreviewWidthChange={handlePreviewWidthChange} />
         ) : (
         <DockTabs
           actions={
-            <DockActions
-              published={published}
-              previewUrl={widgetUrl}
-              copiedKey={copiedKey}
-              copy={copy}
-              note="Link it anywhere, or drop the iframe into any website."
-              snippets={[
-                { key: "link", label: "Link", value: widgetUrl },
-                { key: "iframe", label: "iframe", value: iframeCode },
-              ]}
-            />
+            <>
+              <DockSlider label="Preview" value={previewWidth} min={25} max={100} step={1} onChange={handlePreviewWidthChange} format={(v) => `${v}%`} />
+              <Divider />
+              <DockActions
+                published={published}
+                previewUrl={widgetUrl}
+                copiedKey={copiedKey}
+                copy={copy}
+                note="Link it anywhere, or drop the iframe into any website."
+                snippets={[
+                  { key: "link", label: "Link", value: widgetUrl },
+                  { key: "iframe", label: "iframe", value: iframeCode },
+                ]}
+              />
+            </>
           }
           tabs={[
             {
@@ -735,12 +761,22 @@ export default function Studio() {
               label: "Data",
               icon: <Database size={15} />,
               content: (
-                <FilesPopover
-                  files={files}
-                  selectedFileKeys={selectedFileKeys}
-                  onToggle={handleToggleFile}
-                  onSelectAll={handleSelectAllFiles}
-                />
+                <>
+                  <FilesPopover
+                    files={files}
+                    selectedFileKeys={selectedFileKeys}
+                    onToggle={handleToggleFile}
+                    onSelectAll={handleSelectAllFiles}
+                  />
+                  <Divider />
+                  <SegmentedControl
+                    ariaLabel="Date range"
+                    size="sm"
+                    value={heatmapDays}
+                    onChange={setHeatmapDays}
+                    options={breakdownRanges()}
+                  />
+                </>
               ),
             },
             {

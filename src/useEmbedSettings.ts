@@ -35,9 +35,13 @@ type StoredHeatmap = {
 export function useEmbedSettings({
   selectedFileKeys,
   setSelectedFileKeys,
+  days,
+  setDays,
 }: {
   selectedFileKeys: string[];
   setSelectedFileKeys: (keys: string[]) => void;
+  days: number;
+  setDays: (days: number) => void;
 }) {
   const { user } = useSession();
   // Public embeds are addressed by the user's profile_slug (no auth). The embed
@@ -97,7 +101,6 @@ export function useEmbedSettings({
     setOverrideText("");
     setOverrideLevels([]);
     setOverrideEmpty("");
-    setTransparentBg(false);
   }, [embedStyle]);
 
   const handleToggleFile = (fileKey: string) => {
@@ -171,6 +174,7 @@ export function useEmbedSettings({
   };
   const setSize = (value: number) => {
     setRectSize(value);
+    setRectRadius((r) => Math.min(r, value / 2));
     setEmbedStyle("Custom Style");
   };
   const setRadius = (value: number) => {
@@ -182,9 +186,11 @@ export function useEmbedSettings({
   // "Preview in browser".
   const widgetUrl = useMemo(() => {
     const params = new URLSearchParams();
+    params.set("widget", "heatmap");
     if (slug) params.set("slug", slug);
     if (selectedFileKeys.length > 0) params.set("files", selectedFileKeys.join(","));
     params.set("style", embedStyle.split(" ")[0].toLowerCase());
+    params.set("days", String(days));
 
     if (embedStyle === "Custom Style") {
       params.set("bg", activeBg.replace("#", ""));
@@ -200,7 +206,7 @@ export function useEmbedSettings({
     }
 
     return `${APP_ORIGIN}/embed-widget?${params.toString()}`;
-  }, [slug, selectedFileKeys, embedStyle, activeBg, activeText, activeEmpty, activeLevels, rectRadius, rectSize, transparentBg]);
+  }, [slug, selectedFileKeys, embedStyle, activeBg, activeText, activeEmpty, activeLevels, rectRadius, rectSize, transparentBg, days]);
 
   const iframeCode = `<iframe src="${widgetUrl}" width="100%" height="${estimateWidgetHeight(rectSize)}" frameborder="0" scrolling="no" style="border:none;overflow:hidden;" title="Figma activity"></iframe>`;
 
@@ -220,6 +226,8 @@ export function useEmbedSettings({
   return {
     slug,
     published,
+    days,
+    setDays: (v: number) => { posthog.capture('studio_change_heatmap_days', { value: v }); setDays(v); },
     embedStyle,
     setEmbedStyle: (v: string) => { posthog.capture('studio_change_heatmap_style', { value: v }); setEmbedStyle(v); },
     rectSize,

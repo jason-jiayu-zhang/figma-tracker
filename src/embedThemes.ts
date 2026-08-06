@@ -33,6 +33,21 @@ export function themeForStyle(style: string): HeatmapTheme {
   return fimanuTheme;
 }
 
+// Shared Breakdown widget theme presets for the embed editor
+// (useBreakdownSettings.ts) and the public widget (EmbedWidget.tsx). Accepts
+// either the display label ("Fimanu Style") or the short form ("fimanu") —
+// only the first word is used, lowercased.
+export function breakdownThemeForStyle(style: string): { bg: string; text: string; cards: string[] } {
+  const key = style.split(" ")[0].toLowerCase();
+  if (key === "github") {
+    return { bg: "#0d1116", text: "#c9d1d9", cards: ["#56d364", "#2da042", "#196c2e", "#0e4429"] };
+  }
+  if (key === "figma") {
+    return { bg: "#fffaf4", text: "#ffffff", cards: ["#f24e1e", "#1abcfe", "#0acf83", "#a259ff"] };
+  }
+  return { bg: "#fffaf4", text: "#ffffff", cards: ["#1abcfe", "#a259ff", "#0acf83", "#f24e1e"] };
+}
+
 // Rough rendered height of the widget for a given cell size, used to set a
 // sensible `height` on the generated <iframe> so it hugs the heatmap instead of
 // leaving a tall band of empty space.

@@ -119,6 +119,7 @@ export const ColorPicker = ({
   onChange,
   title,
   contrastAgainst,
+  disabled,
 }: {
   color: string;
   onChange: (c: string) => void;
@@ -126,6 +127,7 @@ export const ColorPicker = ({
   // When set, the popover grades this color against it (WCAG) so users can see
   // a text/background pair going illegible before they publish the embed.
   contrastAgainst?: string;
+  disabled?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [hexDraft, setHexDraft] = useState(color);
@@ -171,8 +173,12 @@ export const ColorPicker = ({
         type="button"
         aria-label={title}
         aria-expanded={isOpen}
-        onClick={() => setIsOpen(!isOpen)}
-        className="size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-transform hover:scale-110 active:scale-95 motion-reduce:transition-none motion-reduce:animate-none"
+        disabled={disabled}
+        onClick={() => {
+          if (disabled) return;
+          setIsOpen(!isOpen);
+        }}
+        className={`size-7 rounded-md shadow-sm cursor-pointer border border-black/10 transition-transform hover:scale-110 active:scale-95 motion-reduce:transition-none motion-reduce:animate-none${disabled ? " opacity-40 cursor-not-allowed" : ""}`}
         style={{ backgroundColor: color }}
         title={title}
       />

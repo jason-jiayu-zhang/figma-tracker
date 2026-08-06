@@ -3,6 +3,7 @@ import posthog from "posthog-js";
 import { useSession } from "./session";
 import { APP_ORIGIN } from "./config";
 import { readSettings, writeSettings } from "./settingsStore";
+import { breakdownThemeForStyle } from "./embedThemes";
 
 const STORE_KEY = "fimanu.studio.breakdown.v2";
 
@@ -26,16 +27,6 @@ export function breakdownRanges(): { label: string; value: number }[] {
     { label: "YTD", value: ytd },
     { label: "All", value: 3650 },
   ];
-}
-
-function getBaseTheme(style: string) {
-  if (style === 'GitHub Style') {
-    return { bg: '#0d1116', text: '#c9d1d9', cards: ['#56d364', '#2da042', '#196c2e', '#0e4429'] };
-  }
-  if (style === 'Figma Style') {
-    return { bg: '#fffaf4', text: '#ffffff', cards: ['#f24e1e', '#1abcfe', '#0acf83', '#a259ff'] };
-  }
-  return { bg: '#fffaf4', text: '#ffffff', cards: ['#1abcfe', '#a259ff', '#0acf83', '#f24e1e'] };
 }
 
 const IFRAME_HEIGHT = 300;
@@ -69,10 +60,9 @@ export function useBreakdownSettings() {
     setOverrideBg("");
     setOverrideText("");
     setOverrideCards([]);
-    setTransparentBg(false);
   }, [embedStyle]);
 
-  const baseTheme = getBaseTheme(embedStyle);
+  const baseTheme = breakdownThemeForStyle(embedStyle);
   const activeCards = overrideCards.length === 4 ? overrideCards : baseTheme.cards;
   const bgColor = overrideBg || baseTheme.bg;
   const activeBg = transparentBg ? "transparent" : bgColor;
