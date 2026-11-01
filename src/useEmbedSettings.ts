@@ -144,22 +144,38 @@ export function useEmbedSettings({
     textColor: activeText,
   };
 
+  // Leaving a preset for Custom Style: Custom's base is the Fimanu theme with no
+  // overrides, so without this every color the user didn't touch would snap to
+  // Fimanu. Copy what's on screen into the overrides first; the edit that
+  // triggered this is applied on top (later state calls win within a batch).
+  const seedCustomFromPreset = () => {
+    if (embedStyle === "Custom Style") return;
+    setOverrideBg(bgColor);
+    setOverrideText(activeText);
+    setOverrideLevels(activeLevels);
+    setOverrideEmpty(activeEmpty);
+  };
+
   // Color/slider mutators: any manual edit drops the preset into Custom Style.
   const setLevelColor = (i: number, color: string) => {
+    seedCustomFromPreset();
     const next = [...activeLevels];
     next[i] = color;
     setOverrideLevels(next);
     setEmbedStyle("Custom Style");
   };
   const setEmptyColor = (color: string) => {
+    seedCustomFromPreset();
     setOverrideEmpty(color);
     setEmbedStyle("Custom Style");
   };
   const setBgColor = (color: string) => {
+    seedCustomFromPreset();
     setOverrideBg(color);
     setEmbedStyle("Custom Style");
   };
   const setTextColor = (color: string) => {
+    seedCustomFromPreset();
     setOverrideText(color);
     setEmbedStyle("Custom Style");
   };
@@ -167,17 +183,20 @@ export function useEmbedSettings({
   // hand-picking five colors that still have to read as one hue.
   const setAccent = (color: string) => {
     const { levels, empty } = deriveRamp(color);
+    seedCustomFromPreset();
     setAccentColor(color);
     setOverrideLevels(levels);
     setOverrideEmpty(empty);
     setEmbedStyle("Custom Style");
   };
   const setSize = (value: number) => {
+    seedCustomFromPreset();
     setRectSize(value);
     setRectRadius((r) => Math.min(r, value / 2));
     setEmbedStyle("Custom Style");
   };
   const setRadius = (value: number) => {
+    seedCustomFromPreset();
     setRectRadius(value);
     setEmbedStyle("Custom Style");
   };
@@ -229,7 +248,12 @@ export function useEmbedSettings({
     days,
     setDays: (v: number) => { posthog.capture('studio_change_heatmap_days', { value: v }); setDays(v); },
     embedStyle,
-    setEmbedStyle: (v: string) => { posthog.capture('studio_change_heatmap_style', { value: v }); setEmbedStyle(v); },
+    // Picking the "Custom" tile directly should also keep the current look.
+    setEmbedStyle: (v: string) => {
+      posthog.capture('studio_change_heatmap_style', { value: v });
+      if (v === "Custom Style") seedCustomFromPreset();
+      setEmbedStyle(v);
+    },
     rectSize,
     rectRadius,
     transparentBg,

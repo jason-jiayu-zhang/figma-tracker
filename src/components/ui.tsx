@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 /* ────────────────────────────────────────────────────────────
    Fimanu design-system primitives. One source of truth for the
@@ -141,15 +141,23 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   dark: "bg-ink hover:bg-black text-white shadow-sm",
 };
 
+// "pill" matches the app chrome (nav pills, quick-add, account icons): 32px tall,
+// fully rounded. "md" is the default rounded-rectangle used inside page content.
+const BUTTON_SIZES = {
+  md: "h-10 px-4 rounded-lg gap-2",
+  pill: "h-8 px-3 sm:px-3.5 rounded-full gap-1.5 text-[13px]",
+} as const;
+
 export function Button({
   variant = "primary",
+  size = "md",
   className = "",
   children,
   ...rest
-}: { variant?: ButtonVariant } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { variant?: ButtonVariant; size?: keyof typeof BUTTON_SIZES } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 h-10 px-4 rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${BUTTON_VARIANTS[variant]} ${className}`}
+      className={`inline-flex items-center justify-center font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${BUTTON_SIZES[size]} ${BUTTON_VARIANTS[variant]} ${className}`}
       {...rest}
     >
       {children}
@@ -170,6 +178,7 @@ export function SegmentedControl<T extends string | number | boolean>({
   size = "md",
   className = "",
   ariaLabel = "View options",
+  fill = false,
 }: {
   options: SegOption<T>[];
   value: T;
@@ -177,17 +186,19 @@ export function SegmentedControl<T extends string | number | boolean>({
   size?: "sm" | "md";
   className?: string;
   ariaLabel?: string;
+  /** Stretch to the container with equal-width segments (for side panels). */
+  fill?: boolean;
 }) {
   const cell =
     size === "sm" ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-[14px]";
   return (
-    <div role="group" aria-label={ariaLabel} className={`bg-canvas flex items-center p-1 rounded-lg shrink-0 ${className}`}>
+    <div role="group" aria-label={ariaLabel} className={`bg-canvas flex items-center p-1 rounded-lg ${fill ? "w-full" : "shrink-0"} ${className}`}>
       {options.map((opt) => (
         <button
           key={String(opt.value)}
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
-          className={`flex items-center justify-center rounded-md transition-[color,background-color,box-shadow] font-normal tracking-[-0.14px] ${cell} ${
+          className={`flex items-center justify-center rounded-md ${fill ? "flex-1" : ""} transition-[color,background-color,box-shadow] font-normal tracking-[-0.14px] ${cell} ${
             value === opt.value
               ? "bg-surface shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-ink"
               : "text-muted hover:text-ink"
@@ -209,7 +220,7 @@ export function SegmentedControl<T extends string | number | boolean>({
 export const SHELL = "w-[1080px] max-w-[calc(100%-3rem)] mx-auto";
 export const SHELL_TOP_PAD = "pt-[88px]";
 
-/** Vertical hairline separating groups of controls inside a dock. */
+/** Vertical hairline separating groups of controls inside a toolbar or header. */
 export function Divider() {
   return <div className="w-px self-stretch bg-line shrink-0" aria-hidden="true" />;
 }
@@ -220,26 +231,46 @@ const POPOVER_ALIGN = {
   right: "right-0",
 } as const;
 
-/** Disclosure panel anchored above its trigger; closes on outside click and
+/** Disclosure panel anchored above (or below) its trigger; closes on outside click and
    Escape. The trigger is a render prop so callers keep their own button markup
    (and its aria-expanded/aria-haspopup wiring). */
 export function Popover({
   trigger,
   align = "right",
+  placement = "above",
   panelClassName = "",
   className = "",
   children,
 }: {
   trigger: (state: { isOpen: boolean; toggle: () => void }) => React.ReactNode;
   align?: keyof typeof POPOVER_ALIGN;
+  /** Which side of the trigger the panel opens on. */
+  placement?: "above" | "below";
   panelClassName?: string;
   className?: string;
   children: React.ReactNode | ((state: { close: () => void }) => React.ReactNode);
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+  // Horizontal nudge that keeps the panel inside the viewport. The trigger can sit
+  // mid-row on a phone, so a 320–360px panel anchored to it would hang off-screen.
+  const [shiftX, setShiftX] = useState(0);
   const close = useCallback(() => setIsOpen(false), []);
   const toggle = useCallback(() => setIsOpen((v) => !v), []);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setShiftX(0);
+      return;
+    }
+    const el = panel.current;
+    if (!el) return;
+    const { left, right } = el.getBoundingClientRect();
+    const edge = 8;
+    const vw = document.documentElement.clientWidth;
+    setShiftX(left < edge ? edge - left : right > vw - edge ? vw - edge - right : 0);
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -262,7 +293,9 @@ export function Popover({
       {trigger({ isOpen, toggle })}
       {isOpen && (
         <div
-          className={`absolute bottom-[calc(100%+8px)] ${POPOVER_ALIGN[align]} z-50 bg-surface rounded-2xl shadow-card-hover border border-line animate-in fade-in zoom-in duration-200 motion-reduce:animate-none ${panelClassName}`}
+          ref={panel}
+          style={shiftX ? { translate: `${shiftX}px 0` } : undefined}
+          className={`absolute ${placement === "below" ? "top-[calc(100%+8px)]" : "bottom-[calc(100%+8px)]"} ${POPOVER_ALIGN[align]} z-50 bg-surface rounded-2xl shadow-card-hover border border-line animate-in fade-in zoom-in duration-200 motion-reduce:animate-none ${panelClassName}`}
         >
           {typeof children === "function" ? children({ close }) : children}
         </div>

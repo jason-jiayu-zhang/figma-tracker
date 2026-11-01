@@ -1,10 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { mockApi } from "./vite.mock";
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // MOCK_API=1 serves fake /api responses (see vite.mock.ts) so the UI can be
+  // viewed without the backend or a Figma login.
+  plugins: [react(), tailwindcss(), ...(process.env.MOCK_API === "1" ? [mockApi()] : [])],
   server: {
     // Pin the dev port to 5173 and fail loudly if it's taken, rather than
     // silently drifting to 5174. OAuth (APP_URL / FIGMA_OAUTH_REDIRECT_URI) is

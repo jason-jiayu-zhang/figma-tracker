@@ -79,7 +79,7 @@ export const StyleOption = ({
 };
 
 // Recent swatches are shared across every picker in the Studio (all three
-// widget docks), so brand colors carry over between widgets and sessions.
+// widgets), so brand colors carry over between widgets and sessions.
 const SWATCH_KEY = "fimanu.recentSwatches";
 const swatchListeners = new Set<() => void>();
 let recentSwatches: string[] = (() => {
@@ -134,7 +134,31 @@ export const ColorPicker = ({
   const popover = useRef<HTMLDivElement>(null);
   const swatches = useRecentSwatches();
 
-  useEffect(() => setHexDraft(color), [color]);
+  // Typed hex is applied after a pause, not per keystroke: normalizeHex accepts
+  // 3-digit shorthand, so mid-typing "f23" would expand to #ff2233, apply, and
+  // (via the sync below) overwrite the field before the user reached "f23b27".
+  const HEX_APPLY_DELAY_MS = 700;
+  const hexTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hexEditing = useRef(false);
+  const clearHexTimer = () => {
+    if (hexTimer.current) clearTimeout(hexTimer.current);
+    hexTimer.current = null;
+  };
+  useEffect(() => clearHexTimer, []);
+  // Escape (or any close that unmounts the field) skips onBlur, so reset here or
+  // the sync below would stay disabled for good.
+  useEffect(() => {
+    if (!isOpen) {
+      clearHexTimer();
+      hexEditing.current = false;
+    }
+  }, [isOpen]);
+
+  // Mirror external changes (picker drag, swatch, eyedropper) into the field, but
+  // never while the user is typing in it.
+  useEffect(() => {
+    if (!hexEditing.current) setHexDraft(color);
+  }, [color]);
 
   const commit = (next: string) => {
     onChange(next);
@@ -196,15 +220,29 @@ export const ColorPicker = ({
             <input
               aria-label={`${title ?? "Color"} hex value`}
               value={hexDraft}
+              onFocus={() => {
+                hexEditing.current = true;
+              }}
               onChange={(e) => {
-                setHexDraft(e.target.value);
-                const parsed = normalizeHex(e.target.value);
-                if (parsed) onChange(parsed);
+                const value = e.target.value;
+                setHexDraft(value);
+                clearHexTimer();
+                hexTimer.current = setTimeout(() => {
+                  const parsed = normalizeHex(value);
+                  if (parsed) onChange(parsed);
+                }, HEX_APPLY_DELAY_MS);
               }}
               onBlur={() => {
+                // Leaving the field settles it immediately — no waiting on the timer.
+                clearHexTimer();
+                hexEditing.current = false;
                 const parsed = normalizeHex(hexDraft);
-                if (parsed) commit(parsed);
-                else setHexDraft(color);
+                if (parsed) {
+                  commit(parsed);
+                  setHexDraft(parsed);
+                } else {
+                  setHexDraft(color);
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
@@ -337,7 +375,7 @@ export function PublishForm({ onPublished }: { onPublished?: () => void }) {
   );
 }
 
-/** Dock-level publish control: a primary action while unpublished, collapsing to
+/** Header publish control: a primary action while unpublished, collapsing to
    a quiet live-handle chip (which reopens the form) once the profile is public. */
 export function PublishControl() {
   const { user } = useSession();
@@ -347,6 +385,7 @@ export function PublishControl() {
   return (
     <Popover
       align="left"
+      placement="below"
       panelClassName="w-[320px] max-w-[calc(100vw-2rem)] p-4"
       trigger={({ isOpen, toggle }) =>
         published ? (
@@ -356,14 +395,14 @@ export function PublishControl() {
             aria-expanded={isOpen}
             aria-haspopup="true"
             title="Edit public handle"
-            className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-[12px] font-bold text-muted hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="flex items-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-full text-[12px] font-bold text-muted hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
             <span className="size-1.5 rounded-full bg-green shrink-0" aria-hidden="true" />
-            <span className="font-mono truncate max-w-[140px]">/{slug}</span>
+            <span className="font-mono truncate max-w-[72px] sm:max-w-[140px]">/{slug}</span>
           </button>
         ) : (
-          <Button onClick={toggle} aria-expanded={isOpen} aria-haspopup="true">
-            <Globe size={16} strokeWidth={2.5} />
+          <Button size="pill" onClick={toggle} aria-expanded={isOpen} aria-haspopup="true">
+            <Globe size={15} strokeWidth={2.5} />
             Publish
           </Button>
         )

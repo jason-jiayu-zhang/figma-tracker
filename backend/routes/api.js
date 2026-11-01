@@ -697,6 +697,15 @@ function parseHexParam(v) {
 
 /** A droppable streak badge (SVG) styled to match the dashboard's light,
  *  soft-card look: cream/ink surface, hairline border, accent flame. */
+// Advance widths (px at 12px) measured from the embedded Urbanist subset. The
+// badge is an <img>-embedded SVG, so it can't measure text at render time; these
+// stand in for it. Estimating from character counts (7.4 / 6.2 px per char) ran
+// ~5px wide on the label, which showed up as extra right padding — the content
+// looked off-center inside the pill.
+const BADGE_DIGIT_W = [7.25, 3.96, 6.86, 6.14, 6.95, 6.89, 6.59, 6.6, 6.54, 6.58]; // bold 700, digits 0-9
+const BADGE_COMMA_W = 3.04; // bold 700
+const BADGE_LABEL_W = { "day streak": 56.37, edits: 25.61 }; // medium 500
+
 function buildBadgeSvg({ metric, value, theme, emoji, colors = {}, radius }) {
   const isDark = theme === "dark";
   // Dashboard design tokens (src/index.css @theme) as the base preset;
@@ -715,21 +724,29 @@ function buildBadgeSvg({ metric, value, theme, emoji, colors = {}, radius }) {
   const label = metric === "edits" ? "edits" : "day streak";
 
   const fontSize = 12;
-  const numW = Math.ceil(num.length * 7.4); // 12px bold tabular digits
-  const labelW = Math.ceil(label.length * 6.2); // 12px medium sans
+  const numW = [...num].reduce(
+    (sum, ch) => sum + (ch === "," ? BADGE_COMMA_W : BADGE_DIGIT_W[Number(ch)] ?? 6.9),
+    0
+  );
+  const labelW = BADGE_LABEL_W[label] ?? label.length * 5.6;
   const iconBox = 16;
   const padX = 11;
   const gap = 7; // icon → number, number → label
   const h = 28;
-  const w = padX + iconBox + gap + numW + gap + labelW + padX;
+  // Content is laid out at its exact width, then the pill is rounded up to a whole
+  // pixel and the sub-pixel remainder split evenly so left/right padding match.
+  const contentW = padX + iconBox + gap + numW + gap + labelW + padX;
+  const w = Math.ceil(contentW);
+  const inset = (w - contentW) / 2;
   const r = radius != null ? radius : 8; // card-like rounding
 
   const iconY = (h - iconBox) / 2;
+  const iconX = padX + inset;
   const flame = emoji
-    ? `<text x="${padX + iconBox / 2}" y="${h / 2}" font-size="15" text-anchor="middle" dominant-baseline="central">🔥</text>`
-    : `<g transform="translate(${padX}, ${iconY}) scale(0.667)" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></g>`;
+    ? `<text x="${iconX + iconBox / 2}" y="${h / 2}" font-size="15" text-anchor="middle" dominant-baseline="central">🔥</text>`
+    : `<g transform="translate(${iconX}, ${iconY}) scale(0.667)" fill="none" stroke="${accent}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></g>`;
 
-  const numX = padX + iconBox + gap;
+  const numX = iconX + iconBox + gap;
   const labelX = numX + numW + gap;
   const ariaLabel = `${num} ${label}`;
   // Match the dashboard's Urbanist. An <img>-embedded SVG can't reach the page's

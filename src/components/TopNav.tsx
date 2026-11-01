@@ -10,32 +10,38 @@ const NAV = [
 ];
 
 /** Floating top navigation: the app's primary destinations on the left, account
-   and settings on the right. Shares the Studio dock's pill language so the
+   and settings on the right. Shares the Studio header's pill language so the
    canvas pages and the list pages read as one surface.
    Fixed to the SHELL column rather than each page's own layout, so the pills
    land on identical coordinates on every route and never jump on navigation. */
-export default function TopNav() {
-  const { user } = useSession();
-  const path = useLocation().pathname;
-  const isActive = (p: string) => path === p || (p !== "/" && path.startsWith(p));
+const PILL_SURFACE = "p-1 rounded-full bg-surface border border-hairline shadow-card";
 
+function useIsActive() {
+  const path = useLocation().pathname;
+  return (p: string) => path === p || (p !== "/" && path.startsWith(p));
+}
+
+/** Primary destinations + quick-add. `bare` drops the pill container's own
+   surface so it can sit inside another card (the Studio header). */
+export function PrimaryNav({ bare = false }: { bare?: boolean }) {
+  const isActive = useIsActive();
   return (
-    <div className={`fixed top-6 inset-x-0 z-40 flex items-center justify-between gap-3 ${SHELL}`}>
       <nav
         aria-label="Primary"
-        className="flex items-center gap-1 p-1 rounded-full bg-surface border border-hairline shadow-card"
+        className={`flex items-center gap-1 ${bare ? "" : PILL_SURFACE}`}
       >
         {NAV.map((item) => (
           <Link
             key={item.to}
             to={item.to}
             aria-current={isActive(item.to) ? "page" : undefined}
-            className={`flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            title={item.label}
+            className={`flex items-center gap-1.5 h-8 px-3 sm:px-3.5 rounded-full text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
               isActive(item.to) ? "bg-canvas text-ink ring-1 ring-accent/30" : "text-muted hover:text-ink"
             }`}
           >
             {item.icon}
-            <span>{item.label}</span>
+            <span className="max-sm:sr-only">{item.label}</span>
           </Link>
         ))}
 
@@ -50,8 +56,15 @@ export default function TopNav() {
           <Plus size={16} strokeWidth={3} />
         </Link>
       </nav>
+  );
+}
 
-      <div className="flex items-center gap-1 p-1 rounded-full bg-surface border border-hairline shadow-card">
+/** Settings + account. `bare` as above. */
+export function AccountNav({ bare = false }: { bare?: boolean }) {
+  const { user } = useSession();
+  const isActive = useIsActive();
+  return (
+      <div className={`flex items-center gap-1 ${bare ? "" : PILL_SURFACE}`}>
         <Link
           to="/settings"
           title="Settings"
@@ -76,6 +89,14 @@ export default function TopNav() {
           )}
         </Link>
       </div>
+  );
+}
+
+export default function TopNav() {
+  return (
+    <div className={`fixed top-6 inset-x-0 z-40 flex items-center justify-between gap-3 ${SHELL}`}>
+      <PrimaryNav />
+      <AccountNav />
     </div>
   );
 }

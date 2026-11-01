@@ -68,19 +68,32 @@ export function useBreakdownSettings() {
   const activeBg = transparentBg ? "transparent" : bgColor;
   const activeText = overrideText || baseTheme.text;
 
+  // Leaving a preset for Custom Style: copy the colors on screen into the
+  // overrides first, otherwise every color not being edited snaps to the
+  // Fimanu fallback theme. The triggering edit is applied on top.
+  const seedCustomFromPreset = () => {
+    if (embedStyle === "Custom Style") return;
+    setOverrideBg(bgColor);
+    setOverrideText(activeText);
+    setOverrideCards(activeCards);
+  };
+
   const setCardColor = (i: number, color: string) => {
-    const next = [...(overrideCards.length === 4 ? overrideCards : ['#f8722f', '#fdaf7a', '#ffe0cc', '#f3ebe4'])];
+    seedCustomFromPreset();
+    const next = [...activeCards];
     next[i] = color;
     setOverrideCards(next);
     setEmbedStyle("Custom Style");
   };
 
   const setBgColor = (color: string) => {
+    seedCustomFromPreset();
     setOverrideBg(color);
     setEmbedStyle("Custom Style");
   };
 
   const setTextColor = (color: string) => {
+    seedCustomFromPreset();
     setOverrideText(color);
     setEmbedStyle("Custom Style");
   };
@@ -128,7 +141,11 @@ export function useBreakdownSettings() {
     radius,
     setRadius: (v: number) => { posthog.capture('studio_change_breakdown_radius', { value: v }); setRadius(v); },
     embedStyle,
-    setEmbedStyle: (v: string) => { posthog.capture('studio_change_breakdown_style', { value: v }); setEmbedStyle(v); },
+    setEmbedStyle: (v: string) => {
+      posthog.capture('studio_change_breakdown_style', { value: v });
+      if (v === "Custom Style") seedCustomFromPreset();
+      setEmbedStyle(v);
+    },
     transparentBg,
     setTransparentBg: (v: boolean | ((prev: boolean) => boolean)) => { posthog.capture('studio_toggle_breakdown_transparent'); setTransparentBg(v); },
     activeCards,

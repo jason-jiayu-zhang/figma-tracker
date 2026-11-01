@@ -312,7 +312,8 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
       </div>
 
       {/* Legend Row */}
-      <div className="flex items-center justify-between w-full mt-2" style={{ paddingRight: tGap / 2 }}>
+      {/* flex-wrap: in a narrow embed the credit drops under the legend instead of overflowing. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 w-full mt-2" style={{ paddingRight: tGap / 2 }}>
         <div
           className="flex items-center flex-shrink-0"
           style={{ color: tTextColor, gap: tGap + 2, fontSize: tFontSize }}
