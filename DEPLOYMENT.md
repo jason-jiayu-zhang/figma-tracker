@@ -13,9 +13,10 @@ Two ways to run the sync on Render:
 - **Free instance — external cron.** Render's free web service sleeps after ~15 min
   idle and can't host an always-on loop, so set `RESIDENT_SYNC=off` and drive sync from
   a **free external scheduler** (cron-job.org) that pings `GET /api/sync/incremental`
-  a few times an hour (§6). The instance is deliberately **not** kept warm — letting it
-  sleep between hits is what keeps this free. The frontend shows a "waking up" note on
-  first load so a cold start doesn't read as broken.
+  a few times an hour (§6), plus a second cron-job.org job pinging `GET /health` every
+  10 min to keep the instance warm (§6.5). That uses ~744 of the 750 free instance-hours
+  per month, so it only works if this is the **only** free web service in the workspace.
+  The frontend still shows a "waking up" note in case a cold start happens anyway.
 
 > **Serverless note:** the backend cannot run on a serverless host — the sync loop is
 > long-running and stateful, and serverless functions are short-lived. If you ever host
@@ -79,8 +80,9 @@ Frontend build-time variables (must be present at build time — set them in Ren
 Render's **free** web service spins down after ~15 min of inactivity, so the first
 request after idle is slow (cold start) and an always-on sync loop can't run. Either
 upgrade to a paid instance for the resident loop, or keep the free instance and drive
-sync via external cron (§6). Don't try to ping it into staying warm — that just burns
-the free instance-hour allowance for no real benefit. Let it sleep; the frontend tells
+sync via external cron (§6). To avoid cold starts on the free tier, ping `/health` every
+10 min (§6.5) — that consumes nearly the whole 750 instance-hour monthly allowance, so
+keep this as your only free web service. Otherwise let it sleep; the frontend tells
 users a first load may take a moment.
 
 ---
@@ -191,8 +193,8 @@ Note the service URL (`https://<your-service>.onrender.com`).
 GitHub Actions `schedule:` works too, but its minimum is ~5 min and runs are often
 delayed under load — cron-job.org is more punctual for this.
 
-### 6.3 Cold starts are expected, not a bug
-With no keep-warm ping, the instance sleeps between cron hits and real user visits. The
+### 6.3 Cold starts without a keep-warm ping
+If you skip §6.5, the instance sleeps between cron hits and real user visits. The
 first request after idle (whoever sends it — cron or a user) pays Render's cold-start
 cost, roughly tens of seconds. The frontend's initial session check (`App.tsx`) shows a
 "waking up the server" message if that first load runs long, so this reads as expected
@@ -206,3 +208,14 @@ behavior rather than a broken app.
 > Security note: `protectCron` fails closed. With no `CRON_SECRET` set, the sync
 > endpoints return `401` rather than running — so `CRON_SECRET` must be set on any
 > deploy where an external scheduler drives sync, otherwise sync silently stops.
+
+### 6.5 Keep-warm ping (optional, avoids cold starts)
+Add a second cron-job.org job:
+- **URL:** `https://<your-service>.onrender.com/health` (public, returns `ok`, no DB or
+  Figma calls, no auth header needed)
+- **Schedule:** every 10 minutes (must be under Render's ~15 min idle timeout)
+- Enable failure notifications.
+
+Cost: ~4,300 trivial requests/month, but the instance is up ~24/7 ≈ 744 of the 750 free
+instance-hours. A second free web service in the same workspace would exhaust the cap
+mid-month and get suspended. If that's a concern, use a paid Starter instance instead.

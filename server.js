@@ -34,6 +34,11 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
+// Liveness probe for the external keep-warm ping (no DB / Figma calls).
+app.get("/health", (req, res) => {
+  res.status(200).type("text/plain").send("ok");
+});
+
 // Serve static frontend from Vite build directory
 app.use(express.static(path.join(__dirname, "dist")));
 
