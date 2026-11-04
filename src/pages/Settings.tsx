@@ -1,81 +1,116 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import posthog from "posthog-js";
 import axios from 'axios';
+import { Settings as SettingsIcon, User as UserIcon, ShieldCheck, Database, Link2, SlidersHorizontal } from 'lucide-react';
 import { useSession } from '../session';
-import { APP_ORIGIN } from '../config';
-import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
-import { Card, SectionHeader, Button } from '../components/ui';
-import { AnalyticsCard } from '../components/AnalyticsConsent';
+import { ConfirmDialog } from '../components/ui';
+import { AnalyticsSection } from '../components/AnalyticsConsent';
 import AppShell, { SidebarControls, SidebarSwitcher } from '../components/AppShell';
+import { BTN_DANGER, BTN_GHOST, PanelHeading } from '../components/pageStyles';
+import { allTimezones, browserTimezone, getSavedTimezone, saveTimezone } from '../timezone';
 
-type Panel = 'publishing' | 'privacy' | 'danger';
-const PANELS: { id: Panel; label: string; icon: React.ReactNode }[] = [
-  { id: 'publishing', label: 'Publishing', icon: <Globe size={15} /> },
+type Panel = 'preferences' | 'connection' | 'privacy' | 'data';
+const PANELS: { id: Panel; label: string; icon?: React.ReactNode }[] = [
+  { id: 'preferences', label: 'Preferences', icon: <SlidersHorizontal size={15} /> },
+  { id: 'connection', label: 'Connection', icon: <Link2 size={15} /> },
   { id: 'privacy', label: 'Privacy', icon: <ShieldCheck size={15} /> },
-  { id: 'danger', label: 'Delete', icon: <Trash2 size={15} /> },
+  { id: 'data', label: 'Data', icon: <Database size={15} /> },
 ];
 
+const SCOPE_INFO: Record<string, string> = {
+  'current_user:read': 'Your name and avatar',
+  'file_metadata:read': 'File names, projects and last-modified times',
+  'file_versions:read': 'Version history, which powers the heatmap and streaks',
+  'file_comments:read': 'Comments on your tracked files',
+  'file_dev_resources:read': 'Dev resources attached to your tracked files',
+};
+
+const FIELD =
+  'h-11 rounded-full border border-line bg-surface px-5 text-[14px] text-ink outline-none transition-colors focus:border-accent min-w-0';
+
+function Preferences() {
+  const browserTz = browserTimezone();
+  const zones = useMemo(() => allTimezones(), []);
+  const [tz, setTz] = useState<string>(() => getSavedTimezone() ?? '');
+  const onChange = (v: string) => {
+    setTz(v);
+    saveTimezone(v || null);
+  };
+  return (
+    <>
+      <PanelHeading title="Preferences">
+        How Fimanu shows your activity on this device.
+      </PanelHeading>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="timezone" className="ui-text text-ink">Timezone</label>
+        <select id="timezone" value={tz} onChange={(e) => onChange(e.target.value)} className={FIELD}>
+          <option value="">Same as this browser ({browserTz})</option>
+          {zones.map((z) => (
+            <option key={z} value={z}>{z}</option>
+          ))}
+        </select>
+        <p className="text-[13px] text-muted leading-relaxed">
+          Decides which calendar day a version counts toward in Studio. It applies the next time Studio loads, and
+          doesn’t change published embeds, which follow each viewer’s own timezone.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function Connection() {
+  const [info, setInfo] = useState<{ scopes: string[]; connected_at: string | null } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    axios.get('/api/user/connection').then((r) => setInfo(r.data)).catch(() => setFailed(true));
+  }, []);
+  return (
+    <>
+      <PanelHeading title="Connection">
+        Fimanu reads your Figma account with read-only access. It never touches design content.
+      </PanelHeading>
+      <div className="flex flex-col gap-2">
+        <span className="ui-text text-ink">Allowed to read</span>
+        {failed ? (
+          <p className="text-[13px] text-muted">Couldn’t load your connection details.</p>
+        ) : !info ? (
+          <p className="text-[13px] text-muted">Loading…</p>
+        ) : info.scopes.length === 0 ? (
+          <p className="text-[13px] text-muted">No permissions on record. Reconnect to refresh them.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {info.scopes.map((sc) => (
+              <li key={sc} className="text-[14px] text-body">{SCOPE_INFO[sc] ?? sc}</li>
+            ))}
+          </ul>
+        )}
+        {info?.connected_at && (
+          <p className="text-[13px] text-muted">
+            Connected {new Date(info.connected_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}.
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col items-start gap-3">
+        {/* Plain navigation to the GET endpoint (302 to Figma), as on the landing page. */}
+        <a href="/api/oauth/start" className={BTN_GHOST}>Reconnect Figma</a>
+        <p className="text-[13px] text-muted leading-relaxed">
+          Use this if syncing stops working or you want to refresh permissions. Your files and history are kept.
+        </p>
+      </div>
+    </>
+  );
+}
+
 export default function Settings() {
-  const { user, refresh } = useSession();
-
-  // Embed publishing controls.
-  const [slug, setSlug] = useState('');
-  const [publicEnabled, setPublicEnabled] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const [panel, setPanel] = useState<Panel>('publishing');
+  const { user } = useSession();
+  const [panel, setPanel] = useState<Panel>('preferences');
 
   // Account deletion.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      setSlug(user.profile_slug ?? '');
-      setPublicEnabled(user.public_enabled ?? false);
-    }
-  }, [user]);
-
-  const embedUrl = slug ? `${APP_ORIGIN}/embed-widget?slug=${slug}` : '';
   const displayName = user?.handle || 'Your account';
-
-  const saveProfile = async () => {
-    setSaving(true);
-    setSaveError(null);
-    setSaved(false);
-    try {
-      await axios.put('/api/user/profile', {
-        profile_slug: slug.trim() || null,
-        public_enabled: publicEnabled,
-      });
-      await refresh();
-      posthog.capture('settings_update_profile');
-      setSaved(true);
-      setTimeout(() => setSaved(false), 1800);
-    } catch (err: any) {
-      setSaveError(
-        err?.response?.data?.error || 'Failed to save. The slug may already be taken.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      await axios.post('/api/user/logout');
-    } catch {
-      /* ignore */
-    }
-    posthog.capture('settings_logout');
-    // ?loggedout=1 tells the app shell to show the marketing landing page
-    // instead of bouncing a session-less visit straight back into OAuth.
-    window.location.href = '/?loggedout=1';
-  };
 
   const deleteAccount = async () => {
     setDeleting(true);
@@ -90,15 +125,9 @@ export default function Settings() {
     }
   };
 
-  const copy = (text: string, which: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(which);
-    setTimeout(() => setCopied(null), 1800);
-  };
-
   const sidebarTop = (
     <div className="flex items-center gap-3">
-      <div className="relative rounded-full shadow-card shrink-0 size-12 overflow-hidden bg-hairline">
+      <div className="rounded-full shrink-0 size-12 overflow-hidden bg-hairline">
         {user?.img_url ? (
           <img src={user.img_url} alt={displayName} className="w-full h-full object-cover" />
         ) : (
@@ -109,10 +138,7 @@ export default function Settings() {
       </div>
       <div className="flex flex-col gap-1 min-w-0">
         <h1 className="display text-[16px] leading-tight text-ink truncate">{displayName}</h1>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-green shrink-0" />
-          <span className="text-[12px] text-body font-medium truncate">Figma account connected</span>
-        </div>
+        <span className="text-[12px] text-body truncate">Figma account connected</span>
       </div>
     </div>
   );
@@ -126,20 +152,7 @@ export default function Settings() {
           label: 'Settings',
           icon: <SettingsIcon size={15} />,
           content: (
-            <SidebarSwitcher label="Settings section" value={panel} onChange={setPanel} options={PANELS} />
-          ),
-        },
-        {
-          id: 'session',
-          label: 'Session',
-          icon: <LogOut size={15} />,
-          content: (
-            <button
-              onClick={logout}
-              className="flex items-center justify-center gap-2 h-9 rounded-lg border border-line bg-canvas text-[13px] font-bold text-red hover:bg-hairline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-            >
-              <LogOut size={15} /> Log out
-            </button>
+            <SidebarSwitcher label="Settings section" value={panel} onChange={setPanel} options={PANELS} columns={2} />
           ),
         },
       ]}
@@ -149,155 +162,53 @@ export default function Settings() {
   return (
     <AppShell sidebarTop={sidebarTop} sidebar={sidebar}>
       <div className="flex-1 min-h-0 p-4 pb-8 lg:p-6 lg:overflow-y-auto custom-scrollbar">
-        <div className="w-full max-w-[720px] mx-auto">
-          {panel === 'publishing' ? (
-              <Card className="flex flex-col gap-5 p-6 animate-fade-in-up">
-                <SectionHeader
-                  plain
-                  icon={<Globe size={20} />}
-                  title="Embed Publishing"
-                  subtitle="Your handle addresses your embeds, and publishing is what lets them render."
-                />
-
-                <div className="flex flex-col gap-4 w-full max-w-[560px]">
-                  {/* Slug */}
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="profile-slug" className="text-[13px] font-bold text-muted uppercase tracking-wider">Public handle</label>
-                    <div className="flex items-center gap-1 bg-canvas border border-line rounded-xl px-3 py-2 focus-within:border-accent transition-colors">
-                      <input
-                        id="profile-slug"
-                        type="text"
-                        value={slug}
-                        onChange={(e) => setSlug(e.target.value.replace(/[^a-zA-Z0-9-_]/g, '').toLowerCase())}
-                        placeholder="your-handle"
-                        aria-invalid={saveError ? true : undefined}
-                        aria-describedby={saveError ? 'slug-hint slug-error' : 'slug-hint'}
-                        className="flex-1 bg-transparent outline-none text-[13px] font-mono text-ink min-w-0"
-                      />
-                    </div>
-                    <p id="slug-hint" className="text-[12px] text-muted leading-relaxed">
-                      Lowercase letters, numbers, and dashes only. Every embed you publish is addressed by this handle.
-                    </p>
-                  </div>
-
-                  {/* Public toggle */}
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-col">
-                      <span id="public-toggle-label" className="text-[14px] font-semibold text-black">Publish my embeds</span>
-                      <span className="text-[12px] text-muted">When off, your embeds and public stats return nothing.</span>
-                    </div>
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={publicEnabled}
-                      aria-labelledby="public-toggle-label"
-                      onClick={() => setPublicEnabled((v) => !v)}
-                      className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${publicEnabled ? 'bg-green' : 'bg-[#d9d9d9]'}`}
-                    >
-                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface shadow transition-transform ${publicEnabled ? 'translate-x-5' : ''}`} />
-                    </button>
-                  </div>
-
-                  {saveError && <p id="slug-error" role="alert" className="text-[12px] text-red font-medium">{saveError}</p>}
-
-                  <div className="flex items-center gap-3">
-                    <Button onClick={saveProfile} disabled={saving} className="rounded-xl">
-                      {saving ? 'Saving…' : 'Save'}
-                    </Button>
-                    {saved && (
-                      <span role="status" className="flex items-center gap-1.5 text-[13px] font-semibold text-green">
-                        <Check size={15} /> Saved
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Share links (only meaningful once published) */}
-                  {slug && publicEnabled && (
-                    <div className="flex flex-col gap-3 pt-2 border-t border-hairline">
-                      <ShareRow label="Embed link" value={embedUrl} onCopy={() => copy(embedUrl, 'embed')} copied={copied === 'embed'} />
-                    </div>
-                  )}
-                </div>
-              </Card>
+        <div className="w-full max-w-lg mx-auto flex flex-col gap-8 py-6 animate-fade-in-up">
+          {panel === 'preferences' ? (
+            <Preferences />
+          ) : panel === 'connection' ? (
+            <Connection />
           ) : panel === 'privacy' ? (
-            <AnalyticsCard />
+            <AnalyticsSection />
           ) : (
-              <Card className="flex flex-col gap-5 p-6 border-red/30! animate-fade-in-up">
-                <SectionHeader
-                  plain
-                  icon={<AlertTriangle size={20} className="text-red" />}
-                  title="Delete account"
-                  subtitle="Permanently remove your account, Figma authorization, and all tracked file activity."
-                />
-                <p className="text-[13px] text-muted leading-relaxed max-w-[560px]">
-                  This deletes your stored Figma tokens, your published handle, and every file’s
-                  tracked history — any embed you’ve placed elsewhere stops rendering. It cannot
-                  be undone. You can reconnect later by signing in again.
+            <>
+              <PanelHeading title="Your data">
+                Download everything Fimanu stores about you, or remove it all.
+              </PanelHeading>
+
+              <div className="flex flex-col items-start gap-3">
+                <span className="ui-text text-ink">Export</span>
+                <p className="text-[14px] text-body leading-relaxed">
+                  A JSON file with your account details, tracked files, version history and daily activity. Access tokens are
+                  never included.
                 </p>
+                <a href="/api/user/export" download className={BTN_GHOST}>Download my data</a>
+              </div>
 
-                {!confirmingDelete ? (
-                  <div>
-                    <button
-                      onClick={() => setConfirmingDelete(true)}
-                      className="flex items-center gap-2 bg-red/10 hover:bg-red/15 text-red px-4 py-2 rounded-xl text-[13px] font-bold transition-colors"
-                    >
-                      <Trash2 size={15} /> Delete my account
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-3 max-w-[560px]">
-                    <p className="text-[13px] font-semibold text-black">
-                      Are you sure? This permanently deletes your account and all data.
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={deleteAccount}
-                        disabled={deleting}
-                        className="flex items-center gap-2 bg-red hover:bg-red/90 text-white px-4 py-2 rounded-xl text-[13px] font-bold transition-colors disabled:opacity-60"
-                      >
-                        <Trash2 size={15} /> {deleting ? 'Deleting…' : 'Yes, delete everything'}
-                      </button>
-                      <button
-                        onClick={() => { setConfirmingDelete(false); setDeleteError(null); }}
-                        disabled={deleting}
-                        className="text-[13px] font-bold text-muted hover:text-ink transition-colors disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {deleteError && (
-                  <p role="alert" className="text-[12px] text-red font-medium">{deleteError}</p>
-                )}
-              </Card>
+              <div className="flex flex-col items-start gap-3">
+                <span className="ui-text text-ink">Delete account</span>
+                <p className="text-[14px] text-body leading-relaxed">
+                  This deletes your stored Figma tokens, your published handle, and every file’s tracked history. Any embed
+                  you’ve placed elsewhere stops rendering. It cannot be undone. You can reconnect later by signing in again.
+                </p>
+                <button type="button" onClick={() => setConfirmingDelete(true)} className={BTN_DANGER}>
+                  Delete my account
+                </button>
+              </div>
+              <ConfirmDialog
+                open={confirmingDelete}
+                onClose={() => { setConfirmingDelete(false); setDeleteError(null); }}
+                onConfirm={deleteAccount}
+                busy={deleting}
+                tone="danger"
+                title="Delete your account?"
+                description="This permanently deletes your Figma authorization, published handle and all tracked file history. Embeds you've placed elsewhere will stop rendering. It can't be undone."
+                confirmLabel="Delete everything"
+                error={deleteError}
+              />
+            </>
           )}
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function ShareRow({ label, value, onCopy, copied }: { label: string; value: string; onCopy: () => void; copied: boolean }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[12px] font-bold text-muted uppercase tracking-wider">{label}</span>
-      <div className="flex items-center gap-2">
-        <input
-          readOnly
-          value={value}
-          aria-label={label}
-          className="flex-1 bg-canvas border border-line rounded-lg px-3 py-2 text-[12px] font-mono text-ink outline-none min-w-0"
-        />
-        <button
-          onClick={onCopy}
-          className="shrink-0 flex items-center gap-1.5 bg-ink hover:bg-black text-white px-3 py-2 rounded-lg text-[12px] font-bold transition-colors"
-        >
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-          {copied ? 'Copied' : 'Copy'}
-        </button>
-      </div>
-    </div>
   );
 }

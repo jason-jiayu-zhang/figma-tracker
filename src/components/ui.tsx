@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 
 /* ────────────────────────────────────────────────────────────
    Fimanu design-system primitives. One source of truth for the
@@ -163,13 +165,14 @@ export function SectionHeader({
   );
 }
 
-type ButtonVariant = "primary" | "secondary" | "ghost" | "dark";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "dark" | "danger";
 
 const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   primary: "bg-accent hover:bg-accent-hover active:bg-accent-active text-white shadow-sm",
   secondary: "bg-surface border border-accent text-accent hover:bg-canvas shadow-sm",
   ghost: "text-body hover:bg-hairline",
   dark: "bg-ink hover:bg-black text-white shadow-sm",
+  danger: "bg-red hover:bg-red/90 text-white shadow-sm",
 };
 
 // "pill" matches the app chrome (nav pills, quick-add, account icons): 32px tall,
@@ -185,7 +188,7 @@ export function Button({
   className = "",
   children,
   ...rest
-}: { variant?: ButtonVariant; size?: keyof typeof BUTTON_SIZES } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: { variant?: ButtonVariant; size?: keyof typeof BUTTON_SIZES } & React.ComponentPropsWithRef<"button">) {
   return (
     <button
       className={`inline-flex items-center justify-center font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${BUTTON_SIZES[size]} ${BUTTON_VARIANTS[variant]} ${className}`}
@@ -335,3 +338,194 @@ export function Popover({
   );
 }
 
+
+/**
+ * Shared empty state: icon, short title, one line of guidance, optional action.
+ * `bordered` (default) frames it as a quiet dashed placeholder so it reads as
+ * "content goes here" rather than a stray block of text; `compact` is for
+ * small widget tiles.
+ */
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  bordered = true,
+  compact = false,
+  className = "",
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  bordered?: boolean;
+  compact?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`w-full flex flex-col items-center justify-center text-center ${
+        compact ? "gap-3 p-4" : "gap-4 px-6 py-12"
+      } ${bordered ? "rounded-2xl border border-dashed border-line bg-surface/50" : ""} ${className}`}
+    >
+      <div className="size-11 rounded-full bg-hairline text-muted flex items-center justify-center">{icon}</div>
+      <div className="flex flex-col gap-1 max-w-[320px]">
+        <h3 className={`display text-ink ${compact ? "text-[15px]" : "text-[18px]"}`}>{title}</h3>
+        {description && (
+          <p className={`text-body leading-relaxed text-balance ${compact ? "text-[13px]" : "text-[14px]"}`}>
+            {description}
+          </p>
+        )}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/**
+ * Shared dialog shell. Blurred scrim, rounded surface card, title/description header, close button, Esc + scrim-click to dismiss,
+ * scale+fade entrance, focus restored to the trigger on close.
+ * Children render the body; put actions in `footer`.
+ * Set `dismissible={false}` while a request is in flight.
+ */
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  size = "md",
+  footer,
+  dismissible = true,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  description?: React.ReactNode;
+  size?: "sm" | "md" | "lg";
+  footer?: React.ReactNode;
+  dismissible?: boolean;
+  children?: React.ReactNode;
+}) {
+  const [shown, setShown] = useState(false);
+  const titleId = React.useId();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open) return;
+    const trigger = document.activeElement as HTMLElement | null;
+    const raf = requestAnimationFrame(() => setShown(true));
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dismissible) onCloseRef.current();
+    };
+    document.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      cancelAnimationFrame(raf);
+      setShown(false);
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      trigger?.focus();
+    };
+  }, [open, dismissible]);
+
+  if (!open) return null;
+
+  const width = size === "sm" ? "max-w-lg" : size === "lg" ? "max-w-2xl" : "max-w-xl";
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
+      <div
+        aria-hidden="true"
+        onClick={dismissible ? onClose : undefined}
+        className={`absolute inset-0 bg-ink/40 backdrop-blur-sm transition-opacity duration-200 ease-out ${shown ? "opacity-100" : "opacity-0"}`}
+      />
+      <div
+        className={`relative z-10 flex w-full ${width} max-h-[calc(100dvh-2rem)] flex-col gap-5 overflow-y-auto rounded-3xl border border-line bg-surface p-6 shadow-card transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${shown ? "opacity-100 scale-100" : "opacity-0 scale-95"}`}
+      >
+        {dismissible && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="absolute right-4 top-4 flex size-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-hairline hover:text-ink"
+          >
+            <X size={18} />
+          </button>
+        )}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
+            <h2 id={titleId} className="display text-[20px] leading-tight text-ink pr-8">{title}</h2>
+            {description && <div className="text-[14px] leading-relaxed text-body">{description}</div>}
+          </div>
+        </div>
+        {children}
+        {footer && <div className="flex flex-wrap items-center justify-end gap-2">{footer}</div>}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** Confirm / cancel dialog. Cancel is focused first so Enter is never destructive by accident. */
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel = "Confirm",
+  cancelLabel = "Cancel",
+  tone = "neutral",
+  busy = false,
+  error,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onConfirm: () => void | Promise<void>;
+  title: string;
+  description?: React.ReactNode;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  tone?: "neutral" | "danger";
+  busy?: boolean;
+  error?: string | null;
+  children?: React.ReactNode;
+}) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (open) cancelRef.current?.focus();
+  }, [open]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      size="sm"
+      dismissible={!busy}
+      footer={
+        <>
+          <Button ref={cancelRef} variant="ghost" className="border border-line" onClick={onClose} disabled={busy}>
+            {cancelLabel}
+          </Button>
+          <Button variant={tone === "danger" ? "danger" : "primary"} onClick={onConfirm} disabled={busy} aria-busy={busy}>
+            {busy ? "Working…" : confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      {children}
+      {error && <p role="alert" className="text-[12px] font-medium text-red">{error}</p>}
+    </Modal>
+  );
+}

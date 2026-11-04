@@ -5,7 +5,7 @@ import { PrimaryNav, AccountNav } from "./TopNav";
 import { Skeleton } from "./ui";
 import { AnalyticsNotice } from "./AnalyticsConsent";
 
-export type SidebarSection = { id: string; label: string; icon: React.ReactNode; content: React.ReactNode };
+export type SidebarSection = { id: string; label: string; icon?: React.ReactNode; content: React.ReactNode };
 
 /** Labeled group inside a sidebar section so related controls read as one unit. */
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -56,7 +56,7 @@ export function SidebarSwitcher<T extends string>({
   label: string;
   value: T;
   onChange: (v: T) => void;
-  options: { id: T; label: string; icon: React.ReactNode; count?: number }[];
+  options: { id: T; label: string; icon?: React.ReactNode; count?: number }[];
   columns?: number;
 }) {
   const cols = columns ?? options.length;

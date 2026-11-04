@@ -3,6 +3,7 @@ import posthog from "posthog-js";
 import { ArrowRight, Info } from "lucide-react";
 import imgFimanuLogo from "../assets/fimanu-logo.svg";
 import Seo from "../components/Seo";
+import { Button, Modal } from "../components/ui";
 import { useSession } from "../session";
 
 /** True for Safari (desktop + iOS), excluding Chrome/Firefox/Edge/Android —
@@ -19,7 +20,7 @@ function isSafariBrowser(): boolean {
 
 const BTN_BASE =
   "ui-text inline-flex items-center justify-center gap-2 rounded-full px-6 h-12 transition-[background-color,color,transform,border-color] duration-200 ease-out-cubic active:scale-[0.98]";
-const BTN_PRIMARY = `${BTN_BASE} bg-ink text-white hover:bg-black`;
+const BTN_PRIMARY = `${BTN_BASE} bg-accent text-white hover:bg-accent-hover active:bg-accent-active`;
 const BTN_GHOST = `${BTN_BASE} border border-ink/15 text-ink hover:bg-ink/[0.04]`;
 
 /** The rest of the site. App pages need a Figma session, so signed-out
@@ -33,7 +34,7 @@ const PAGES = [
 ];
 
 const ROW =
-  "group flex items-center justify-between gap-4 py-4 text-left transition-colors duration-200 ease-out-cubic";
+  "group flex items-center justify-between gap-4 py-3 text-left transition-colors duration-200 ease-out-cubic";
 
 export default function Landing() {
   const { loggedIn, loading } = useSession();
@@ -114,16 +115,6 @@ export default function Landing() {
     };
   }, []);
 
-  // Escape closes the recovery popup.
-  useEffect(() => {
-    if (!showFailedModal) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") dismissFailedModal();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showFailedModal]);
-
   // Figma remembers the last account in its own session cookie and its OAuth
   // endpoint has no account picker, so the only fix for "wrong account" is to
   // sign out of Figma first (new tab, so this page stays put).
@@ -141,58 +132,32 @@ export default function Landing() {
       />
 
       {/* Recovery popup: shown when a prior OAuth attempt didn't complete. */}
-      {showFailedModal && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-gutter"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="oauth-failed-title"
-        >
-          <div
-            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            onClick={dismissFailedModal}
-            aria-hidden="true"
-          />
-          <div className="relative z-10 flex w-full max-w-md flex-col gap-3 rounded-3xl border border-line bg-surface p-6 shadow-card">
-            <h2 id="oauth-failed-title" className="display text-[20px] text-ink">
-              That Figma sign-in didn't complete
-            </h2>
-            <p className="text-[14px] leading-relaxed text-body">
-              If Figma's page reloaded or crashed — most common on Safari with an
-              ad or content blocker — pause the blocker for figma.com, then
-              reconnect.
-            </p>
-            <p className="text-[14px] leading-relaxed text-body">
-              Or, if you picked the wrong Figma account, Figma stays signed into
-              it and won't offer a picker next time. Sign out of Figma first,
-              then reconnect to choose a different account.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <button
-                type="button"
-                onClick={signOutOfFigma}
-                className={`${BTN_GHOST} h-10 px-4`}
-              >
-                Sign out of Figma <ArrowRight size={15} />
-              </button>
-              <button
-                type="button"
-                onClick={startOAuth}
-                className={`${BTN_PRIMARY} h-10 px-4`}
-              >
-                Reconnect Figma <ArrowRight size={15} />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={dismissFailedModal}
-              className="ui-text w-fit pt-1 text-[13px] text-muted underline decoration-muted/40 underline-offset-4 transition-colors hover:text-ink"
-            >
-              Dismiss
-            </button>
-          </div>
+      <Modal
+        open={showFailedModal}
+        onClose={dismissFailedModal}
+        title="That Figma sign-in didn't complete"
+        footer={
+          <>
+            <Button variant="ghost" className="border border-line" onClick={signOutOfFigma}>
+              Sign out of Figma <ArrowRight size={15} />
+            </Button>
+            <Button onClick={startOAuth}>
+              Reconnect Figma <ArrowRight size={15} />
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 text-[14px] leading-relaxed text-body">
+          <p>
+            If Figma's page reloaded or crashed (most common on Safari with an ad or content blocker), pause the
+            blocker for figma.com, then reconnect.
+          </p>
+          <p>
+            If you picked the wrong Figma account, Figma stays signed into it and won't offer a picker next time.
+            Sign out of Figma first, then reconnect to choose a different account.
+          </p>
         </div>
-      )}
+      </Modal>
 
       <main className="flex w-full max-w-lg flex-1 flex-col justify-center gap-10">
         <div className="flex flex-col items-start gap-5">
@@ -283,7 +248,7 @@ export default function Landing() {
           )}
         </div>
 
-        <nav aria-label="Site" className="flex flex-col divide-y divide-line border-y border-line">
+        <nav aria-label="Site" className="flex flex-col">
           {PAGES.map(({ label, href, desc, app }) => {
             const inner = (
               <>

@@ -8,19 +8,11 @@ import {
   SyncSession,
   Insights,
 } from "./types";
+import { getTimezone } from "./timezone";
 
 // Poll interval for auto-refresh so the dashboard stays live (spec §6).
 const POLL_MS = 45000;
 
-// Browser IANA timezone, sent to /api/activity so the backend buckets version
-// dates into the SAME calendar days the Heatmap renders (fixes the off-by-one).
-function browserTz(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles";
-  } catch {
-    return "America/Los_Angeles";
-  }
-}
 
 export function useFigmaData() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -45,7 +37,7 @@ export function useFigmaData() {
 
   const fetchData = useCallback(async () => {
     const currentFetchId = ++fetchIdRef.current;
-    const tz = browserTz();
+    const tz = getTimezone();
     const fileKeysParam =
       selectedFileKeys.length > 0
         ? `&fileKeys=${encodeURIComponent(selectedFileKeys.join(","))}`

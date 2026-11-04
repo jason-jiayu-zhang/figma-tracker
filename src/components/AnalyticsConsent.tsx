@@ -1,8 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { Link } from "react-router";
-import { BarChart3 } from "lucide-react";
 import { getConsent, setConsent, subscribeConsent } from "../posthog";
-import { Button, Card, SectionHeader } from "./ui";
+import { Button } from "./ui";
 
 export function useConsent() {
   return useSyncExternalStore(subscribeConsent, getConsent, () => "unset" as const);
@@ -31,26 +30,35 @@ export function AnalyticsNotice() {
   );
 }
 
-/** Settings panel so the choice can be changed any time. */
-export function AnalyticsCard() {
+/** Settings section so the choice can be changed any time. */
+export function AnalyticsSection() {
   const consent = useConsent();
   const on = consent === "granted";
   return (
-    <Card className="flex flex-col gap-5 p-6 animate-fade-in-up">
-      <SectionHeader
-        icon={<BarChart3 size={20} />}
-        title="Analytics"
-        subtitle="Help us improve Fimanu with an analytics cookie tied to your account."
-      />
-      <p className="text-[13px] text-muted leading-relaxed max-w-[560px]">
-        Currently <strong className="text-ink">{on ? "on" : "off"}</strong>. When off, nothing is stored on
-        your device for analytics. Your sign-in cookie and embeds are unaffected.
-      </p>
-      <div>
-        <Button variant={on ? "secondary" : "primary"} onClick={() => setConsent(on ? "denied" : "granted")}>
-          {on ? "Turn off analytics" : "Turn on analytics"}
-        </Button>
+    <>
+      <div className="flex flex-col items-start gap-3">
+        <h1 className="display text-[clamp(1.25rem,5.6vw,2rem)]">Privacy</h1>
+        <p className="text-[16px] leading-relaxed text-body">
+          Help us improve Fimanu with an analytics cookie tied to your account.
+        </p>
       </div>
-    </Card>
+      <div className="flex items-center justify-between gap-4">
+        <span className="flex flex-col gap-0.5">
+          <span className="ui-text text-ink">Analytics is {on ? "on" : "off"}</span>
+          <span className="text-[13px] text-muted">
+            When off, nothing is stored on your device for analytics. Your sign-in cookie and embeds are unaffected.
+          </span>
+        </span>
+      </div>
+      <div>
+        <button
+          type="button"
+          onClick={() => setConsent(on ? "denied" : "granted")}
+          className={`ui-text inline-flex h-11 items-center justify-center rounded-full px-6 transition-[background-color,color,transform] duration-200 ease-out-cubic active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas ${on ? "border border-ink/15 text-ink hover:bg-ink/[0.04]" : "bg-accent text-white hover:bg-accent-hover active:bg-accent-active"}`}
+        >
+          {on ? "Turn off analytics" : "Turn on analytics"}
+        </button>
+      </div>
+    </>
   );
 }

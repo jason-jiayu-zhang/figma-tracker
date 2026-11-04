@@ -1,6 +1,7 @@
 import Studio from "./pages/Studio";
 import Files from "./pages/Files";
 import Settings from "./pages/Settings";
+import Profile from "./pages/Profile";
 import { AppShellSkeleton } from "./components/AppShell";
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router";
@@ -44,6 +45,7 @@ function AppLayout() {
           <Routes>
             <Route path="/files" element={<Files />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/profile" element={<Profile />} />
             {/* Legacy alias */}
             <Route path="/home" element={<Navigate to="/studio" replace />} />
             <Route path="*" element={<Navigate to="/studio" replace />} />
@@ -158,6 +160,7 @@ function AppRoutes() {
         <Route path="/studio" element={<Studio />} />
         <Route path="/files" element={<Files />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/" element={<Navigate to="/studio" replace />} />
         <Route path="*" element={<AppLayout />} />
       </Routes>

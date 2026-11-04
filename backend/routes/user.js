@@ -33,6 +33,108 @@ router.get("/me", async (req, res) => {
   }
 });
 
+// GET /api/user/connection -> what Fimanu is allowed to read from Figma.
+// Tokens are never returned; only the granted scopes and when the account connected.
+router.get("/connection", async (req, res) => {
+  try {
+    const session = getSessionUser(req);
+    if (!session) return res.status(401).json({ error: "Not authenticated" });
+
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("scopes, created_at")
+      .eq("id", session.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    res.json({
+      scopes: user.scopes ? String(user.scopes).split(/[\s,]+/).filter(Boolean) : [],
+      connected_at: user.created_at || null,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Page through a query so exports aren't truncated at the API's row limit.
+async function fetchAll(buildQuery) {
+  const PAGE = 1000;
+  const out = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+    if (error) throw error;
+    out.push(...data);
+    if (data.length < PAGE) break;
+  }
+  return out;
+}
+
+// GET /api/user/export -> everything Fimanu stores for this account, as a JSON
+// download. Excludes tokens and other people's comment text.
+router.get("/export", async (req, res) => {
+  try {
+    const session = getSessionUser(req);
+    if (!session) return res.status(401).json({ error: "Not authenticated" });
+
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("figma_user_id, handle, display_name, profile_slug, public_enabled, scopes, created_at")
+      .eq("id", session.id)
+      .maybeSingle();
+    if (userErr) throw userErr;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const files = await fetchAll(() =>
+      supabase
+        .from("figma_files")
+        .select("id, file_key, name, project_name, last_modified, archived_at, last_synced_at, created_at")
+        .eq("owner_user_id", session.id)
+        .order("created_at", { ascending: true }),
+    );
+    const ids = files.map((f) => f.id);
+    const keyById = Object.fromEntries(files.map((f) => [f.id, f.file_key]));
+
+    let versions = [];
+    let daily = [];
+    if (ids.length) {
+      versions = (
+        await fetchAll(() =>
+          supabase
+            .from("file_versions")
+            .select("file_id, version_id, label, description, created_at, created_by_handle")
+            .in("file_id", ids)
+            .order("created_at", { ascending: true }),
+        )
+      ).map(({ file_id, ...v }) => ({ file_key: keyById[file_id], ...v }));
+      daily = (
+        await fetchAll(() =>
+          supabase
+            .from("daily_activity")
+            .select("file_id, activity_date, version_count")
+            .in("file_id", ids)
+            .order("activity_date", { ascending: true }),
+        )
+      ).map(({ file_id, ...d }) => ({ file_key: keyById[file_id], ...d }));
+    }
+
+    const payload = {
+      exported_at: new Date().toISOString(),
+      account: user,
+      files: files.map(({ id, ...f }) => f),
+      versions,
+      daily_activity: daily,
+    };
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="fimanu-export.json"');
+    res.send(JSON.stringify(payload, null, 2));
+  } catch (err) {
+    console.error("[/api/user/export] Error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/user/logout -> clears ft_session cookie.
 router.post("/logout", async (req, res) => {
   clearSessionCookie(res);

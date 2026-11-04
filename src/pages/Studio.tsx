@@ -227,7 +227,7 @@ function CodePopover({
   );
 }
 
-// Publish · Get code · Preview — identical for all three widgets, so the only
+// Publish · Preview · Get code — identical for all three widgets, so the only
 // per-widget inputs are the snippets and the URL the telescope opens.
 function HeaderActions({
   published,
@@ -247,9 +247,8 @@ function HeaderActions({
   return (
     <>
       <PublishControl />
-      <CodePopover published={published} note={note} snippets={snippets} copiedKey={copiedKey} copy={copy} />
       {/* A quiet icon, same treatment as the settings icon beside it — Get code is
-          the one filled action in the header. */}
+          the one filled action, pinned to the right edge. */}
       <button
         type="button"
         title="Preview in browser"
@@ -260,6 +259,7 @@ function HeaderActions({
       >
         <Telescope size={16} />
       </button>
+      <CodePopover published={published} note={note} snippets={snippets} copiedKey={copiedKey} copy={copy} />
     </>
   );
 }

@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Link } from 'react-router';
 import { ActivityData, FigmaFile } from '../types';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { colorForKey } from './ui';
+import { BarChart3 } from 'lucide-react';
+import { EmptyState, colorForKey } from './ui';
 
 interface FileVolumeBreakdownProps {
   activity: ActivityData | null;
@@ -61,19 +62,24 @@ export default function FileVolumeBreakdown({
 
   if (displayItems.length === 0)
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 w-full rounded-2xl bg-canvas">
-        <p className="text-[13px] text-body tracking-[-0.12px] text-balance text-center">
-          No edit volume to break down yet.
-        </p>
-        {!embedded && (
-          <Link
-            to="/files"
-            className="text-[13px] font-bold text-white bg-accent hover:bg-accent-hover active:bg-accent-active px-4 py-2 rounded-lg transition-colors no-underline"
-          >
-            Add a file
-          </Link>
-        )}
-      </div>
+      <EmptyState
+        compact
+        bordered={false}
+        className="flex-1 rounded-2xl bg-canvas"
+        icon={<BarChart3 size={18} />}
+        title="No edit volume yet"
+        description="Once your files have edits, they'll be broken down here."
+        action={
+          !embedded && (
+            <Link
+              to="/files"
+              className="text-[13px] font-bold text-white bg-accent hover:bg-accent-hover active:bg-accent-active px-4 py-2 rounded-lg transition-colors no-underline"
+            >
+              Add a file
+            </Link>
+          )
+        }
+      />
     );
 
   return (

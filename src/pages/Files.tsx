@@ -4,7 +4,7 @@ import { useSearchParams } from "react-router";
 import { useFigmaData } from "../useFigmaData";
 import { formatDistanceToNow, formatDistanceToNowStrict } from "date-fns";
 import AddFileModal from "../components/AddFileModal";
-import { Button, IconChip, SegmentedControl, colorForKey } from "../components/ui";
+import { Button, ConfirmDialog, EmptyState, SegmentedControl, colorForKey } from "../components/ui";
 import AppShell, { Field, SidebarControls, SidebarSkeleton, SidebarSwitcher } from "../components/AppShell";
 import { FigmaFile } from "../types";
 
@@ -150,9 +150,19 @@ export default function Files() {
     }
   }, [searchParams, setSearchParams]);
 
-  const handleRemoveFile = async (fileKey: string) => {
-    if (confirm("Are you sure you want to stop tracking this file?")) {
-      await removeFile(fileKey);
+  const [pendingRemove, setPendingRemove] = useState<FigmaFile | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const handleRemoveFile = (fileKey: string) => {
+    setPendingRemove(allFiles.find((f) => f.file_key === fileKey) ?? null);
+  };
+  const confirmRemove = async () => {
+    if (!pendingRemove) return;
+    setRemoving(true);
+    try {
+      await removeFile(pendingRemove.file_key);
+    } finally {
+      setRemoving(false);
+      setPendingRemove(null);
     }
   };
 
@@ -242,6 +252,7 @@ export default function Files() {
                 <SegmentedControl
                   ariaLabel="Sort files"
                   size="sm"
+                  fill
                   value={sortKey}
                   onChange={setSortKey}
                   options={[
@@ -256,7 +267,7 @@ export default function Files() {
                 role="switch"
                 aria-checked={groupByProject}
                 onClick={() => setGroupByProject((v) => !v)}
-                className={`flex items-center justify-center gap-1.5 h-9 px-3 rounded-lg border text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${groupByProject ? "bg-ink border-ink text-white" : "bg-canvas border-line text-body hover:text-ink"}`}
+                className={`w-full flex items-center justify-center gap-1.5 h-10 px-3 rounded-xl border text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${groupByProject ? "bg-ink border-ink text-white" : "bg-canvas border-line text-body hover:text-ink"}`}
               >
                 <FolderTree size={15} />
                 <span className="whitespace-nowrap">Group by project</span>
@@ -297,7 +308,8 @@ export default function Files() {
               {/* Table Header */}
               <thead role="rowgroup" className="w-full">
                 <tr role="row" className="content-stretch flex items-center justify-between gap-4 pl-6 pr-6 py-1 relative shrink-0 w-full">
-                  <th role="columnheader" scope="col" className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-[200px] pr-4 relative font-medium leading-[normal] text-[13px] text-muted tracking-[-0.13px]">
+                  {/* pl-[22px] = row's status dot (10px) + gap-3 (12px), so the label sits over the name/ID text. */}
+                  <th role="columnheader" scope="col" className="content-stretch flex flex-[1_0_0] items-center justify-start min-h-px min-w-[200px] pl-[22px] pr-4 relative font-medium leading-[normal] text-[13px] text-muted tracking-[-0.13px]">
                     File ID
                   </th>
                   <th role="columnheader" scope="col" className="flex-[1_0_0] font-medium leading-[normal] min-h-px min-w-px relative text-[13px] text-muted text-center tracking-[-0.13px]">
@@ -337,36 +349,68 @@ export default function Files() {
                       <FileRow key={file.file_key} file={file} index={i} onRemove={handleRemoveFile} onArchive={archiveFile} />
                     ))}
 
-                {visible.length === 0 && (
-                  <tr role="row" className="w-full">
-                    <td role="cell" className="w-full py-10 text-center text-[14px] text-body">
-                      {q ? `No files match “${query}”.` : `No ${view === "archived" ? "archived" : "active"} files.`}
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
             )}
 
+            {hasFiles && visible.length === 0 && (
+              q ? (
+                <EmptyState
+                  icon={<Search size={20} />}
+                  title="No matching files"
+                  description={<>Nothing in {view === "all" ? "your files" : `${view} files`} matches “{query}”.</>}
+                  action={<Button variant="ghost" className="border border-line" onClick={() => setQuery("")}>Clear search</Button>}
+                />
+              ) : view === "archived" ? (
+                <EmptyState
+                  icon={<Archive size={20} />}
+                  title="No archived files"
+                  description="Archive files you no longer work on. They stay synced but drop out of your widgets and stats."
+                  action={<Button variant="ghost" className="border border-line" onClick={() => setView("active")}>Back to active files</Button>}
+                />
+              ) : view === "active" ? (
+                <EmptyState
+                  icon={<ArchiveRestore size={20} />}
+                  title="All files are archived"
+                  description="Nothing is feeding your widgets right now. Unarchive a file to include it again."
+                  action={<Button variant="ghost" className="border border-line" onClick={() => setView("archived")}>View archived files</Button>}
+                />
+              ) : null
+            )}
+
             {!hasFiles && (
-              <div className="flex-1 w-full flex flex-col items-center justify-center text-center gap-4">
-                <IconChip plain>
-                  <FileText size={20} />
-                </IconChip>
-                <div className="flex flex-col gap-1.5 max-w-[320px]">
-                  <h3 className="display text-[18px] text-ink">No files tracked yet</h3>
-                  <p className="text-[14px] text-body leading-relaxed">
-                    Add a Figma file to start tracking its version history and activity.
-                  </p>
-                </div>
-                <Button onClick={() => setShowAddModal(true)}>
-                  <Plus size={16} /> Add your first file
-                </Button>
-              </div>
+              <EmptyState
+                className="my-auto"
+                icon={<FileText size={20} />}
+                title="No files tracked yet"
+                description="Add a Figma file to start tracking its version history and activity."
+                action={<Button onClick={() => setShowAddModal(true)}><Plus size={16} /> Add your first file</Button>}
+              />
             )}
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingRemove}
+        onClose={() => setPendingRemove(null)}
+        onConfirm={confirmRemove}
+        busy={removing}
+        tone="danger"
+        title="Stop tracking this file?"
+        description={
+          <>
+            <span className="font-semibold text-ink">{pendingRemove?.name || pendingRemove?.file_key}</span> will be
+            removed along with its tracked history, and it will drop out of your widgets and stats. You can add it
+            again later, but its history will have to sync from scratch.
+            {pendingRemove && !pendingRemove.archived_at && (
+              <> If you only want it out of your widgets, archive it instead.</>
+            )}
+          </>
+        }
+        confirmLabel="Stop tracking"
+        cancelLabel="Keep tracking"
+      />
 
       {/* Add File Modal */}
       <AddFileModal

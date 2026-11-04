@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router";
 import { useSession } from "../session";
-import { FileText, Wand2, Settings as SettingsIcon, Plus, User as UserIcon } from "lucide-react";
+import { FileText, Wand2, Settings as SettingsIcon, User as UserIcon } from "lucide-react";
 import { SHELL } from "./ui";
 
 const NAV = [
@@ -21,7 +21,7 @@ function useIsActive() {
   return (p: string) => path === p || (p !== "/" && path.startsWith(p));
 }
 
-/** Primary destinations + quick-add. `bare` drops the pill container's own
+/** Primary destinations. `bare` drops the pill container's own
    surface so it can sit inside another card (the Studio header). */
 export function PrimaryNav({ bare = false }: { bare?: boolean }) {
   const isActive = useIsActive();
@@ -44,17 +44,6 @@ export function PrimaryNav({ bare = false }: { bare?: boolean }) {
             <span className="max-sm:sr-only">{item.label}</span>
           </Link>
         ))}
-
-        {/* Quick-add is an ACTION, not a destination — accent-filled so it reads
-            as "create". Opens the Add File modal from anywhere via /files?add=1. */}
-        <Link
-          to="/files?add=1"
-          title="Track a new file"
-          aria-label="Track a new file"
-          className="flex items-center justify-center size-8 rounded-full bg-accent text-white transition-[background-color,transform] duration-150 ease-out hover:bg-accent-hover active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-        >
-          <Plus size={16} strokeWidth={3} />
-        </Link>
       </nav>
   );
 }
@@ -77,10 +66,11 @@ export function AccountNav({ bare = false }: { bare?: boolean }) {
           <SettingsIcon size={16} />
         </Link>
         <Link
-          to="/settings"
-          title="Account"
-          aria-label="Account"
-          className="size-8 rounded-full overflow-hidden bg-canvas flex items-center justify-center text-muted transition-transform duration-150 ease-out hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          to="/profile"
+          title="Profile"
+          aria-label="Profile"
+          aria-current={isActive("/profile") ? "page" : undefined}
+          className={`size-8 rounded-full overflow-hidden bg-canvas flex items-center justify-center text-muted transition-transform duration-150 ease-out hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${isActive("/profile") ? "ring-2 ring-accent/50" : ""}`}
         >
           {user?.img_url ? (
             <img alt={user.handle || "Profile"} className="block size-full object-cover" src={user.img_url} />
