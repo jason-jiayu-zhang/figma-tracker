@@ -154,15 +154,26 @@ h3 {
     width: 6px;
     height: 6px;
   }
+  /* Colors come from --sb-track / --sb-thumb / --sb-thumb-hover, which a
+     component can set inline to match its theme (Heatmap does). Fallbacks
+     keep the neutral look everywhere else. */
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: var(--sb-track, transparent);
+    border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.15);
+    background: var(--sb-thumb, rgba(0, 0, 0, 0.15));
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.28);
+    background: var(--sb-thumb-hover, rgba(0, 0, 0, 0.28));
+  }
+  /* Firefox ignores ::-webkit-scrollbar; give it the same colors. */
+  @supports not selector(::-webkit-scrollbar) {
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: var(--sb-thumb, rgba(0, 0, 0, 0.15)) var(--sb-track, transparent);
+    }
   }
 
   /* ── Landing fade-in-up (used by Landing.tsx) ─────────── */

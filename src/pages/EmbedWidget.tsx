@@ -6,7 +6,7 @@ import Heatmap, { HeatmapTheme } from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
 import { ActivityData, FigmaFile } from "../types";
 import { APP_ORIGIN } from "../config";
-import { themeForStyle, breakdownThemeForStyle } from "../embedThemes";
+import { themeForStyle, breakdownThemeForStyle, styleBg } from "../embedThemes";
 
 // True when rendered inside an <iframe>. Embedded, we hug the content so the
 // host iframe isn't padded out to a full 100vh of empty space; standalone
@@ -268,6 +268,7 @@ export default function EmbedWidget() {
   const text = searchParams.get("text");
   const empty = searchParams.get("empty");
   const levels = searchParams.get("levels")?.split("-");
+  const scroll = searchParams.get("scroll");
   const radius = searchParams.get("radius");
   const size = searchParams.get("size");
 
@@ -278,6 +279,7 @@ export default function EmbedWidget() {
     emptyColor: empty ? `#${empty}` : baseTheme.emptyColor,
     textColor: text ? `#${text}` : baseTheme.textColor,
     levelColors: levels && levels.length === 4 ? levels.map((l) => `#${l}`) : baseTheme.levelColors,
+    scrollbarColor: scroll ? `#${scroll}` : undefined,
     rectRadius: radius ? parseFloat(radius) : baseTheme.rectRadius,
     rectSize: size ? parseFloat(size) : baseTheme.rectSize,
   };
@@ -324,7 +326,7 @@ export default function EmbedWidget() {
   const bgColor =
     bg === "transparent" ? "transparent"
     : bg ? `#${bg}`
-    : (rawStyle === "github" ? "#0d1116" : "#fffaf4");
+    : (styleBg[rawStyle] ?? styleBg.fimanu);
   const profileUrl = APP_ORIGIN;
 
   const outerStyle: React.CSSProperties = isEmbedded

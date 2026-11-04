@@ -29,6 +29,8 @@ export interface HeatmapTheme {
   textColor?: string;
   tooltipBgColor?: string;
   tooltipTextColor?: string;
+  /** Horizontal scrollbar thumb. Defaults to the second ramp step. */
+  scrollbarColor?: string;
 }
 
 interface HeatmapProps {
@@ -71,6 +73,7 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
   const tLevelColors = customTheme?.levelColors ?? (isLight
     ? ["#ffe0cc", "#fdaf7a", "#f8722f", "#d1330f"]
     : ["#5c2410", "#9c3d14", "#e0651c", "#ff9a52"]);
+  const tScrollbar = customTheme?.scrollbarColor ?? tLevelColors[1] ?? tLevelColors[0];
   const tTooltipBg = customTheme?.tooltipBgColor ?? "#2C2C2C";
   const tTooltipText = customTheme?.tooltipTextColor ?? "white";
 
@@ -203,7 +206,19 @@ export default function Heatmap({ data, theme = "light", customTheme, profileUrl
         // That alone would let the horizontal scrollbar's reserved 6px clip the
         // bottom cell row (only popped back into view on hover via scale-110),
         // so the grid's bottom padding below must be >= that 6px to clear it.
-        className="overflow-x-auto overflow-y-clip custom-scrollbar relative"
+        //
+        // overflow-x-scroll (not auto) always reserves the 6px scrollbar track,
+        // so the card height is the same whether or not the grid currently
+        // overflows. With `auto` the track only appeared once layout settled
+        // (hover/resize), making the card jump taller by 6px.
+        className="overflow-x-scroll overflow-y-clip custom-scrollbar relative"
+        // Scrollbar picks up the widget's own palette (track = empty cell,
+        // thumb = mid/strong ramp steps) so it follows presets and custom themes.
+        style={{
+          "--sb-track": tEmptyColor,
+          "--sb-thumb": tScrollbar,
+          "--sb-thumb-hover": `color-mix(in srgb, ${tScrollbar} 80%, black)`,
+        } as React.CSSProperties}
       >
         {/* Grid Container — pb-2 (8px) clears the 6px horizontal scrollbar so
             overflow-y-clip doesn't cut off the bottom row of cells. */}

@@ -23,7 +23,7 @@ export const figmaTheme: HeatmapTheme = {
 // Default background painted behind the heatmap for each preset.
 export const styleBg: Record<string, string> = {
   github: "#0d1116",
-  figma: "#fffaf4",
+  figma: "#ffffff", // Figma's own white
   fimanu: "#fffaf4",
 };
 
