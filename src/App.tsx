@@ -155,6 +155,8 @@ function AppRoutes() {
         <Route path="/onboard" element={<Onboard />} />
         {/* Studio is a full-screen canvas — no sidebar/AppLayout shell. */}
         <Route path="/studio" element={<Studio />} />
+        <Route path="/files" element={<Files />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/" element={<Navigate to="/studio" replace />} />
         <Route path="*" element={<AppLayout />} />
       </Routes>
