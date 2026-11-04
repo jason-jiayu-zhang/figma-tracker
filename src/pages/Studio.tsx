@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import posthog from "posthog-js";
 import Heatmap from "../components/Heatmap";
 import FileVolumeBreakdown from "../components/FileVolumeBreakdown";
-import { Link } from "react-router";
-import imgFimanuLogoFull from "../assets/fimanu-logo-full.svg";
-import TopNav, { PrimaryNav, AccountNav } from "../components/TopNav";
+import TopNav from "../components/TopNav";
+import AppShell, { Field, SidebarSkeleton, SidebarControls, SidebarSwitcher, type SidebarSection } from "../components/AppShell";
 import { Check, Telescope, Layers, ChevronDown, Grid3x3, Flame, Code, Palette, Ruler, Database } from "lucide-react";
 import { useFigmaData } from "../useFigmaData";
 import { Button, SegmentedControl, Popover, SHELL } from "../components/ui";
@@ -93,7 +92,7 @@ function FilesPopover({
           aria-expanded={isOpen}
           aria-haspopup="true"
           onClick={toggle}
-          className="flex items-center gap-1.5 h-9 px-3 w-full rounded-lg bg-canvas border border-line text-[13px] font-bold text-body hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="flex items-center gap-1.5 h-9 px-3 w-full rounded-xl bg-canvas border border-line text-[13px] font-bold text-body hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           <Layers size={15} />
           <span className="whitespace-nowrap">{label}</span>
@@ -163,49 +162,9 @@ function ToggleField({
   );
 }
 
-type SidebarSection = { id: string; label: string; icon: React.ReactNode; content: React.ReactNode };
-
 // What each widget contributes to the Studio chrome: publish/share actions for
 // the header bar, and grouped controls for the sidebar.
 type StudioControls = { actions: React.ReactNode; sections: SidebarSection[] };
-
-// Labeled group inside a section so related controls read as one unit.
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-[11px] font-bold text-muted uppercase tracking-wider">{label}</span>
-      {children}
-    </div>
-  );
-}
-
-// Sidebar controls. Every section is visible at once, so nothing is hidden
-// behind a tab and the canvas never has to dodge a floating panel.
-function SidebarControls({ sections }: { sections: SidebarSection[] }) {
-  return (
-    <div
-      role="group"
-      aria-label="Widget settings"
-      // Below lg the controls are the last thing on the page, so give them room to
-      // breathe (plus the iOS home-indicator inset) instead of ending flush at the edge.
-      className="bg-surface border-t border-hairline max-lg:pb-[calc(2rem+env(safe-area-inset-bottom))] lg:border-t-0 lg:border-r lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto custom-scrollbar"
-    >
-      {sections.map((sec) => (
-        <section
-          key={sec.id}
-          aria-labelledby={`sidebar-${sec.id}`}
-          className="flex flex-col gap-3.5 px-4 py-4 border-b border-hairline last:border-b-0 lg:px-5"
-        >
-          <h2 id={`sidebar-${sec.id}`} className="flex items-center gap-1.5 text-[13px] font-extrabold text-accent">
-            {sec.icon}
-            {sec.label}
-          </h2>
-          {sec.content}
-        </section>
-      ))}
-    </div>
-  );
-}
 
 type Snippet = { key: string; label: string; value: string };
 
@@ -529,10 +488,12 @@ export default function Studio() {
     activeEmpty,
     activeBg,
     activeText,
+    activeScrollbar,
     activeTheme,
     accentColor,
     bgColor,
     setAccent,
+    setScrollbarColor,
     setLevelColor,
     setEmptyColor,
     setBgColor,
@@ -577,15 +538,7 @@ export default function Studio() {
     []
   );
 
-  if (loading && !activity) {
-    return (
-      <div aria-busy="true" className="bg-canvas flex flex-col items-center justify-center min-h-dvh w-full">
-        <TopNav />
-        <div className={`bg-surface rounded-card border border-line shadow-card h-[220px] animate-pulse motion-reduce:animate-none ${SHELL}`} />
-        <span className="sr-only" role="status" aria-live="polite">Loading studio…</span>
-      </div>
-    );
-  }
+  const initialLoad = loading && !activity;
 
   const heatmapControls: StudioControls = {
     actions: (
@@ -639,9 +592,12 @@ export default function Studio() {
                 ))}
               </div>
             </Field>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Field label="Accent">
-                <ColorPicker title="Accent color (generates the ramp)" color={accentColor} onChange={setAccent} />
+                <ColorPicker title="Accent color (generates the ramp and scrollbar)" color={accentColor} onChange={setAccent} />
+              </Field>
+              <Field label="Scroll">
+                <ColorPicker title="Scrollbar color" color={activeScrollbar} onChange={setScrollbarColor} />
               </Field>
               <Field label="Card">
                 <div className="flex items-center gap-2">
@@ -700,128 +656,93 @@ export default function Studio() {
   );
 
   return (
-    <div className="bg-canvas min-h-dvh lg:h-dvh w-full flex flex-col">
-      {/* Full-width header bar: brand + app nav on the left, this widget's
-          publish/share actions and the account on the right. */}
-      {/* Full-width header bar. A flat list of items reordered per breakpoint with
-          `order-*`. Desktop is a flex row: logo · nav ········ actions | account.
-          Below lg it's a 2-column grid: logo and account share the top row, then nav
-          and actions share the second (wrapping only if the screen is too narrow).
-          That row is `lg:contents`, so on desktop its children join the flex row
-          directly and take their own order. Gutters are 16px on phones, 20px from lg. */}
-      <header className="shrink-0 bg-surface border-b border-hairline px-4 py-3 grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 lg:flex lg:flex-wrap lg:px-5 lg:py-4">
-        <Link to="/studio" aria-label="Fimanu" className="order-1 justify-self-start shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-          <img src={imgFimanuLogoFull} alt="Fimanu" className="h-7 w-auto" />
-        </Link>
-        <div className="order-2 lg:order-5">
-          <AccountNav bare />
+    <AppShell
+      actions={controls.actions}
+      sidebarTop={
+        <SidebarSwitcher
+          label="Widget"
+          value={widgetMode}
+          options={WIDGETS}
+          onChange={(id) => {
+            posthog.capture('studio_select_widget', { widget: id });
+            setWidgetMode(id);
+          }}
+        />
+      }
+      sidebar={initialLoad ? <SidebarSkeleton /> : <SidebarControls label="Widget settings" sections={sections} />}
+    >
+      {/* p-6 leaves room for the card shadow inside the scroll container; my-auto
+          centers short previews but lets tall ones scroll from the top. */}
+      {initialLoad ? (
+        <div role="status" className="flex flex-1 items-center justify-center">
+          <div aria-hidden="true" className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          <span className="sr-only">Loading studio…</span>
         </div>
-        <div className="order-3 col-span-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 lg:contents">
-          <div className="lg:order-2 lg:ml-1">
-            <PrimaryNav bare />
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 lg:order-3 lg:ml-auto">{controls.actions}</div>
-        </div>
-        <div className="hidden lg:block order-4 w-px h-5 bg-line" aria-hidden="true" />
-      </header>
-
-      <div className="flex-1 min-h-0 flex flex-col lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)]">
-      {/* Sidebar, top: widget switcher. Everything in the sidebar shares one px-5
-          inset. On small screens the DOM order (switcher → canvas → controls) keeps
-          the preview next to the switcher. */}
-      <div className="px-4 py-3 bg-surface border-b border-hairline lg:px-5 lg:py-4 lg:border-r lg:col-start-1 lg:row-start-1">
-        <div role="radiogroup" aria-label="Widget" className="grid grid-cols-3 gap-1.5 p-1.5 rounded-2xl bg-canvas">
-          {WIDGETS.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              role="radio"
-              aria-checked={widgetMode === w.id}
-              onClick={() => {
-                posthog.capture('studio_select_widget', { widget: w.id });
-                setWidgetMode(w.id);
-              }}
-              className={`flex flex-col items-center justify-center gap-1.5 min-w-0 px-1 py-2.5 rounded-xl text-[12px] leading-none font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${widgetMode === w.id ? "bg-surface text-ink ring-1 ring-accent/30 shadow-sm" : "text-muted hover:text-ink"}`}
-            >
-              {w.icon}
-              <span className="max-w-full truncate">{w.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Canvas: the preview. */}
-      <main className="flex flex-col min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:min-h-0">
-        {/* p-6 leaves room for the card shadow inside the scroll container; my-auto
-            centers short previews but lets tall ones scroll from the top. */}
-        <div className="flex-1 min-h-0 flex justify-center p-4 lg:p-6 lg:overflow-y-auto">
-          {/* Outer hugs the widget's natural width (percentage widths don't feed
-              intrinsic sizing), so the slider scales relative to that hug. */}
-          <div className="w-fit max-w-full my-auto">
-            {/* The heatmap legend (scale + credit) needs ~400px on one row; below
-                that the slider stops shrinking the card so the footer isn't clipped. */}
-            <div
-              className={`transition-[width] duration-150 ${widgetMode === "heatmap" ? "sm:min-w-[400px]" : ""}`}
-              style={{ width: `${previewWidth}%` }}
-            >
-              {widgetMode === "heatmap" ? (
-                <div
-                  className="w-full rounded-2xl border border-transparent shadow-card p-5 flex flex-col gap-4 transition-colors"
-                  style={transparentBg ? checkerboard() : { backgroundColor: activeBg }}
-                >
-                  <Heatmap
-                    data={activity?.dailyTotals ?? {}}
-                    theme={embedStyle === "GitHub Style" ? "dark" : "light"}
-                    customTheme={activeTheme}
-                    days={days}
+      ) : (
+      <div className="flex-1 min-h-0 flex justify-center p-4 lg:p-6 lg:overflow-y-auto">
+        {/* Outer hugs the widget's natural width (percentage widths don't feed
+            intrinsic sizing), so the slider scales relative to that hug. */}
+        <div className="w-fit max-w-full my-auto">
+          {/* The heatmap legend (scale + credit) needs ~400px on one row; below
+              that the slider stops shrinking the card so the footer isn't clipped. */}
+          <div
+            className={`transition-[width] duration-150 ${widgetMode === "heatmap" ? "sm:min-w-[400px]" : ""}`}
+            style={{ width: `${previewWidth}%` }}
+          >
+            {widgetMode === "heatmap" ? (
+              <div
+                className="w-full rounded-2xl border border-transparent shadow-card p-5 flex flex-col gap-4 transition-colors"
+                style={transparentBg ? checkerboard() : { backgroundColor: activeBg }}
+              >
+                <Heatmap
+                  data={activity?.dailyTotals ?? {}}
+                  theme={embedStyle === "GitHub Style" ? "dark" : "light"}
+                  customTheme={activeTheme}
+                  days={days}
+                />
+              </div>
+            ) : widgetMode === "breakdown" ? (
+              <div
+                className="w-full rounded-2xl border border-transparent shadow-card p-4 flex flex-col transition-colors"
+                style={breakdown.transparentBg ? { ...checkerboard(), height: 320 } : { backgroundColor: breakdown.activeBg, height: 320 }}
+              >
+                <FileVolumeBreakdown
+                  activity={previewActivity}
+                  files={files}
+                  embedded
+                  cardRadius={breakdown.radius}
+                  textColor={breakdown.activeText}
+                  cardColors={breakdown.activeCards}
+                />
+              </div>
+            ) : (
+              <div
+                className="w-full rounded-2xl border border-transparent shadow-card px-12 py-10 flex items-center justify-center transition-colors"
+                style={{ backgroundColor: streak.preset.host }}
+              >
+                {!streak.published ? (
+                  <p className="text-[12px] text-muted max-w-[280px] text-center leading-snug">
+                    Publish your profile to preview your streak badge.
+                  </p>
+                ) : streak.output === "iframe" ? (
+                  /* The website output renders through the real embed route, so
+                     the font choice previews the way a visitor would see it. */
+                  <iframe
+                    key={streak.iframeUrl}
+                    src={streak.iframeUrl}
+                    title="Streak badge preview"
+                    scrolling="no"
+                    className="w-full h-11 border-none overflow-hidden"
                   />
-                </div>
-              ) : widgetMode === "breakdown" ? (
-                <div
-                  className="w-full rounded-2xl border border-transparent shadow-card p-4 flex flex-col transition-colors"
-                  style={breakdown.transparentBg ? { ...checkerboard(), height: 320 } : { backgroundColor: breakdown.activeBg, height: 320 }}
-                >
-                  <FileVolumeBreakdown
-                    activity={previewActivity}
-                    files={files}
-                    embedded
-                    cardRadius={breakdown.radius}
-                    textColor={breakdown.activeText}
-                    cardColors={breakdown.activeCards}
-                  />
-                </div>
-              ) : (
-                <div
-                  className="w-full rounded-2xl border border-transparent shadow-card px-12 py-10 flex items-center justify-center transition-colors"
-                  style={{ backgroundColor: streak.preset.host }}
-                >
-                  {!streak.published ? (
-                    <p className="text-[12px] text-muted max-w-[280px] text-center leading-snug">
-                      Publish your profile to preview your streak badge.
-                    </p>
-                  ) : streak.output === "iframe" ? (
-                    /* The website output renders through the real embed route, so
-                       the font choice previews the way a visitor would see it. */
-                    <iframe
-                      key={streak.iframeUrl}
-                      src={streak.iframeUrl}
-                      title="Streak badge preview"
-                      scrolling="no"
-                      className="w-full h-11 border-none overflow-hidden"
-                    />
-                  ) : (
-                    <img key={streak.badgeUrl} src={streak.badgeUrl} alt={`${streak.alt} badge preview`} className="h-7" />
-                  )}
-                </div>
-              )}
-            </div>
+                ) : (
+                  <img key={streak.badgeUrl} src={streak.badgeUrl} alt={`${streak.alt} badge preview`} className="h-7" />
+                )}
+              </div>
+            )}
           </div>
         </div>
-      </main>
-
-      {/* Sidebar, body: the widget's controls, scrolling on their own. */}
-      <SidebarControls sections={sections} />
       </div>
-    </div>
+      )}
+    </AppShell>
   );
 }

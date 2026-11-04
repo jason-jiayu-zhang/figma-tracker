@@ -7,6 +7,7 @@ import {
   fimanuTheme,
   githubTheme,
   figmaTheme,
+  styleBg,
   estimateWidgetHeight,
 } from "./embedThemes";
 import type { HeatmapTheme } from "./components/Heatmap";
@@ -28,6 +29,7 @@ type StoredHeatmap = {
   overrideText: string;
   overrideLevels: string[];
   overrideEmpty: string;
+  overrideScrollbar: string;
   accentColor: string;
   transparentBg: boolean;
 };
@@ -59,6 +61,7 @@ export function useEmbedSettings({
   const [overrideText, setOverrideText] = useState<string>(stored.overrideText ?? "");
   const [overrideLevels, setOverrideLevels] = useState<string[]>(stored.overrideLevels ?? []);
   const [overrideEmpty, setOverrideEmpty] = useState<string>(stored.overrideEmpty ?? "");
+  const [overrideScrollbar, setOverrideScrollbar] = useState<string>(stored.overrideScrollbar ?? "");
   const [accentColor, setAccentColor] = useState<string>(stored.accentColor ?? "#f8722f");
   // Paint no background behind the heatmap so it blends into the host page.
   const [transparentBg, setTransparentBg] = useState<boolean>(stored.transparentBg ?? false);
@@ -72,10 +75,11 @@ export function useEmbedSettings({
       overrideText,
       overrideLevels,
       overrideEmpty,
+      overrideScrollbar,
       accentColor,
       transparentBg,
     });
-  }, [embedStyle, rectSize, rectRadius, overrideBg, overrideText, overrideLevels, overrideEmpty, accentColor, transparentBg]);
+  }, [embedStyle, rectSize, rectRadius, overrideBg, overrideText, overrideLevels, overrideEmpty, overrideScrollbar, accentColor, transparentBg]);
 
   // Sync state with URL params on mount and when params change
   useEffect(() => {
@@ -101,6 +105,7 @@ export function useEmbedSettings({
     setOverrideText("");
     setOverrideLevels([]);
     setOverrideEmpty("");
+    setOverrideScrollbar("");
   }, [embedStyle]);
 
   const handleToggleFile = (fileKey: string) => {
@@ -131,8 +136,10 @@ export function useEmbedSettings({
   const activeEmpty = overrideEmpty || baseTheme.emptyColor || "#d9d9d9";
   // The solid color the background picker edits — `activeBg` hides it while the
   // transparent toggle is on, but the picker still needs a real hex to open on.
-  const bgColor = overrideBg || (embedStyle === 'GitHub Style' ? '#0d1116' : '#fffaf4');
+  const bgColor = overrideBg || styleBg[embedStyle.split(" ")[0].toLowerCase()] || styleBg.fimanu;
   const activeBg = transparentBg ? "transparent" : bgColor;
+  // Scrollbar defaults to the ramp's second step until the user picks one.
+  const activeScrollbar = overrideScrollbar || activeLevels[1] || activeEmpty;
   const activeText = overrideText || baseTheme.textColor || "#1A1A1A";
 
   const activeTheme: HeatmapTheme = {
@@ -142,6 +149,7 @@ export function useEmbedSettings({
     levelColors: activeLevels,
     emptyColor: activeEmpty,
     textColor: activeText,
+    scrollbarColor: activeScrollbar,
   };
 
   // Leaving a preset for Custom Style: Custom's base is the Fimanu theme with no
@@ -154,6 +162,7 @@ export function useEmbedSettings({
     setOverrideText(activeText);
     setOverrideLevels(activeLevels);
     setOverrideEmpty(activeEmpty);
+    setOverrideScrollbar(activeScrollbar);
   };
 
   // Color/slider mutators: any manual edit drops the preset into Custom Style.
@@ -167,6 +176,11 @@ export function useEmbedSettings({
   const setEmptyColor = (color: string) => {
     seedCustomFromPreset();
     setOverrideEmpty(color);
+    setEmbedStyle("Custom Style");
+  };
+  const setScrollbarColor = (color: string) => {
+    seedCustomFromPreset();
+    setOverrideScrollbar(color);
     setEmbedStyle("Custom Style");
   };
   const setBgColor = (color: string) => {
@@ -187,6 +201,7 @@ export function useEmbedSettings({
     setAccentColor(color);
     setOverrideLevels(levels);
     setOverrideEmpty(empty);
+    setOverrideScrollbar(color);
     setEmbedStyle("Custom Style");
   };
   const setSize = (value: number) => {
@@ -217,6 +232,7 @@ export function useEmbedSettings({
       params.set("empty", activeEmpty.replace("#", ""));
       if (activeLevels.length === 4)
         params.set("levels", activeLevels.map((c) => c.replace("#", "")).join("-"));
+      params.set("scroll", activeScrollbar.replace("#", ""));
       params.set("radius", rectRadius.toString());
       params.set("size", rectSize.toString());
     } else if (transparentBg) {
@@ -225,7 +241,7 @@ export function useEmbedSettings({
     }
 
     return `${APP_ORIGIN}/embed-widget?${params.toString()}`;
-  }, [slug, selectedFileKeys, embedStyle, activeBg, activeText, activeEmpty, activeLevels, rectRadius, rectSize, transparentBg, days]);
+  }, [slug, selectedFileKeys, embedStyle, activeBg, activeText, activeEmpty, activeLevels, activeScrollbar, rectRadius, rectSize, transparentBg, days]);
 
   const iframeCode = `<iframe src="${widgetUrl}" width="100%" height="${estimateWidgetHeight(rectSize)}" frameborder="0" scrolling="no" style="border:none;overflow:hidden;" title="Figma activity"></iframe>`;
 
@@ -262,12 +278,14 @@ export function useEmbedSettings({
     activeEmpty,
     activeBg,
     activeText,
+    activeScrollbar,
     activeTheme,
     accentColor,
     bgColor,
     setAccent: (v: string) => { posthog.capture('studio_change_heatmap_accent', { value: v }); setAccent(v); },
     setLevelColor: (i: number, v: string) => { posthog.capture('studio_change_heatmap_level_color', { index: i, value: v }); setLevelColor(i, v); },
     setEmptyColor: (v: string) => { posthog.capture('studio_change_heatmap_empty_color', { value: v }); setEmptyColor(v); },
+    setScrollbarColor: (v: string) => { posthog.capture('studio_change_heatmap_scrollbar_color', { value: v }); setScrollbarColor(v); },
     setBgColor: (v: string) => { posthog.capture('studio_change_heatmap_bg_color', { value: v }); setBgColor(v); },
     setTextColor: (v: string) => { posthog.capture('studio_change_heatmap_text_color', { value: v }); setTextColor(v); },
     setSize: (v: number) => { posthog.capture('studio_change_heatmap_size', { value: v }); setSize(v); },
