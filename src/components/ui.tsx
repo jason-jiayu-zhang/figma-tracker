@@ -80,6 +80,37 @@ export function IconChip({
   );
 }
 
+/**
+ * Skeleton placeholder block. Size/shape via className (e.g. `h-4 w-32`).
+ * Decorative: wrap a group in <SkeletonRegion> to announce loading once.
+ */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`bg-hairline rounded-md animate-pulse motion-reduce:animate-none ${className}`}
+    />
+  );
+}
+
+/** Wraps skeleton blocks with a single polite screen-reader announcement. */
+export function SkeletonRegion({
+  label = "Loading",
+  className = "",
+  children,
+}: {
+  label?: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div role="status" aria-busy="true" aria-live="polite" className={className}>
+      {children}
+      <span className="sr-only">{label}</span>
+    </div>
+  );
+}
+
 /** White elevated card. */
 export function Card({
   className = "",
@@ -190,17 +221,17 @@ export function SegmentedControl<T extends string | number | boolean>({
   fill?: boolean;
 }) {
   const cell =
-    size === "sm" ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-[14px]";
+    size === "sm" ? "h-8 px-3 text-[13px]" : "h-9 px-4 text-[13px]";
   return (
-    <div role="group" aria-label={ariaLabel} className={`bg-canvas flex items-center p-1 rounded-lg ${fill ? "w-full" : "shrink-0"} ${className}`}>
+    <div role="group" aria-label={ariaLabel} className={`bg-canvas flex items-center gap-1 p-1 rounded-xl border border-line ${fill ? "w-full" : "shrink-0"} ${className}`}>
       {options.map((opt) => (
         <button
           key={String(opt.value)}
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
-          className={`flex items-center justify-center rounded-md ${fill ? "flex-1" : ""} transition-[color,background-color,box-shadow] font-normal tracking-[-0.14px] ${cell} ${
+          className={`flex items-center justify-center rounded-lg ${fill ? "flex-1" : ""} transition-[color,background-color,box-shadow] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${cell} ${
             value === opt.value
-              ? "bg-surface shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] text-ink"
+              ? "bg-surface text-ink ring-1 ring-accent/30 shadow-sm"
               : "text-muted hover:text-ink"
           }`}
         >

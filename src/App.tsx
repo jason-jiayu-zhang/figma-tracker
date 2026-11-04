@@ -1,3 +1,7 @@
+import Studio from "./pages/Studio";
+import Files from "./pages/Files";
+import Settings from "./pages/Settings";
+import { AppShellSkeleton } from "./components/AppShell";
 import React, { Suspense, useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useSearchParams } from "react-router";
 import Footer from "./components/Footer";
@@ -6,12 +10,9 @@ import { SHELL, SHELL_TOP_PAD } from "./components/ui";
 import { useSession } from "./session";
 import { IS_APP_MODE } from "./config";
 
-const Studio = React.lazy(() => import("./pages/Studio"));
 const EmbedWidget = React.lazy(() => import("./pages/EmbedWidget"));
 const Onboard = React.lazy(() => import("./pages/Onboard"));
 const Landing = React.lazy(() => import("./pages/Landing"));
-const Files = React.lazy(() => import("./pages/Files"));
-const Settings = React.lazy(() => import("./pages/Settings"));
 const Privacy = React.lazy(() => import("./pages/Privacy"));
 const Terms = React.lazy(() => import("./pages/Terms"));
 const About = React.lazy(() => import("./pages/About"));
@@ -21,7 +22,7 @@ function Spinner({ label }: { label?: string }) {
   return (
     <div role="status" className="min-h-dvh bg-hairline flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue" />
+        <div aria-hidden="true" className="animate-spin rounded-full h-8 w-8 border-2 border-accent border-t-transparent" />
         {label && (
           <span className="max-w-xs text-center text-[12px] text-muted uppercase tracking-[0.12em] font-semibold">
             {label}
@@ -150,7 +151,7 @@ function AppRoutes() {
   // Logged in: onboarding is still reachable (add-files step), everything else
   // renders in the dashboard shell. Root auto-redirects to /studio.
   return (
-    <Suspense fallback={<Spinner label="Loading" />}>
+    <Suspense fallback={<AppShellSkeleton />}>
       <Routes>
         <Route path="/onboard" element={<Onboard />} />
         {/* Studio is a full-screen canvas — no sidebar/AppLayout shell. */}
