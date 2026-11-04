@@ -5,7 +5,7 @@ import { CONTACT_EMAIL as CONTACT } from "../config";
 
 export default function Privacy() {
   return (
-    <LegalLayout title="Privacy Policy" updated="July 13, 2026">
+    <LegalLayout title="Privacy Policy" updated="November 3, 2026">
       <Seo
         title="Privacy Policy — Fimanu"
         description="How Fimanu collects, uses, and protects your information when you connect your Figma account and use the Service."
@@ -53,15 +53,22 @@ export default function Privacy() {
           addressed by.
         </li>
         <li>
-          <strong>Usage and diagnostic data</strong> — we plan to use PostHog for
-          product analytics to understand how the Service is used and to improve
-          it. This may include pages visited, actions taken, device and browser
-          information, and approximate location derived from your IP address. If
-          and when analytics are enabled, this section governs that collection.
+          <strong>Usage and diagnostic data</strong> — we use PostHog for product
+          analytics to understand how the Service is used and to improve it.
+          This may include pages visited, actions taken, device and browser
+          information, and approximate location derived from your IP address.
+          For signed-out visitors and people viewing an embedded widget, we use
+          in-memory analytics only: nothing is stored on your device and no
+          identifier persists after you leave the page. If you are signed in,
+          we ask once whether we may store an analytics identifier in a cookie
+          and local storage so usage can be tied to your account. If you decline,
+          we keep analytics in memory only. You can change this at any time in
+          Settings → Privacy.
         </li>
         <li>
           <strong>Cookies</strong> — we use a session cookie to keep you signed
-          in. We do not use advertising cookies.
+          in, and, if you opt in while signed in, a PostHog analytics cookie. Embedded
+          widgets set no cookies. We do not use advertising cookies.
         </li>
       </UL>
 
@@ -122,7 +129,7 @@ export default function Privacy() {
           serve the website.
         </li>
         <li>
-          <strong>PostHog</strong> — product analytics (planned).
+          <strong>PostHog</strong> — product analytics.
         </li>
         <li>
           <strong>Figma</strong> — the source of your account and file data, via

@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import axios from "axios";
-import posthog from "posthog-js";
+import { identifyUser, resetUser } from "./posthog";
 
 // Shape returned by GET /api/user/me (200 = logged in, 401 = not).
 export interface SessionUser {
@@ -48,12 +48,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       } catch {
         /* ignore storage errors (private mode, etc.) */
       }
-      posthog.identify(u.figma_user_id, { handle: u.handle });
+      identifyUser(u.figma_user_id, { handle: u.handle });
       return u;
     } catch {
       // 401 (or network) => treat as logged out.
       setUser(null);
-      posthog.reset();
+      resetUser();
       return null;
     } finally {
       setLoading(false);

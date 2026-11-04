@@ -3,13 +3,15 @@ import posthog from "posthog-js";
 import axios from 'axios';
 import { useSession } from '../session';
 import { APP_ORIGIN } from '../config';
-import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut, Trash2, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, User as UserIcon, Globe, Copy, Check, LogOut, Trash2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Card, SectionHeader, Button } from '../components/ui';
+import { AnalyticsCard } from '../components/AnalyticsConsent';
 import AppShell, { SidebarControls, SidebarSwitcher } from '../components/AppShell';
 
-type Panel = 'publishing' | 'danger';
+type Panel = 'publishing' | 'privacy' | 'danger';
 const PANELS: { id: Panel; label: string; icon: React.ReactNode }[] = [
   { id: 'publishing', label: 'Publishing', icon: <Globe size={15} /> },
+  { id: 'privacy', label: 'Privacy', icon: <ShieldCheck size={15} /> },
   { id: 'danger', label: 'Delete', icon: <Trash2 size={15} /> },
 ];
 
@@ -217,6 +219,8 @@ export default function Settings() {
                   )}
                 </div>
               </Card>
+          ) : panel === 'privacy' ? (
+            <AnalyticsCard />
           ) : (
               <Card className="flex flex-col gap-5 p-6 border-red/30! animate-fade-in-up">
                 <SectionHeader

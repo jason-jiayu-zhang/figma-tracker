@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import imgFimanuLogoFull from "../assets/fimanu-logo-full.svg";
 import { PrimaryNav, AccountNav } from "./TopNav";
 import { Skeleton } from "./ui";
+import { AnalyticsNotice } from "./AnalyticsConsent";
 
 export type SidebarSection = { id: string; label: string; icon: React.ReactNode; content: React.ReactNode };
 
@@ -138,6 +139,7 @@ export default function AppShell({
 
         {sidebar}
       </div>
+      <AnalyticsNotice />
     </div>
   );
 }
