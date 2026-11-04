@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS figma_files (
   sync_cursor TEXT,
   sync_completed BOOLEAN DEFAULT FALSE,
   last_sync_check TIMESTAMPTZ,
+  -- Set only when Figma was actually reachable for this file (meta fetch OK).
+  -- updated_at can't serve: the page sync bumps it BEFORE trying, for queue rotation.
+  last_synced_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   -- Each account tracks the same file independently (per-owner uniqueness).

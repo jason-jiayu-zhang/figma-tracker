@@ -5,6 +5,7 @@ export interface FigmaFile {
   thumbnail_url: string;
   last_modified: string;
   updated_at: string;
+  last_synced_at?: string | null;
   project_name: string;
   teamName: string | null;
   versionCount: number;

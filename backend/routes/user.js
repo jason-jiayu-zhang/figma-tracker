@@ -88,6 +88,7 @@ router.post("/files", async (req, res) => {
           thumbnail_url: meta.thumbnailUrl,
           last_modified: meta.lastModified,
           updated_at: new Date().toISOString(),
+          last_synced_at: new Date().toISOString(),
           sync_completed: false,
         },
         { onConflict: "owner_user_id,file_key" },

@@ -151,7 +151,7 @@ async function computeFiles(user, mode, includeArchived = false) {
   let filesQ = supabase
     .from("figma_files")
     .select(
-      `id, file_key, name, thumbnail_url, last_modified, updated_at, project_name, archived_at,
+      `id, file_key, name, thumbnail_url, last_modified, updated_at, last_synced_at, project_name, archived_at,
        teams ( name )`,
     )
     .eq("owner_user_id", user.id)

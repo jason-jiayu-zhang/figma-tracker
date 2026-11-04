@@ -19,10 +19,22 @@ const VIEWS: { id: ViewMode; label: string; icon: React.ReactNode }[] = [
 
 // A file untouched this long is flagged as an archive candidate.
 const STALE_DAYS = 60;
-function isStale(file: FigmaFile): boolean {
-  if (!file.last_modified) return false;
-  const ageDays = (Date.now() - new Date(file.last_modified).getTime()) / 86400000;
-  return ageDays >= STALE_DAYS;
+// If Figma hasn't been reachable for a file this long, we can't vouch for its
+// date, so show "Can't sync" instead of calling it stale.
+const SYNC_LOST_DAYS = 7;
+const DAY_MS = 86400000;
+
+type FileHealth = "ok" | "stale" | "unsynced";
+function fileHealth(file: FigmaFile): FileHealth {
+  // Rows from before last_synced_at existed (null) are judged by date alone
+  // until their first sync fills it in.
+  if (file.last_synced_at) {
+    const syncAge = (Date.now() - new Date(file.last_synced_at).getTime()) / DAY_MS;
+    if (syncAge >= SYNC_LOST_DAYS) return "unsynced";
+  }
+  if (!file.last_modified) return "ok";
+  const ageDays = (Date.now() - new Date(file.last_modified).getTime()) / DAY_MS;
+  return ageDays >= STALE_DAYS ? "stale" : "ok";
 }
 
 /** One file row. Archived rows render muted; stale active rows get a badge. */
@@ -42,7 +54,7 @@ function FileRow({
   const lastSync = file.last_modified
     ? formatDistanceToNow(new Date(file.last_modified), { addSuffix: true })
     : "Unknown";
-  const stale = !archived && isStale(file);
+  const health = archived ? "ok" : fileHealth(file);
 
   return (
     <tr
@@ -61,9 +73,20 @@ function FileRow({
             <span className="font-extrabold relative shrink-0 text-[15px] text-ink tracking-[-0.15px] truncate">
               {file.name || "Untitled"}
             </span>
-            {stale && (
-              <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 rounded-full px-2 py-0.5">
+            {health === "stale" && (
+              <span
+                title="Reachable, but not edited in Figma for 60+ days"
+                className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent bg-accent/10 rounded-full px-2 py-0.5"
+              >
                 Stale
+              </span>
+            )}
+            {health === "unsynced" && (
+              <span
+                title="We haven't been able to reach this file in Figma for over a week (access lost or token expired), so its date may be out of date"
+                className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted bg-hairline rounded-full px-2 py-0.5"
+              >
+                Can't sync
               </span>
             )}
           </span>

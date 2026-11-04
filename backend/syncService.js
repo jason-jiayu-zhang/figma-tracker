@@ -118,6 +118,7 @@ async function runSync() {
               thumbnail_url: meta.thumbnailUrl,
               last_modified: meta.lastModified,
               updated_at: new Date().toISOString(),
+              last_synced_at: new Date().toISOString(),
             },
             { onConflict: "owner_user_id,file_key" },
           )
@@ -240,6 +241,12 @@ async function runPageSync() {
     if (fileRow && now - lastCheck > fiveMins) {
       console.log(`[page-sync-v3] ${fileKey}: Checking for NEW versions...`);
 
+      // Refresh metadata first. This is what keeps last_modified current (the
+      // Stale badge reads it) and doubles as the reachability check: a 403/404
+      // throws here, so last_synced_at is never advanced for unreachable files.
+      const meta = await figma.getFileMeta(fileKey, token);
+      await sleep(300);
+
       // Page BACKWARD from the newest until we hit an already-known version_id
       // (or a safety cap) so bursts of >30 versions between checks aren't lost.
       const { data: knownRows } = await supabase
@@ -275,7 +282,13 @@ async function runPageSync() {
 
       await supabase
         .from("figma_files")
-        .update({ last_sync_check: now.toISOString() })
+        .update({
+          name: meta.name,
+          thumbnail_url: meta.thumbnailUrl,
+          last_modified: meta.lastModified,
+          last_sync_check: now.toISOString(),
+          last_synced_at: now.toISOString(),
+        })
         .eq("id", fileRow.id);
     }
 
@@ -295,6 +308,7 @@ async function runPageSync() {
               last_modified: meta.lastModified,
               updated_at: new Date().toISOString(),
               last_sync_check: now.toISOString(),
+              last_synced_at: now.toISOString(),
             },
             { onConflict: "owner_user_id,file_key" },
           )
