@@ -1,9 +1,11 @@
 const express = require("express");
+const { serverError } = require("../lib/http");
 const supabase = require("../supabaseClient");
 const { decrypt } = require("../tokenCrypto");
 const figma = require("../figmaService");
 const { ensureFreshToken, runSyncAfterDelay } = require("../syncService");
 const { getSessionUser, clearSessionCookie } = supabase;
+const { isValidFileKey } = require("../lib/fileKeys");
 const router = express.Router();
 
 // GET /api/user/me -> current connected user (from session cookie), or 401.
@@ -29,7 +31,7 @@ router.get("/me", async (req, res) => {
       public_enabled: !!user.public_enabled,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -53,7 +55,7 @@ router.get("/connection", async (req, res) => {
       connected_at: user.created_at || null,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -131,12 +133,22 @@ router.get("/export", async (req, res) => {
     res.send(JSON.stringify(payload, null, 2));
   } catch (err) {
     console.error("[/api/user/export] Error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
-// POST /api/user/logout -> clears ft_session cookie.
+// POST /api/user/logout -> ends this account's sessions and clears the cookie.
+// Bumping session_version invalidates every outstanding ft_session JWT for the
+// account (sessionGuard rejects old versions), not just this browser's copy.
 router.post("/logout", async (req, res) => {
+  const session = getSessionUser(req);
+  if (session) {
+    const { error } = await supabase
+      .from("users")
+      .update({ session_version: session.session_version + 1 })
+      .eq("id", session.id);
+    if (error) console.error("[/api/user/logout] Could not revoke sessions:", error.message);
+  }
   clearSessionCookie(res);
   res.json({ success: true });
 });
@@ -149,6 +161,8 @@ router.post("/files", async (req, res) => {
 
     const { fileKey } = req.body || {};
     if (!fileKey) return res.status(400).json({ error: "Missing fileKey" });
+    // Interpolated into the Figma API path, so only accept a real file key.
+    if (!isValidFileKey(fileKey)) return res.status(400).json({ error: "Invalid fileKey" });
 
     // Fetch the session user's token (refreshing if expired, like the sync path).
     const { data: user, error: uErr } = await supabase
@@ -211,7 +225,7 @@ router.post("/files", async (req, res) => {
     runSyncAfterDelay(100);
   } catch (err) {
     console.error("[/api/user/files] Error:", err.message);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -243,7 +257,7 @@ router.patch("/files/:fileKey", async (req, res) => {
     res.json({ success: true, archived });
   } catch (err) {
     console.error("[/api/user/files/:fileKey PATCH] Error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -266,7 +280,7 @@ router.delete("/files/:fileKey", async (req, res) => {
     res.json({ success: true, message: "File untracked successfully" });
   } catch (err) {
     console.error("[/api/user/files/:fileKey] Error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -294,7 +308,7 @@ router.post("/disconnect", async (req, res) => {
     res.json({ success: true, message: "Disconnected and removed your data" });
   } catch (err) {
     console.error("[/api/user/disconnect] Error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -358,7 +372,7 @@ router.put("/profile", async (req, res) => {
     });
   } catch (err) {
     console.error("[/api/user/profile] Error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

@@ -1,9 +1,11 @@
 const express = require("express");
+const { serverError } = require("../lib/http");
 const crypto = require("crypto");
 const router = express.Router();
 const supabase = require("../supabaseClient");
 const { getSessionUser } = supabase;
-const { runSync, runPageSync, runSyncAfterDelay } = require("../syncService");
+const { runSyncCoalesced, runPageSync, runSyncAfterDelay } = require("../syncService");
+const { createTtlCache } = require("../lib/ttlCache");
 const { computeStreaks } = require("../lib/streaks");
 const { URBANIST_700_WOFF2_B64, URBANIST_500_WOFF2_B64 } = require("../badgeFont");
 
@@ -18,8 +20,8 @@ function safeEqual(a, b) {
 }
 
 // Protect the cron-triggered sync endpoints. Requires CRON_SECRET via
-// `Authorization: Bearer <secret>` (or ?key=), which is what an external
-// scheduler sends. With no secret configured there is nothing to check, and
+// `Authorization: Bearer <secret>`, which is what the external scheduler sends.
+// Not accepted as a query param: URLs end up in access logs. With no secret configured there is nothing to check, and
 // /api/sync burns the app's Figma quota, so an unset secret rejects rather
 // than opening the endpoint.
 function protectCron(req, res, next) {
@@ -29,7 +31,7 @@ function protectCron(req, res, next) {
     return res.status(401).json({ error: "Unauthorized" });
   }
   const auth = req.headers["authorization"] || "";
-  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : req.query.key || "";
+  const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
   if (provided && safeEqual(provided, secret)) return next();
   console.warn("[auth] Unauthorized cron attempt (bad/missing secret)");
   return res.status(401).json({ error: "Unauthorized" });
@@ -447,6 +449,17 @@ function parseMode(req) {
   return req.query.mode === "individual" ? "individual" : "all";
 }
 
+/** Valid canonical IANA zone from ?tz=, falling back to DEFAULT_TZ. */
+function parseTz(req) {
+  return makeDateFormatter(String(req.query.tz || DEFAULT_TZ)).resolvedOptions().timeZone;
+}
+
+/** ?days= clamped to the range the UI offers (1..3650), default 365. */
+function parseDays(req) {
+  const n = parseInt(req.query.days, 10);
+  return Number.isNaN(n) ? 365 : Math.max(1, Math.min(3650, n));
+}
+
 function parseFileKeys(req) {
   let fileKeys = req.query.fileKeys || req.query.fileKey;
   if (fileKeys && !Array.isArray(fileKeys)) fileKeys = fileKeys.split(",");
@@ -486,10 +499,10 @@ router.post("/webhook", (req, res) => {
 // POST or GET /api/sync — trigger a manual full sync
 router.all("/sync", protectCron, async (req, res) => {
   try {
-    const result = await runSync();
+    const result = await runSyncCoalesced();
     res.json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    serverError(res, err, { ok: false });
   }
 });
 
@@ -499,7 +512,7 @@ router.get("/sync/incremental", protectCron, async (req, res) => {
     const updateFound = await runPageSync();
     res.json({ ok: true, updateFound });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    serverError(res, err, { ok: false });
   }
 });
 
@@ -510,10 +523,10 @@ router.post("/sync/manual", async (req, res) => {
   const session = getSessionUser(req);
   if (!session) return res.status(401).json({ error: "Not authenticated" });
   try {
-    const result = await runSync();
+    const result = await runSyncCoalesced();
     res.json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    serverError(res, err, { ok: false });
   }
 });
 
@@ -529,7 +542,7 @@ router.get("/stats", async (req, res) => {
     const stats = await computeStats(session, parseMode(req));
     res.json(stats);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -543,7 +556,7 @@ router.get("/files", async (req, res) => {
     const files = await computeFiles(session, parseMode(req), includeArchived);
     res.json(files);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -552,8 +565,8 @@ router.get("/activity", async (req, res) => {
   try {
     const session = getSessionUser(req);
     if (!session) return res.status(401).json({ error: "Not authenticated" });
-    const days = parseInt(req.query.days) || 365;
-    const tz = req.query.tz || DEFAULT_TZ;
+    const days = parseDays(req);
+    const tz = parseTz(req);
     const result = await computeActivity(session, {
       days,
       mode: parseMode(req),
@@ -562,7 +575,7 @@ router.get("/activity", async (req, res) => {
     });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -573,12 +586,12 @@ router.get("/insights", async (req, res) => {
     if (!session) return res.status(401).json({ error: "Not authenticated" });
     const result = await computeInsights(session, {
       mode: parseMode(req),
-      tz: req.query.tz || DEFAULT_TZ,
+      tz: parseTz(req),
       fileKeys: parseFileKeys(req),
     });
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -615,11 +628,11 @@ router.get("/versions/:fileKey", async (req, res) => {
       query = query.eq("created_by_figma_user_id", session.figma_user_id);
 
     const { data: versions, error: vErr } = await query;
-    if (vErr) return res.status(500).json({ error: vErr.message });
+    if (vErr) return serverError(res, vErr);
 
     res.json({ fileName: fileRow.name, fileKey, mode, versions: versions || [] });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -627,14 +640,35 @@ router.get("/versions/:fileKey", async (req, res) => {
 // PUBLIC profile routes (no cookie; gated on public_enabled)
 // ============================================================
 
+// Public aggregations read the profile's full history, so identical anonymous
+// requests share one computation for a short TTL. The public_enabled gate still
+// runs on every request, so unpublishing takes effect immediately. In-flight
+// promises are cached too, so a burst of identical requests runs one query set.
+const PUBLIC_TTL_MS = 60 * 1000;
+const publicCache = createTtlCache({ ttlMs: PUBLIC_TTL_MS, maxEntries: 500 });
+
+function cachedPublic(kind, user, req, compute) {
+  const key = [
+    kind, user.id, parseMode(req), parseTz(req), parseDays(req),
+    [...new Set(parseFileKeys(req))].sort().join(","),
+  ].join("|");
+  let p = publicCache.get(key);
+  if (!p) {
+    p = compute();
+    publicCache.set(key, p);
+    p.catch(() => publicCache.delete(key));
+  }
+  return p;
+}
+
 router.get("/public/:slug/stats", async (req, res) => {
   try {
     const user = await resolvePublicUser(req.params.slug);
     if (!user) return res.status(404).json({ error: "Profile not found" });
-    const stats = await computeStats(user, parseMode(req));
+    const stats = await cachedPublic("stats", user, req, () => computeStats(user, parseMode(req)));
     res.json({ ...stats, handle: user.handle, img_url: user.img_url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -642,10 +676,20 @@ router.get("/public/:slug/files", async (req, res) => {
   try {
     const user = await resolvePublicUser(req.params.slug);
     if (!user) return res.status(404).json({ error: "Profile not found" });
-    const files = await computeFiles(user, parseMode(req));
-    res.json(files);
+    const files = await cachedPublic("files", user, req, () => computeFiles(user, parseMode(req)));
+    // Public allowlist: the owner's private Files-page projection carries
+    // thumbnails, project/team names and internal ids that publishing never
+    // promised to expose.
+    res.json(
+      files.map((f) => ({
+        file_key: f.file_key,
+        name: f.name,
+        last_modified: f.last_modified,
+        versionCount: f.versionCount,
+      })),
+    );
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -653,17 +697,14 @@ router.get("/public/:slug/activity", async (req, res) => {
   try {
     const user = await resolvePublicUser(req.params.slug);
     if (!user) return res.status(404).json({ error: "Profile not found" });
-    const days = parseInt(req.query.days) || 365;
-    const tz = req.query.tz || DEFAULT_TZ;
-    const result = await computeActivity(user, {
-      days,
-      mode: parseMode(req),
-      tz,
-      fileKeys: parseFileKeys(req),
-    });
+    const days = parseDays(req);
+    const tz = parseTz(req);
+    const result = await cachedPublic("activity", user, req, () =>
+      computeActivity(user, { days, mode: parseMode(req), tz, fileKeys: parseFileKeys(req) }),
+    );
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -671,14 +712,12 @@ router.get("/public/:slug/insights", async (req, res) => {
   try {
     const user = await resolvePublicUser(req.params.slug);
     if (!user) return res.status(404).json({ error: "Profile not found" });
-    const result = await computeInsights(user, {
-      mode: parseMode(req),
-      tz: req.query.tz || DEFAULT_TZ,
-      fileKeys: parseFileKeys(req),
-    });
+    const result = await cachedPublic("insights", user, req, () =>
+      computeInsights(user, { mode: parseMode(req), tz: parseTz(req), fileKeys: parseFileKeys(req) }),
+    );
     res.json(result);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -773,15 +812,20 @@ function buildBadgeSvg({ metric, value, theme, emoji, colors = {}, radius }) {
 // Badges get embedded in public READMEs/Notion and hammered by proxies with
 // cache-busting params, so memoize the rendered SVG per slug+param set for a
 // short TTL to avoid recomputing insights (a real DB aggregation) every hit.
+// Bounded and swept, so unauthenticated requests with ever-new params can't grow
+// process memory.
 const BADGE_TTL_MS = 60 * 1000;
-const badgeCache = new Map(); // key -> { svg, expires }
+const BADGE_MAX_ENTRIES = 1000;
+const badgeCache = createTtlCache({ ttlMs: BADGE_TTL_MS, maxEntries: BADGE_MAX_ENTRIES });
 
 // GET /api/public/:slug/badge.svg?theme=light|dark&metric=streak|edits&emoji=1
 //   Style overrides (bare hex, no `#`): bg, text|ink, muted, accent, border, radius
 router.get("/public/:slug/badge.svg", async (req, res) => {
   try {
     const mode = parseMode(req);
-    const tz = req.query.tz || DEFAULT_TZ;
+    // Canonicalize so case/alias variants share one cache key; invalid zones
+    // fall back to the default instead of erroring.
+    const tz = parseTz(req);
     const metric = req.query.metric === "edits" ? "edits" : "streak";
     const theme = req.query.theme === "dark" ? "dark" : "light";
     const emoji = req.query.emoji === "1" || req.query.emoji === "true";
@@ -809,12 +853,15 @@ router.get("/public/:slug/badge.svg", async (req, res) => {
 
     const sendSvg = (svg) => {
       res.set("Content-Type", "image/svg+xml");
-      res.set("Cache-Control", "public, max-age=600");
+      // Opened directly, an SVG is a document; allow only its inline styles and font.
+      res.set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; font-src data:");
+      // Short, so intermediaries stop serving the badge soon after unpublishing.
+      res.set("Cache-Control", "public, max-age=60");
       res.send(svg);
     };
 
     const cached = badgeCache.get(cacheKey);
-    if (cached && cached.expires > Date.now()) return sendSvg(cached.svg);
+    if (cached) return sendSvg(cached);
 
     const user = await resolvePublicUser(req.params.slug);
     // Don't cache a not-found so a transient miss can't poison later hits.
@@ -824,10 +871,10 @@ router.get("/public/:slug/badge.svg", async (req, res) => {
     const value = metric === "edits" ? insights.named.total : insights.streak.current;
     const svg = buildBadgeSvg({ metric, value, theme, emoji, colors, radius });
 
-    badgeCache.set(cacheKey, { svg, expires: Date.now() + BADGE_TTL_MS });
+    badgeCache.set(cacheKey, svg);
     sendSvg(svg);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -847,10 +894,10 @@ router.get("/sync-history", async (req, res) => {
       .select("id, synced_at, files_synced, new_versions_found, status")
       .order("synced_at", { ascending: false })
       .limit(20);
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) return serverError(res, error);
     res.json(data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 

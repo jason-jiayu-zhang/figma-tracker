@@ -37,8 +37,20 @@ const FONT_STACKS: Record<string, string> = {
   rounded: "'Outfit', ui-rounded, system-ui, sans-serif",
 };
 
-function hexParam(v: string | null): string | null {
+function hexParam(v: string | null | undefined): string | null {
   return v && /^[0-9a-fA-F]{3,8}$/.test(v) ? `#${v}` : null;
+}
+
+/** Hyphen-separated hex list (e.g. levels=aaa-bbb-ccc-ddd); null unless every entry is valid. */
+function hexListParam(v: string | null, count: number): string[] | null {
+  const parts = v?.split("-").map(hexParam);
+  return parts && parts.length === count && parts.every(Boolean) ? (parts as string[]) : null;
+}
+
+/** Finite number clamped to [min, max], or null. */
+function numParam(v: string | null, min: number, max: number): number | null {
+  const n = v == null ? NaN : parseFloat(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : null;
 }
 
 function StreakBadge({ searchParams }: { searchParams: URLSearchParams }) {
@@ -129,13 +141,13 @@ function FileBreakdown({ searchParams }: { searchParams: URLSearchParams }) {
   const style = searchParams.get("style") || "fimanu";
   const bg = searchParams.get("bg");
   const text = searchParams.get("text");
-  const cards = searchParams.get("cards")?.split("-").map(c => `#${c}`);
+  const cards = hexListParam(searchParams.get("cards"), 4);
 
   const baseTheme = breakdownThemeForStyle(style);
   
   const activeBg = bg === "transparent" ? "transparent" : (hexParam(bg) || baseTheme.bg);
   const activeText = hexParam(text) || baseTheme.text;
-  const activeCards = cards && cards.length === 4 ? cards : baseTheme.cards;
+  const activeCards = cards || baseTheme.cards;
 
   const radiusRaw = parseInt(searchParams.get("radius") || "16", 10);
   const radius = Number.isNaN(radiusRaw) ? 16 : Math.max(0, Math.min(48, radiusRaw));
@@ -267,21 +279,21 @@ export default function EmbedWidget() {
   const bg = searchParams.get("bg");
   const text = searchParams.get("text");
   const empty = searchParams.get("empty");
-  const levels = searchParams.get("levels")?.split("-");
+  const levels = hexListParam(searchParams.get("levels"), 4);
   const scroll = searchParams.get("scroll");
-  const radius = searchParams.get("radius");
-  const size = searchParams.get("size");
+  const radius = numParam(searchParams.get("radius"), 0, 24);
+  const size = numParam(searchParams.get("size"), 4, 40);
 
   const baseTheme = themeForStyle(rawStyle);
 
   const activeTheme: HeatmapTheme = {
     ...baseTheme,
-    emptyColor: empty ? `#${empty}` : baseTheme.emptyColor,
-    textColor: text ? `#${text}` : baseTheme.textColor,
-    levelColors: levels && levels.length === 4 ? levels.map((l) => `#${l}`) : baseTheme.levelColors,
-    scrollbarColor: scroll ? `#${scroll}` : undefined,
-    rectRadius: radius ? parseFloat(radius) : baseTheme.rectRadius,
-    rectSize: size ? parseFloat(size) : baseTheme.rectSize,
+    emptyColor: hexParam(empty) || baseTheme.emptyColor,
+    textColor: hexParam(text) || baseTheme.textColor,
+    levelColors: levels || baseTheme.levelColors,
+    scrollbarColor: hexParam(scroll) || undefined,
+    rectRadius: radius ?? baseTheme.rectRadius,
+    rectSize: size ?? baseTheme.rectSize,
   };
 
   // Override global body background for the widget (transparent iframe).
@@ -325,8 +337,7 @@ export default function EmbedWidget() {
 
   const bgColor =
     bg === "transparent" ? "transparent"
-    : bg ? `#${bg}`
-    : (styleBg[rawStyle] ?? styleBg.fimanu);
+    : hexParam(bg) || (styleBg[rawStyle] ?? styleBg.fimanu);
   const profileUrl = APP_ORIGIN;
 
   const outerStyle: React.CSSProperties = isEmbedded

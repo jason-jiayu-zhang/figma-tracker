@@ -186,8 +186,8 @@ Note the service URL (`https://<your-service>.onrender.com`).
    perpetually warm — same instance-hours as a paid always-on service. The tradeoff is
    background sync freshness, not user-facing latency: a logged-in user's own page load
    always fetches live (§ frontend cold-start note below).
-4. **Request headers:** add `Authorization: Bearer <your CRON_SECRET>`.
-   - Alternatively pass it as a query param: `.../api/sync/incremental?key=<CRON_SECRET>`.
+4. **Request headers:** add `Authorization: Bearer <your CRON_SECRET>`. This is the only
+   accepted form; a `?key=` query param is rejected because URLs end up in access logs.
 5. (Optional) Add a second job hitting `GET /api/sync` (full sync) once a day.
 
 GitHub Actions `schedule:` works too, but its minimum is ~5 min and runs are often

@@ -1,6 +1,7 @@
 const supabase = require("./supabaseClient");
 const figma = require("./figmaService");
 const { encrypt, decrypt } = require("./tokenCrypto");
+const { createCoalescer } = require("./lib/coalesce");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -108,29 +109,30 @@ async function runSync() {
         const meta = await figma.getFileMeta(fileKey, token);
         await sleep(300);
 
-        const { data: upserted, error: upErr } = await supabase
+        // Update the snapshotted row by id. Never insert here: if the owner
+        // untracked the file since the snapshot, the row is gone and must stay gone.
+        const { data: updated, error: upErr } = await supabase
           .from("figma_files")
-          .upsert(
-            {
-              owner_user_id: ownerId,
-              file_key: fileKey,
-              name: meta.name,
-              thumbnail_url: meta.thumbnailUrl,
-              last_modified: meta.lastModified,
-              updated_at: new Date().toISOString(),
-              last_synced_at: new Date().toISOString(),
-            },
-            { onConflict: "owner_user_id,file_key" },
-          )
-          .select("id")
-          .single();
+          .update({
+            name: meta.name,
+            thumbnail_url: meta.thumbnailUrl,
+            last_modified: meta.lastModified,
+            updated_at: new Date().toISOString(),
+            last_synced_at: new Date().toISOString(),
+          })
+          .eq("id", fileRow.id)
+          .select("id");
 
         if (upErr) {
-          console.error(`[sync] Failed to upsert file record for ${fileKey}:`, upErr.message);
+          console.error(`[sync] Failed to update file record for ${fileKey}:`, upErr.message);
+          continue;
+        }
+        if (!updated || updated.length === 0) {
+          console.log(`[sync] ${fileKey}: untracked during this run, skipping`);
           continue;
         }
 
-        const fileId = upserted.id;
+        const fileId = fileRow.id;
 
         // -- Fetch all versions
         const versions = await figma.getFileVersions(fileKey, token);
@@ -198,10 +200,13 @@ async function runPageSync() {
       `[page-sync-v3] ${fileKey}: no owner OAuth token available (owner ${ownerId || "none"}), skipping`,
     );
     // Rotate this file to the back of the queue so a tokenless file doesn't block others.
-    await supabase
+    // Scope to this owner's row only; other tenants tracking the same key keep their place.
+    let rotate = supabase
       .from("figma_files")
       .update({ updated_at: new Date().toISOString() })
       .eq("file_key", fileKey);
+    rotate = ownerId ? rotate.eq("owner_user_id", ownerId) : rotate.is("owner_user_id", null);
+    await rotate;
     return false;
   }
 
@@ -292,50 +297,10 @@ async function runPageSync() {
         .eq("id", fileRow.id);
     }
 
-    // --- INIT (new file) ---
+    // Row deleted since the snapshot (the owner untracked it). New files are
+    // created by POST /api/user/files and onboarding, never by the sync.
     if (!fileRow) {
-      console.log(`[page-sync-v3] ${fileKey}: Initializing...`);
-      try {
-        const meta = await figma.getFileMeta(fileKey, token);
-        const { data: newFile, error: initErr } = await supabase
-          .from("figma_files")
-          .upsert(
-            {
-              owner_user_id: ownerId,
-              file_key: fileKey,
-              name: meta.name,
-              thumbnail_url: meta.thumbnailUrl,
-              last_modified: meta.lastModified,
-              updated_at: new Date().toISOString(),
-              last_sync_check: now.toISOString(),
-              last_synced_at: now.toISOString(),
-            },
-            { onConflict: "owner_user_id,file_key" },
-          )
-          .select("id, sync_cursor, sync_completed, owner_user_id")
-          .single();
-
-        if (initErr) throw initErr;
-        fileRow = newFile;
-      } catch (err) {
-        if (err.response?.status === 429) {
-          console.warn(`[page-sync-v3] ${fileKey}: Rate limited (429)`);
-        } else if (
-          err.response?.status === 400 &&
-          err.response?.data?.err?.includes("File type not supported")
-        ) {
-          console.error(`[page-sync-v3] ${fileKey}: Unsupported file type. Skipping.`);
-          let skipQuery = supabase
-            .from("figma_files")
-            .update({ sync_completed: true })
-            .eq("file_key", fileKey);
-          if (ownerId) skipQuery = skipQuery.eq("owner_user_id", ownerId);
-          await skipQuery;
-        } else {
-          console.error(`[page-sync-v3] ${fileKey}: Init failed:`, err.response?.data || err.message);
-        }
-        return updateFound;
-      }
+      return updateFound;
     }
 
     if (fileRow.sync_completed) {
@@ -533,12 +498,24 @@ async function syncCommentsAndResources(fileId, fileKey, token) {
   }
 }
 
-async function runSyncAfterDelay(ms = 30000) {
-  setTimeout(() => runSync().catch((e) => console.error(e)), ms);
+// Every user-reachable trigger goes through this: concurrent callers share one
+// run, and a call within the cooldown after a run finishes is skipped.
+const SYNC_COOLDOWN_MS = 60 * 1000;
+const runSyncCoalesced = createCoalescer(() => runSync(), { cooldownMs: SYNC_COOLDOWN_MS });
+
+// At most one delayed sync is pending at a time; later calls fold into it.
+let pendingSyncTimer = null;
+function runSyncAfterDelay(ms = 30000) {
+  if (pendingSyncTimer) return;
+  pendingSyncTimer = setTimeout(() => {
+    pendingSyncTimer = null;
+    runSyncCoalesced().catch((e) => console.error(e));
+  }, ms);
 }
 
 module.exports = {
   runSync,
+  runSyncCoalesced,
   runPageSync,
   runSyncAfterDelay,
   ensureFreshToken,

@@ -37,7 +37,9 @@ function decrypt(value) {
     const iv = Buffer.from(ivB64, "base64");
     const tag = Buffer.from(tagB64, "base64");
     const ct = Buffer.from(ctB64, "base64");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", KEY, iv);
+    // Require the full 16-byte tag; Node would otherwise accept truncated tags.
+    if (iv.length !== 12 || tag.length !== 16) throw new Error("malformed ciphertext");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", KEY, iv, { authTagLength: 16 });
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
   } catch (err) {

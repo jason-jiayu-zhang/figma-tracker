@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   token_expires_at TIMESTAMPTZ,
   profile_slug TEXT UNIQUE,
   public_enabled BOOLEAN NOT NULL DEFAULT false,
+  -- Bumped on logout; session cookies carrying an older value are rejected.
+  session_version INT NOT NULL DEFAULT 0,
   metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -130,3 +132,27 @@ CREATE INDEX IF NOT EXISTS idx_users_profile_slug ON users(profile_slug);
 CREATE INDEX IF NOT EXISTS idx_file_comments_file_id ON file_comments(file_id);
 CREATE INDEX IF NOT EXISTS idx_file_comments_created_at ON file_comments(created_at);
 CREATE INDEX IF NOT EXISTS idx_dev_resources_file_id ON dev_resources(file_id);
+
+-- ============================================================
+-- Migrations for existing databases (safe to re-run)
+-- ============================================================
+ALTER TABLE users ADD COLUMN IF NOT EXISTS session_version INT NOT NULL DEFAULT 0;
+
+-- ============================================================
+-- Lock the tables to the backend only.
+-- The server uses the service_role key, which bypasses RLS, so nothing in the
+-- app changes. With RLS on and no policies, the public anon/authenticated
+-- keys can read or write nothing, even if one ever leaks.
+-- ============================================================
+ALTER TABLE users          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE oauth_states   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE figma_files    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_versions  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE file_comments  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dev_resources  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sync_sessions  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_activity ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON users, oauth_states, teams, figma_files, file_versions, file_comments,
+  dev_resources, sync_sessions, daily_activity FROM anon, authenticated;

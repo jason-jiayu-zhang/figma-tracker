@@ -1,9 +1,12 @@
 const express = require("express");
+const { serverError } = require("../lib/http");
 const axios = require("axios");
 const crypto = require("crypto");
 const path = require("path");
 const supabase = require("../supabaseClient");
 const { encrypt } = require("../tokenCrypto");
+const { normalizeFileKeys } = require("../lib/fileKeys");
+const { isLoopbackRequest } = require("../lib/loopback");
 
 // Explicitly load .env from project root
 require("dotenv").config({ path: path.join(__dirname, "../../.env") });
@@ -16,6 +19,27 @@ const oauthStateCache = new Map();
 
 function stateCacheAllowed() {
   return process.env.NODE_ENV !== "production";
+}
+
+// Binds a callback to the browser that started the flow (login-CSRF defense).
+// The raw nonce lives only in this httpOnly cookie; the state row stores its hash.
+const NONCE_COOKIE = "ft_oauth_nonce";
+const NONCE_TTL_MS = 10 * 60 * 1000;
+const nonceCookieOpts = () => ({
+  httpOnly: true,
+  secure:
+    process.env.NODE_ENV === "production" ||
+    (process.env.APP_URL || "").startsWith("https://"),
+  sameSite: "lax",
+  path: "/api/oauth",
+});
+const sha256 = (v) => crypto.createHash("sha256").update(String(v)).digest("hex");
+
+function nonceMatches(presented, expectedHash) {
+  if (!presented || typeof expectedHash !== "string") return false;
+  const a = Buffer.from(sha256(presented));
+  const b = Buffer.from(expectedHash);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 // Shared helper: build the Figma OAuth authorization URL and persist state.
@@ -31,13 +55,23 @@ async function buildOAuthUrl(res, fileKeys) {
   }
 
   const state = crypto.randomBytes(16).toString("hex");
-  const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString(); // 10 minutes
+  const nonce = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + NONCE_TTL_MS).toISOString(); // 10 minutes
+  // Unauthenticated input: keep only valid, deduped, capped keys.
+  const metadata = { fileKeys: normalizeFileKeys(fileKeys).join(","), nonceHash: sha256(nonce) };
+
+  // Abandoned states are never consumed, so sweep expired ones here.
+  try {
+    await supabase.from("oauth_states").delete().lt("expires_at", new Date().toISOString());
+  } catch (err) {
+    console.warn("[oauth/start] Expired-state cleanup failed:", err?.message || err);
+  }
 
   try {
     const { error: stateError } = await supabase.from("oauth_states").insert({
       state,
       expires_at: expiresAt,
-      metadata: { fileKeys: fileKeys || "" }
+      metadata,
     });
     if (stateError) throw stateError;
   } catch (err) {
@@ -47,8 +81,10 @@ async function buildOAuthUrl(res, fileKeys) {
       return null;
     }
     console.warn("[oauth/start] Supabase insert failed — using in-memory cache for state (dev fallback)", err?.message || err);
-    oauthStateCache.set(state, { state, expires_at: expiresAt, metadata: { fileKeys: fileKeys || "" } });
+    oauthStateCache.set(state, { state, expires_at: expiresAt, metadata });
   }
+
+  res.cookie(NONCE_COOKIE, nonce, { ...nonceCookieOpts(), maxAge: NONCE_TTL_MS });
 
   // Minimal read scopes (no file_content:read). file_comments:read and
   // file_dev_resources:read back the Tier-2 comment/dev-resource analytics.
@@ -92,7 +128,7 @@ router.post("/start", async (req, res) => {
     res.json({ url });
   } catch (err) {
     console.error("/api/oauth/start POST error:", err.message);
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -106,19 +142,23 @@ router.post("/start", async (req, res) => {
 // Usage: visit http://localhost:5173/api/oauth/dev-login
 //        (optionally ?email=… / ?handle=… / ?figma_user_id=… to pick a user)
 // ------------------------------------------------------------------
-function devLoginAllowed() {
+function devLoginAllowed(req) {
   if (process.env.NODE_ENV === "production") return false;
   if (process.env.DEV_LOGIN !== "1") return false;
   const appUrl = process.env.APP_URL || "";
-  return appUrl.startsWith("http://localhost") || appUrl.startsWith("http://127.0.0.1");
+  if (!(appUrl.startsWith("http://localhost") || appUrl.startsWith("http://127.0.0.1"))) return false;
+  // Enforce "localhost only" on the request itself, not just on config: the
+  // server listens on all interfaces, so LAN peers and DNS-rebinding pages
+  // could otherwise reach this route.
+  return isLoopbackRequest(req);
 }
 
 router.get("/dev-login", async (req, res) => {
-  if (!devLoginAllowed()) return res.status(404).send("Not found");
+  if (!devLoginAllowed(req)) return res.status(404).send("Not found");
   try {
     const { figma_user_id, email, handle } = req.query;
 
-    let q = supabase.from("users").select("id, figma_user_id, handle, email");
+    let q = supabase.from("users").select("id, figma_user_id, handle, email, session_version");
     if (figma_user_id) q = q.eq("figma_user_id", String(figma_user_id));
     else if (email) q = q.eq("email", String(email));
     else if (handle) q = q.eq("handle", String(handle));
@@ -138,7 +178,7 @@ router.get("/dev-login", async (req, res) => {
         );
     }
 
-    supabase.setSessionCookie(res, { id: user.id, figma_user_id: user.figma_user_id });
+    supabase.setSessionCookie(res, user);
     console.warn(
       `[dev-login] ⚠️  Minted a DEV session for ${user.handle || user.email || user.figma_user_id}`,
     );
@@ -189,6 +229,14 @@ router.get("/callback", async (req, res) => {
     // Negated comparison so an unparseable expires_at (NaN) also fails closed.
     if (!states || !(new Date(states.expires_at).getTime() > Date.now())) {
       console.error("[/api/oauth/callback] Invalid, expired, or already-used state");
+      return res.status(400).send("Invalid or expired state");
+    }
+
+    // The callback must come from the browser that started the flow.
+    const presentedNonce = req.cookies && req.cookies[NONCE_COOKIE];
+    res.clearCookie(NONCE_COOKIE, nonceCookieOpts());
+    if (!nonceMatches(presentedNonce, states.metadata?.nonceHash)) {
+      console.error("[/api/oauth/callback] State not bound to this browser (nonce missing or mismatched)");
       return res.status(400).send("Invalid or expired state");
     }
 
@@ -245,7 +293,7 @@ router.get("/callback", async (req, res) => {
           },
           { onConflict: "figma_user_id" },
         )
-        .select("id, figma_user_id")
+        .select("id, figma_user_id, session_version")
         .single();
 
       if (upsertError || !userRow) {
@@ -255,17 +303,11 @@ router.get("/callback", async (req, res) => {
       console.log("[/api/oauth/callback] User upserted:", userRow.id);
 
       // Set the real session cookie now that the user row exists.
-      supabase.setSessionCookie(res, {
-        id: userRow.id,
-        figma_user_id: userRow.figma_user_id,
-      });
+      supabase.setSessionCookie(res, userRow);
 
       // Seed any files that were requested during OAuth start, scoped to this user.
       if (states.metadata?.fileKeys) {
-        const fileKeys = String(states.metadata.fileKeys)
-          .split(",")
-          .map((k) => k.trim())
-          .filter(Boolean);
+        const fileKeys = normalizeFileKeys(String(states.metadata.fileKeys));
         if (fileKeys.length > 0) {
           console.log("[/api/oauth/callback] Seeding files:", fileKeys.length);
           const worker = require("../workers/onboardingWorker");

@@ -4,6 +4,7 @@ const supabase = require("../supabaseClient");
 const figma = require("../figmaService");
 const { runSyncAfterDelay } = require("../syncService");
 const { encrypt } = require("../tokenCrypto");
+const { normalizeFileKeys } = require("../lib/fileKeys");
 
 class OnboardingWorker extends EventEmitter {}
 const worker = new OnboardingWorker();
@@ -45,7 +46,7 @@ worker.on("fetch_user_profile", async ({ access_token, refresh_token, scope, exp
       console.log("[onboardingWorker] User profile saved successfully.");
       // If there were file keys passed during OAuth start, trigger file metadata sync
       if (stateMetadata?.fileKeys) {
-        const fileKeys = stateMetadata.fileKeys.split(",").filter(Boolean);
+        const fileKeys = normalizeFileKeys(String(stateMetadata.fileKeys));
         if (fileKeys.length > 0) {
           console.log("[onboardingWorker] Seeding files requested during OAuth:", fileKeys);
           fileKeys.forEach((fileKey) =>

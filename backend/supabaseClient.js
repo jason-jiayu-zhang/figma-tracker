@@ -43,13 +43,13 @@ function isSecureRequest() {
 /**
  * Sign and set the ft_session cookie for a user.
  * @param {object} res Express response
- * @param {{ id: string, figma_user_id: string }} user
+ * @param {{ id: string, figma_user_id: string, session_version?: number }} user
  */
 function setSessionCookie(res, user) {
   const token = jwt.sign(
-    { uid: user.id, fu: user.figma_user_id },
+    { uid: user.id, fu: user.figma_user_id, sv: user.session_version || 0 },
     SESSION_SECRET,
-    { expiresIn: `${SESSION_TTL_DAYS}d` },
+    { algorithm: "HS256", expiresIn: `${SESSION_TTL_DAYS}d` },
   );
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -72,18 +72,45 @@ function clearSessionCookie(res) {
 
 /**
  * Read + verify the ft_session cookie.
- * @returns {{ id: string, figma_user_id: string } | null}
+ * @returns {{ id: string, figma_user_id: string, session_version: number } | null}
  */
 function getSessionUser(req) {
   try {
     const raw = req.cookies && req.cookies[SESSION_COOKIE];
     if (!raw) return null;
-    const payload = jwt.verify(raw, SESSION_SECRET);
+    const payload = jwt.verify(raw, SESSION_SECRET, { algorithms: ["HS256"] });
     if (!payload || !payload.uid) return null;
-    return { id: payload.uid, figma_user_id: payload.fu };
+    return { id: payload.uid, figma_user_id: payload.fu, session_version: payload.sv || 0 };
   } catch (err) {
     return null;
   }
+}
+
+/**
+ * Express middleware: drop a session whose user row is gone (disconnected) or
+ * whose version no longer matches (logged out). Runs before the routers, so
+ * every getSessionUser() call afterwards only sees live sessions. Fails closed
+ * on a database error.
+ */
+async function sessionGuard(req, res, next) {
+  const session = getSessionUser(req);
+  if (!session) return next();
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("session_version")
+      .eq("id", session.id)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || (data.session_version || 0) !== session.session_version) {
+      clearSessionCookie(res);
+      delete req.cookies[SESSION_COOKIE];
+    }
+  } catch (err) {
+    console.error("[session] Could not check session version:", err.message || err);
+    delete req.cookies[SESSION_COOKIE];
+  }
+  next();
 }
 
 // Attach helpers to the exported client so existing `require("../supabaseClient")`
@@ -91,6 +118,7 @@ function getSessionUser(req) {
 supabase.getSessionUser = getSessionUser;
 supabase.setSessionCookie = setSessionCookie;
 supabase.clearSessionCookie = clearSessionCookie;
+supabase.sessionGuard = sessionGuard;
 supabase.SESSION_COOKIE = SESSION_COOKIE;
 
 module.exports = supabase;

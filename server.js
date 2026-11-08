@@ -7,7 +7,8 @@ const path = require("path");
 const apiRouter = require("./backend/routes/api");
 const oauthRouter = require("./backend/routes/oauth");
 const userRouter = require("./backend/routes/user");
-const { runSync, runPageSync } = require("./backend/syncService");
+const { runSyncCoalesced, runPageSync } = require("./backend/syncService");
+const { sessionGuard } = require("./backend/supabaseClient");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,7 +33,29 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use(express.json());
+app.use(express.json({ limit: "20kb" }));
+
+// Security headers. Only the embed widget (/embed-widget, or any page opened
+// with ?standalone=1) may be framed by other sites; everything else refuses
+// framing, so clickjacking defense doesn't rest on SameSite cookies alone.
+const HTTPS_ORIGIN = (process.env.APP_URL || "").startsWith("https://");
+app.use((req, res, next) => {
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (HTTPS_ORIGIN) res.set("Strict-Transport-Security", "max-age=15552000");
+  const embeddable = req.path === "/embed-widget" || req.query.standalone === "1";
+  if (!embeddable) {
+    res.set("X-Frame-Options", "DENY");
+    res.set("Content-Security-Policy", "frame-ancestors 'none'");
+  }
+  next();
+});
+
+// Reject sessions that were logged out or whose account was disconnected.
+// Public routes never read the session, so skip the lookup there.
+app.use("/api", (req, res, next) =>
+  req.path.startsWith("/public/") ? next() : sessionGuard(req, res, next),
+);
 
 // Liveness probe for the external keep-warm ping (no DB / Figma calls).
 app.get("/health", (req, res) => {
@@ -92,7 +115,7 @@ if (require.main === module) {
     // Daily sync at midnight
     cron.schedule("0 0 * * *", () => {
       console.log("[cron] Running scheduled daily sync...");
-      runSync().catch((err) => console.error("[cron] Sync failed:", err.message));
+      runSyncCoalesced().catch((err) => console.error("[cron] Sync failed:", err.message));
     });
   } else {
     console.log("[service-v3] RESIDENT_SYNC=off — sync driven by external cron.");
